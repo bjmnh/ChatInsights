@@ -377,7 +377,7 @@ const AnalysisPage: React.FC = () => {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {freeInsights.topicDistribution.map((entry: any, index: number) => (
+                      {(freeInsights.topicDistribution || []).map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -402,7 +402,7 @@ const AnalysisPage: React.FC = () => {
                 <div>
                   <span className="font-medium">Top Topics:</span>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {freeInsights.topTopics.map((topic: string, index: number) => (
+                    {(freeInsights.topTopics || []).map((topic: string, index: number) => (
                       <Badge key={index} variant="outline">{topic}</Badge>
                     ))}
                   </div>
@@ -534,7 +534,7 @@ const AnalysisPage: React.FC = () => {
             </Card>
           ) : (
             <div className="space-y-6">
-              {paidInsights?.hiddenPatterns?.map((pattern: any, index: number) => (
+              {(paidInsights?.hiddenPatterns || []).map((pattern: any, index: number) => (
                 <Card key={index} className="border-l-4 border-l-primary">
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -571,7 +571,7 @@ const AnalysisPage: React.FC = () => {
                     <div>
                       <h4 className="font-semibold mb-2">Connection Points</h4>
                       <ul className="space-y-1">
-                        {paidInsights?.revelationMap?.connectionPoints?.map((point: string, index: number) => (
+                        {(paidInsights?.revelationMap?.connectionPoints || []).map((point: string, index: number) => (
                           <li key={index} className="text-muted-foreground flex items-center">
                             <ArrowRight className="h-4 w-4 mr-2 text-primary" />
                             {point}
@@ -582,7 +582,7 @@ const AnalysisPage: React.FC = () => {
                     <div>
                       <h4 className="font-semibold mb-2">Unconscious Themes</h4>
                       <div className="flex flex-wrap gap-2">
-                        {paidInsights?.revelationMap?.unconsciousThemes?.map((theme: string, index: number) => (
+                        {(paidInsights?.revelationMap?.unconsciousThemes || []).map((theme: string, index: number) => (
                           <Badge key={index} variant="outline">{theme}</Badge>
                         ))}
                       </div>

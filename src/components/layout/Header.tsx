@@ -47,9 +47,7 @@ const Header: React.FC = () => {
   };
 
   // Check if user has premium access
-  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
-  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, 'price_1RaacGQSrLveGa6rGX1kBexA');
-  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
+  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

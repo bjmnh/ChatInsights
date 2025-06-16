@@ -11,26 +11,24 @@ export interface Product {
 
 export const products: Product[] = [
   {
-    id: 'prod_SVbpaHbrdScZy7',
-    priceId: 'price_1RaacGQSrLveGa6rGX1kBexA',
-    name: 'ChatInsights Premium',
-    description: 'Unlock advanced insights including The Digital Mirror, Hidden Patterns, and The Revelation Map. Discover what your conversations really reveal about you.',
+    id: 'prod_SVdp4aMaUkItXT',
+    priceId: 'price_1RacYAQSrLveGa6rriCJf0nu',
+    name: 'Free Version',
+    description: 'Get started with basic conversation analytics and insights. Perfect for trying out ChatInsights.',
     mode: 'payment',
-    price: 9.99,
+    price: 0,
     currency: 'usd',
   },
-  // TODO: Add your new $0 Stripe product here
-  // Copy the Product ID and Price ID from your Stripe Dashboard
-  // Example:
-  // {
-  //   id: 'prod_YOUR_PRODUCT_ID',
-  //   priceId: 'price_YOUR_PRICE_ID',
-  //   name: 'ChatInsights Free Trial',
-  //   description: 'Try ChatInsights Premium features for free',
-  //   mode: 'payment',
-  //   price: 0,
-  //   currency: 'usd',
-  // },
+  {
+    id: 'prod_SVbpaHbrdScZy7',
+    priceId: 'price_1Rad3iQSrLveGa6rUMWt9SWj',
+    name: 'ChatInsights Premium',
+    description: 'Unlock advanced insights including The Digital Mirror, Hidden Patterns, and The Revelation Map. Discover what your conversations really reveal about you.',
+    mode: 'subscription',
+    price: 24.99,
+    currency: 'usd',
+    interval: 'month',
+  },
 ];
 
 export const getProductById = (id: string): Product | undefined => {
@@ -43,4 +41,8 @@ export const getProductByPriceId = (priceId: string): Product | undefined => {
 
 export const getFreeTrialProduct = (): Product | undefined => {
   return products.find(product => product.price === 0);
+};
+
+export const getPremiumProduct = (): Product | undefined => {
+  return products.find(product => product.id === 'prod_SVbpaHbrdScZy7');
 };

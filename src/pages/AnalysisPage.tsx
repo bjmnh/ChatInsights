@@ -40,7 +40,6 @@ const AnalysisPage: React.FC = () => {
   const { jobId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isUpgrading, setIsUpgrading] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const [report, setReport] = useState<UserReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -187,10 +186,7 @@ const AnalysisPage: React.FC = () => {
   };
 
   // Check if user has premium access
-  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
-  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, 'price_1RaacGQSrLveGa6rGX1kBexA');
-  const hasPurchasedTest = StripeService.hasPurchasedProduct(orders, 'price_test_free');
-  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium || hasPurchasedTest;
+  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
 
   if (!user) {
     return null;

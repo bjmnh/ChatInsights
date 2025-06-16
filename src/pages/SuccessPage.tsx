@@ -32,6 +32,9 @@ const SuccessPage: React.FC = () => {
 
     const fetchData = async () => {
       try {
+        // Wait a moment for webhook to process
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
         // Fetch updated subscription and order data
         const [subscriptionData, ordersData] = await Promise.all([
           StripeService.getUserSubscription(),
@@ -78,7 +81,7 @@ const SuccessPage: React.FC = () => {
 
   const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
   const latestOrder = orders[0];
-  const purchasedProduct = latestOrder ? getProductByPriceId(latestOrder.price_id) : null;
+  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-12 px-4">
@@ -118,22 +121,24 @@ const SuccessPage: React.FC = () => {
                 <Alert className="border-blue-200 bg-blue-50">
                   <CheckCircle className="h-4 w-4 text-blue-600" />
                   <AlertDescription className="text-blue-800">
-                    <strong>Purchase Complete:</strong> You've successfully purchased {purchasedProduct?.name || 'Premium Access'} for ${(latestOrder.amount_total / 100).toFixed(2)}.
+                    <strong>Purchase Complete:</strong> You've successfully purchased premium access for ${(latestOrder.amount_total / 100).toFixed(2)}.
                   </AlertDescription>
                 </Alert>
               )}
 
-              <div className="bg-muted/50 p-4 rounded-lg">
-                <h4 className="font-semibold mb-2">What's included in your premium access:</h4>
-                <ul className="space-y-1 text-sm text-muted-foreground">
-                  <li>• <strong>The Digital Mirror:</strong> AI personality profiling</li>
-                  <li>• <strong>Hidden Patterns:</strong> Unconscious theme discovery</li>
-                  <li>• <strong>The Revelation Map:</strong> Cross-conversation connections</li>
-                  <li>• Unlimited conversation analyses</li>
-                  <li>• Advanced behavioral insights</li>
-                  <li>• Priority support</li>
-                </ul>
-              </div>
+              {isPremiumUser && (
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-2">What's included in your premium access:</h4>
+                  <ul className="space-y-1 text-sm text-muted-foreground">
+                    <li>• <strong>The Digital Mirror:</strong> AI personality profiling</li>
+                    <li>• <strong>Hidden Patterns:</strong> Unconscious theme discovery</li>
+                    <li>• <strong>The Revelation Map:</strong> Cross-conversation connections</li>
+                    <li>• Unlimited conversation analyses</li>
+                    <li>• Advanced behavioral insights</li>
+                    <li>• Priority support</li>
+                  </ul>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button onClick={handleViewAnalysis} className="flex-1">

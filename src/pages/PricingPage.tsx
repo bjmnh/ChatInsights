@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StripeService } from '../services/stripeService';
-import { products, getProductById, getFreeTrialProduct } from '../stripe-config';
+import { products, getProductById, getFreeTrialProduct, getPremiumProduct } from '../stripe-config';
 
 const PricingPage: React.FC = () => {
   const { user } = useAuth();
@@ -35,12 +35,14 @@ const PricingPage: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
-  const premiumProduct = getProductById('prod_SVbpaHbrdScZy7');
+  const premiumProduct = getPremiumProduct();
   const freeTrialProduct = getFreeTrialProduct();
 
   useEffect(() => {
     if (user) {
       fetchUserData();
+    } else {
+      setDataLoading(false);
     }
   }, [user]);
 
@@ -90,10 +92,7 @@ const PricingPage: React.FC = () => {
     handlePurchase(freeTrialProduct);
   };
 
-  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
-  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, premiumProduct?.priceId || '');
-  const hasPurchasedFreeTrial = freeTrialProduct ? StripeService.hasPurchasedProduct(orders, freeTrialProduct.priceId) : false;
-  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium || hasPurchasedFreeTrial;
+  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
 
   const features = {
     free: [
@@ -177,19 +176,7 @@ const PricingPage: React.FC = () => {
           Start with basic insights, or dare to see what your conversations really reveal about you
         </p>
         
-        {/* Product Configuration Notice */}
-        {!freeTrialProduct && (
-          <Alert className="max-w-2xl mx-auto mb-8 border-orange-200 bg-orange-50">
-            <Settings className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Configuration Needed:</strong> To enable the free trial option, please add your $0 Stripe product 
-              to the configuration. Go to your Stripe Dashboard, copy the Product ID and Price ID, and add them to 
-              <code className="mx-1 px-1 bg-orange-100 rounded">src/stripe-config.ts</code>.
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {/* Annual/Monthly Toggle - Hidden for now since we only have one-time payment */}
+        {/* Annual/Monthly Toggle - Hidden since we have different product types */}
         <div className="hidden items-center justify-center space-x-4 mb-8">
           <span className={`text-sm ${!isAnnual ? 'font-semibold' : 'text-muted-foreground'}`}>
             Monthly
@@ -217,7 +204,7 @@ const PricingPage: React.FC = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl">Free</CardTitle>
+                  <CardTitle className="text-2xl">Free Version</CardTitle>
                   <CardDescription>Perfect for trying out ChatInsights</CardDescription>
                 </div>
                 <MessageSquare className="h-8 w-8 text-muted-foreground" />
@@ -239,9 +226,21 @@ const PricingPage: React.FC = () => {
               <Button 
                 variant="outline" 
                 className="w-full"
-                disabled={!user || (!isPremiumUser && !dataLoading)}
+                onClick={handleFreeTrialPurchase}
+                disabled={isLoading || !user || dataLoading || !freeTrialProduct}
               >
-                {!user ? 'Sign Up to Start' : 'Current Plan'}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : !user ? (
+                  'Sign Up to Start'
+                ) : !freeTrialProduct ? (
+                  'Not Available'
+                ) : (
+                  'Get Started Free'
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -264,9 +263,11 @@ const PricingPage: React.FC = () => {
               </div>
               <div className="mt-4">
                 <span className="text-4xl font-bold">
-                  ${premiumProduct?.price || '9.99'}
+                  ${premiumProduct?.price || '24.99'}
                 </span>
-                <span className="text-muted-foreground">/one-time</span>
+                <span className="text-muted-foreground">
+                  /{premiumProduct?.interval || 'month'}
+                </span>
                 {freeTrialProduct && (
                   <div className="text-sm text-blue-600 font-medium mt-1">
                     Free trial available
@@ -510,13 +511,12 @@ const PricingPage: React.FC = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Is this a subscription or one-time payment?</CardTitle>
+              <CardTitle className="text-lg">Can I cancel my subscription anytime?</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Premium is currently a one-time payment of ${premiumProduct?.price || '9.99'}. Once purchased, you'll have 
-                permanent access to all premium features with no recurring charges. This gives you unlimited analyses 
-                and access to all advanced insights.
+                Absolutely. You can cancel your Premium subscription at any time from your account settings. 
+                You'll continue to have access to Premium features until the end of your billing period.
               </p>
             </CardContent>
           </Card>

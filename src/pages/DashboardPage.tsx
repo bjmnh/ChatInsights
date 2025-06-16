@@ -197,9 +197,7 @@ const DashboardPage: React.FC = () => {
   const totalConversations = completedJobs.reduce((acc, job) => acc + (job.total_conversations || 0), 0);
   
   // Check if user has premium access
-  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
-  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, 'price_1RaacGQSrLveGa6rGX1kBexA');
-  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
+  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
 
   return (
     <div className="container mx-auto px-4 py-8">

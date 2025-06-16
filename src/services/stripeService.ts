@@ -128,8 +128,6 @@ export class StripeService {
 
   static async purchaseProduct(product: Product): Promise<void> {
     try {
-      // All products, including test products, should go through the proper Stripe checkout flow
-      // This ensures that database writes are handled by the backend webhook and comply with RLS policies
       const checkoutSession = await this.createCheckoutSession({
         priceId: product.priceId,
         mode: product.mode,
@@ -158,5 +156,20 @@ export class StripeService {
       order.payment_status === 'paid' && 
       order.order_status === 'completed'
     );
+  }
+
+  static isPremiumUser(subscription: SubscriptionData | null, orders: OrderData[]): boolean {
+    // Check for active subscription
+    if (this.hasActiveSubscription(subscription)) {
+      return true;
+    }
+
+    // Check for purchased products (including free trial)
+    const premiumPriceIds = [
+      'price_1Rad3iQSrLveGa6rUMWt9SWj', // Premium subscription
+      'price_1RacYAQSrLveGa6rriCJf0nu', // Free version (acts as trial)
+    ];
+
+    return premiumPriceIds.some(priceId => this.hasPurchasedProduct(orders, priceId));
   }
 }

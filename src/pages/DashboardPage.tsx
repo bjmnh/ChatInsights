@@ -23,6 +23,7 @@ import {
 import { toast } from 'sonner';
 import { JobService } from '../services/jobService';
 import { StorageService } from '../services/storageService';
+import { StripeService } from '../services/stripeService';
 import type { Database } from '../lib/database.types';
 
 type Job = Database['public']['Tables']['jobs']['Row'];
@@ -33,27 +34,36 @@ const DashboardPage: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
 
-  // Fetch user jobs
+  // Fetch user jobs and subscription data
   useEffect(() => {
     if (!user) {
       navigate('/auth');
       return;
     }
 
-    const fetchJobs = async () => {
+    const fetchData = async () => {
       try {
-        const userJobs = await JobService.getUserJobs(user.id);
+        const [userJobs, subscriptionData, ordersData] = await Promise.all([
+          JobService.getUserJobs(user.id),
+          StripeService.getUserSubscription(),
+          StripeService.getUserOrders(),
+        ]);
+        
         setJobs(userJobs);
+        setSubscription(subscriptionData);
+        setOrders(ordersData);
       } catch (error) {
-        console.error('Error fetching jobs:', error);
-        toast.error('Failed to load your analysis history');
+        console.error('Error fetching data:', error);
+        toast.error('Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchJobs();
+    fetchData();
   }, [user, navigate]);
 
   // Subscribe to job updates for real-time progress
@@ -185,6 +195,11 @@ const DashboardPage: React.FC = () => {
 
   const completedJobs = jobs.filter(j => j.status === 'completed');
   const totalConversations = completedJobs.reduce((acc, job) => acc + (job.total_conversations || 0), 0);
+  
+  // Check if user has premium access
+  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
+  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, 'price_1RaacGQSrLveGa6rGX1kBexA');
+  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -196,7 +211,7 @@ const DashboardPage: React.FC = () => {
               Welcome back, {user.email}! Upload your ChatGPT conversations to get started.
             </p>
           </div>
-          {user.user_metadata?.premium_status && (
+          {isPremiumUser && (
             <Badge variant="secondary" className="px-3 py-1">
               <Crown className="h-4 w-4 mr-1" />
               Premium
@@ -251,11 +266,9 @@ const DashboardPage: React.FC = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {user.user_metadata?.premium_status ? 'Premium' : 'Free'}
-              </div>
+              <div className="text-2xl font-bold">{isPremiumUser ? 'Premium' : 'Free'}</div>
               <p className="text-xs text-muted-foreground">
-                {user.user_metadata?.premium_status 
+                {isPremiumUser 
                   ? 'All features unlocked' 
                   : `${Math.max(0, 3 - jobs.length)} free analyses remaining`
                 }

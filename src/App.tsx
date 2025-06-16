@@ -10,9 +10,10 @@ import DashboardPage from './pages/DashboardPage';
 import AnalysisPage from './pages/AnalysisPage';
 import PricingPage from './pages/PricingPage';
 import AuthPage from './pages/AuthPage';
+import EmailConfirmationPage from './pages/EmailConfirmationPage';
+import SuccessPage from './pages/SuccessPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
-import EmailConfirmationPage from './pages/EmailConfirmationPage';
 import './App.css';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/auth/confirm" element={<EmailConfirmationPage />} />
+                <Route path="/success" element={<SuccessPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/terms" element={<TermsPage />} />
               </Routes>

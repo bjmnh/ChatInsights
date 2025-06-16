@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
@@ -13,15 +13,43 @@ import {
 } from '../ui/dropdown-menu';
 import { Brain, User, Settings, LogOut, Crown } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { StripeService } from '../../services/stripeService';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [subscription, setSubscription] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
+
+  const fetchUserData = async () => {
+    try {
+      const [subscriptionData, ordersData] = await Promise.all([
+        StripeService.getUserSubscription(),
+        StripeService.getUserOrders(),
+      ]);
+
+      setSubscription(subscriptionData);
+      setOrders(ordersData);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
+
+  // Check if user has premium access
+  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
+  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, 'price_1RaacGQSrLveGa6rGX1kBexA');
+  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -53,12 +81,12 @@ const Header: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatar_url} alt={user.name} />
+                    <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.name} />
                     <AvatarFallback>
-                      {user.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+                      {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  {user.premium_status && (
+                  {isPremiumUser && (
                     <Crown className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
                   )}
                 </Button>
@@ -66,9 +94,9 @@ const Header: React.FC = () => {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
+                    <p className="text-sm font-medium leading-none">{user.user_metadata?.name || 'User'}</p>
                     <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    {user.premium_status && (
+                    {isPremiumUser && (
                       <Badge variant="secondary" className="w-fit">
                         <Crown className="h-3 w-3 mr-1" />
                         Premium

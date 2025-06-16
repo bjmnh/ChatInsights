@@ -29,6 +29,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { JobService } from '../services/jobService';
 import { ReportService } from '../services/reportService';
+import { StripeService } from '../services/stripeService';
 import { toast } from 'sonner';
 import type { Database } from '../lib/database.types';
 
@@ -37,12 +38,14 @@ type UserReport = Database['public']['Tables']['user_reports']['Row'];
 
 const AnalysisPage: React.FC = () => {
   const { jobId } = useParams();
-  const { user, updatePremiumStatus } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
   const [report, setReport] = useState<UserReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
     if (!user) {
@@ -85,11 +88,20 @@ const AnalysisPage: React.FC = () => {
               user_id: user.id,
               job_id: jobId,
               free_insights: generateMockFreeInsights(jobData),
-              paid_insights: user.premium_status ? generateMockPaidInsights() : null
+              paid_insights: null
             });
             setReport(mockReport);
           }
         }
+
+        // Fetch user's subscription and order data
+        const [subscriptionData, ordersData] = await Promise.all([
+          StripeService.getUserSubscription(),
+          StripeService.getUserOrders(),
+        ]);
+
+        setSubscription(subscriptionData);
+        setOrders(ordersData);
       } catch (error) {
         console.error('Error fetching analysis data:', error);
         toast.error('Failed to load analysis data');
@@ -170,31 +182,14 @@ const AnalysisPage: React.FC = () => {
     };
   };
 
-  const handleUpgrade = async () => {
-    setIsUpgrading(true);
-    // Simulate payment process
-    setTimeout(async () => {
-      try {
-        await updatePremiumStatus(true);
-        
-        // Add paid insights to the current report
-        if (report) {
-          const updatedReport = await ReportService.updateReportWithPaidInsights(
-            report.id, 
-            generateMockPaidInsights()
-          );
-          setReport(updatedReport);
-        }
-        
-        toast.success('Successfully upgraded to Premium!');
-      } catch (error) {
-        console.error('Error upgrading:', error);
-        toast.error('Failed to upgrade. Please try again.');
-      } finally {
-        setIsUpgrading(false);
-      }
-    }, 2000);
+  const handleUpgrade = () => {
+    navigate('/pricing');
   };
+
+  // Check if user has premium access
+  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
+  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, 'price_1RaacGQSrLveGa6rGX1kBexA');
+  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
 
   if (!user) {
     return null;
@@ -258,7 +253,7 @@ const AnalysisPage: React.FC = () => {
   }
 
   const freeInsights = report.free_insights as any;
-  const paidInsights = report.paid_insights as any;
+  const paidInsights = isPremiumUser ? generateMockPaidInsights() : null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -271,10 +266,18 @@ const AnalysisPage: React.FC = () => {
               Insights from {job.filename} • {job.total_conversations || 'Unknown'} conversations
             </p>
           </div>
-          <Badge variant="outline" className="px-3 py-1">
-            <Calendar className="h-4 w-4 mr-1" />
-            {new Date(job.created_at).toLocaleDateString()}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            <Badge variant="outline" className="px-3 py-1">
+              <Calendar className="h-4 w-4 mr-1" />
+              {new Date(job.created_at).toLocaleDateString()}
+            </Badge>
+            {isPremiumUser && (
+              <Badge variant="secondary" className="px-3 py-1">
+                <Crown className="h-4 w-4 mr-1" />
+                Premium
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -337,11 +340,11 @@ const AnalysisPage: React.FC = () => {
           <TabsTrigger value="patterns">Patterns</TabsTrigger>
           <TabsTrigger value="mirror" className="relative">
             Digital Mirror
-            {!user.premium_status && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+            {!isPremiumUser && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
           </TabsTrigger>
           <TabsTrigger value="revelations" className="relative">
             Hidden Patterns
-            {!user.premium_status && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+            {!isPremiumUser && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
           </TabsTrigger>
         </TabsList>
 
@@ -467,7 +470,7 @@ const AnalysisPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="mirror" className="space-y-6">
-          {!user.premium_status || !paidInsights ? (
+          {!isPremiumUser ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
@@ -479,8 +482,8 @@ const AnalysisPage: React.FC = () => {
                     See yourself as the AI sees you. Discover the personality profile built from your digital conversations—it might be unsettlingly accurate.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Button onClick={handleUpgrade} disabled={isUpgrading} size="lg">
-                      {isUpgrading ? 'Processing...' : 'Unlock Digital Mirror'}
+                    <Button onClick={handleUpgrade} size="lg">
+                      Unlock Digital Mirror
                       <Crown className="ml-2 h-4 w-4" />
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/pricing')}>
@@ -499,18 +502,18 @@ const AnalysisPage: React.FC = () => {
                       <Eye className="h-5 w-5 mr-2 text-primary" />
                       How the AI Sees You
                     </CardTitle>
-                    <Badge variant="secondary">{paidInsights.digitalMirror.confidence}% confidence</Badge>
+                    <Badge variant="secondary">{paidInsights?.digitalMirror.confidence}% confidence</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                       <h4 className="font-semibold mb-2">AI Personality Profile</h4>
-                      <p className="text-muted-foreground">{paidInsights.digitalMirror.personalityProfile}</p>
+                      <p className="text-muted-foreground">{paidInsights?.digitalMirror.personalityProfile}</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <h4 className="font-semibold mb-2">AI's Perception of You</h4>
-                      <p className="text-muted-foreground">{paidInsights.digitalMirror.aiPerception}</p>
+                      <p className="text-muted-foreground">{paidInsights?.digitalMirror.aiPerception}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -520,7 +523,7 @@ const AnalysisPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="revelations" className="space-y-6">
-          {!user.premium_status || !paidInsights ? (
+          {!isPremiumUser ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
@@ -531,8 +534,8 @@ const AnalysisPage: React.FC = () => {
                   <p className="text-muted-foreground max-w-md mx-auto">
                     Uncover the recurring themes, anxieties, and personal details you've unknowingly cataloged. What has your digital subconscious revealed?
                   </p>
-                  <Button onClick={handleUpgrade} disabled={isUpgrading} size="lg">
-                    {isUpgrading ? 'Processing...' : 'Reveal Hidden Patterns'}
+                  <Button onClick={handleUpgrade} size="lg">
+                    Reveal Hidden Patterns
                     <Crown className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -540,7 +543,7 @@ const AnalysisPage: React.FC = () => {
             </Card>
           ) : (
             <div className="space-y-6">
-              {paidInsights.hiddenPatterns.map((pattern: any, index: number) => (
+              {paidInsights?.hiddenPatterns.map((pattern: any, index: number) => (
                 <Card key={index} className="border-l-4 border-l-primary">
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -572,12 +575,12 @@ const AnalysisPage: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <h4 className="font-semibold mb-2">Your Overarching Narrative</h4>
-                      <p className="text-muted-foreground">{paidInsights.revelationMap.overarchingNarrative}</p>
+                      <p className="text-muted-foreground">{paidInsights?.revelationMap.overarchingNarrative}</p>
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">Connection Points</h4>
                       <ul className="space-y-1">
-                        {paidInsights.revelationMap.connectionPoints.map((point: string, index: number) => (
+                        {paidInsights?.revelationMap.connectionPoints.map((point: string, index: number) => (
                           <li key={index} className="text-muted-foreground flex items-center">
                             <ArrowRight className="h-4 w-4 mr-2 text-primary" />
                             {point}
@@ -588,7 +591,7 @@ const AnalysisPage: React.FC = () => {
                     <div>
                       <h4 className="font-semibold mb-2">Unconscious Themes</h4>
                       <div className="flex flex-wrap gap-2">
-                        {paidInsights.revelationMap.unconsciousThemes.map((theme: string, index: number) => (
+                        {paidInsights?.revelationMap.unconsciousThemes.map((theme: string, index: number) => (
                           <Badge key={index} variant="outline">{theme}</Badge>
                         ))}
                       </div>

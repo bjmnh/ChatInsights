@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Switch } from '../components/ui/switch';
+import { Alert, AlertDescription } from '../components/ui/alert';
 import { 
   Check, 
   Crown, 
@@ -17,25 +18,71 @@ import {
   Lightbulb,
   Eye,
   Search,
-  Network
+  Network,
+  Loader2,
+  Star
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { StripeService } from '../services/stripeService';
+import { products, getProductById } from '../stripe-config';
 
 const PricingPage: React.FC = () => {
-  const { user, updatePremiumStatus } = useAuth();
+  const { user } = useAuth();
   const [isAnnual, setIsAnnual] = useState(false);
-  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
 
-  const handleUpgrade = async (plan: string) => {
-    setIsUpgrading(true);
-    
-    // Simulate payment process
-    setTimeout(() => {
-      updatePremiumStatus(true);
-      toast.success('Successfully upgraded to Premium!');
-      setIsUpgrading(false);
-    }, 2000);
+  const premiumProduct = getProductById('prod_SVbpaHbrdScZy7');
+
+  useEffect(() => {
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
+
+  const fetchUserData = async () => {
+    try {
+      const [subscriptionData, ordersData] = await Promise.all([
+        StripeService.getUserSubscription(),
+        StripeService.getUserOrders(),
+      ]);
+
+      setSubscription(subscriptionData);
+      setOrders(ordersData);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+    } finally {
+      setDataLoading(false);
+    }
   };
+
+  const handlePurchase = async () => {
+    if (!user) {
+      toast.error('Please sign in to purchase');
+      return;
+    }
+
+    if (!premiumProduct) {
+      toast.error('Product not found');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await StripeService.purchaseProduct(premiumProduct);
+    } catch (error) {
+      console.error('Purchase error:', error);
+      toast.error('Failed to start checkout. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
+  const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, premiumProduct?.priceId || '');
+  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
 
   const features = {
     free: [
@@ -119,8 +166,8 @@ const PricingPage: React.FC = () => {
           Start with basic insights, or dare to see what your conversations really reveal about you
         </p>
         
-        {/* Annual/Monthly Toggle */}
-        <div className="flex items-center justify-center space-x-4 mb-8">
+        {/* Annual/Monthly Toggle - Hidden for now since we only have one-time payment */}
+        <div className="hidden items-center justify-center space-x-4 mb-8">
           <span className={`text-sm ${!isAnnual ? 'font-semibold' : 'text-muted-foreground'}`}>
             Monthly
           </span>
@@ -154,7 +201,7 @@ const PricingPage: React.FC = () => {
               </div>
               <div className="mt-4">
                 <span className="text-4xl font-bold">$0</span>
-                <span className="text-muted-foreground">/month</span>
+                <span className="text-muted-foreground">/forever</span>
               </div>
             </CardHeader>
             <CardContent>
@@ -169,9 +216,9 @@ const PricingPage: React.FC = () => {
               <Button 
                 variant="outline" 
                 className="w-full"
-                disabled={user && !user.premium_status}
+                disabled={!user || (!isPremiumUser && !dataLoading)}
               >
-                {user && !user.premium_status ? 'Current Plan' : 'Get Started'}
+                {!user ? 'Sign Up to Start' : 'Current Plan'}
               </Button>
             </CardContent>
           </Card>
@@ -194,17 +241,21 @@ const PricingPage: React.FC = () => {
               </div>
               <div className="mt-4">
                 <span className="text-4xl font-bold">
-                  ${isAnnual ? '19' : '24'}
+                  ${premiumProduct?.price || '9.99'}
                 </span>
-                <span className="text-muted-foreground">/month</span>
-                {isAnnual && (
-                  <div className="text-sm text-muted-foreground">
-                    Billed annually ($228/year)
-                  </div>
-                )}
+                <span className="text-muted-foreground">/one-time</span>
               </div>
             </CardHeader>
             <CardContent>
+              {isPremiumUser && (
+                <Alert className="mb-6 border-green-200 bg-green-50">
+                  <Crown className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    <strong>You have Premium access!</strong> All features are unlocked.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
                 <h4 className="font-semibold text-primary mb-2">Prepare to be surprised</h4>
                 <p className="text-sm text-muted-foreground">
@@ -222,11 +273,21 @@ const PricingPage: React.FC = () => {
               </ul>
               <Button 
                 className="w-full" 
-                onClick={() => handleUpgrade('premium')}
-                disabled={isUpgrading || (user?.premium_status)}
+                onClick={handlePurchase}
+                disabled={isLoading || isPremiumUser || !user || dataLoading}
               >
-                {isUpgrading ? 'Processing...' : 
-                 user?.premium_status ? 'Current Plan' : 'Unlock Your Digital Self'}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : isPremiumUser ? (
+                  'Already Purchased'
+                ) : !user ? (
+                  'Sign In to Purchase'
+                ) : (
+                  'Unlock Your Digital Self'
+                )}
               </Button>
             </CardContent>
           </Card>
@@ -397,12 +458,13 @@ const PricingPage: React.FC = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Can I cancel my subscription anytime?</CardTitle>
+              <CardTitle className="text-lg">Is this a subscription or one-time payment?</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Absolutely. You can cancel your Premium subscription at any time from your account settings. 
-                You'll continue to have access to Premium features until the end of your billing period.
+                Premium is currently a one-time payment of ${premiumProduct?.price || '9.99'}. Once purchased, you'll have 
+                permanent access to all premium features with no recurring charges. This gives you unlimited analyses 
+                and access to all advanced insights.
               </p>
             </CardContent>
           </Card>
@@ -433,12 +495,28 @@ const PricingPage: React.FC = () => {
           <Button 
             size="lg" 
             variant="secondary"
-            onClick={() => handleUpgrade('premium')}
-            disabled={isUpgrading || user?.premium_status}
+            onClick={handlePurchase}
+            disabled={isLoading || isPremiumUser || !user}
             className="text-lg px-8 py-6"
           >
-            {user?.premium_status ? 'You\'re Already Premium!' : 'Unlock Your Digital Self'}
-            <Crown className="ml-2 h-5 w-5" />
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Processing...
+              </>
+            ) : isPremiumUser ? (
+              <>
+                <Crown className="mr-2 h-5 w-5" />
+                You Have Premium!
+              </>
+            ) : !user ? (
+              'Sign In to Purchase'
+            ) : (
+              <>
+                <Crown className="mr-2 h-5 w-5" />
+                Unlock Your Digital Self
+              </>
+            )}
           </Button>
         </div>
       </section>

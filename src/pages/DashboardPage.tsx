@@ -18,10 +18,7 @@ import {
   MessageSquare,
   TrendingUp,
   Users,
-  Loader2,
-  ExternalLink,
-  RefreshCw,
-  Settings
+  Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { JobService } from '../services/jobService';
@@ -36,50 +33,6 @@ const DashboardPage: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [storageSetupError, setStorageSetupError] = useState<string | null>(null);
-  const [storageInfo, setStorageInfo] = useState<{
-    bucketExists: boolean;
-    bucketAccessible: boolean;
-    userCanUpload: boolean;
-    error?: string;
-  } | null>(null);
-  const [checkingStorage, setCheckingStorage] = useState(false);
-
-  // Check storage setup on component mount
-  useEffect(() => {
-    const checkStorageSetup = async () => {
-      if (!user) return;
-      
-      setCheckingStorage(true);
-      try {
-        const info = await StorageService.getStorageInfo();
-        setStorageInfo(info);
-        
-        if (!info.bucketExists) {
-          setStorageSetupError(
-            "Storage bucket 'conversation-files' not found. Please create it in your Supabase dashboard."
-          );
-        } else if (!info.bucketAccessible) {
-          setStorageSetupError(
-            `Storage bucket exists but is not accessible: ${info.error}`
-          );
-        } else if (!info.userCanUpload) {
-          setStorageSetupError(
-            `Storage bucket exists but upload is not allowed: ${info.error}`
-          );
-        } else {
-          setStorageSetupError(null);
-        }
-      } catch (error) {
-        console.error('Error checking storage setup:', error);
-        setStorageSetupError('Unable to verify storage setup. Please check your Supabase configuration.');
-      } finally {
-        setCheckingStorage(false);
-      }
-    };
-
-    checkStorageSetup();
-  }, [user]);
 
   // Fetch user jobs
   useEffect(() => {
@@ -130,49 +83,8 @@ const DashboardPage: React.FC = () => {
     };
   }, [jobs]);
 
-  const recheckStorage = async () => {
-    if (!user) return;
-    
-    setCheckingStorage(true);
-    try {
-      const info = await StorageService.getStorageInfo();
-      setStorageInfo(info);
-      
-      if (!info.bucketExists) {
-        setStorageSetupError(
-          "Storage bucket 'conversation-files' not found. Please create it in your Supabase dashboard."
-        );
-        toast.error('Storage bucket still not found');
-      } else if (!info.bucketAccessible) {
-        setStorageSetupError(
-          `Storage bucket exists but is not accessible: ${info.error}`
-        );
-        toast.error('Storage bucket not accessible');
-      } else if (!info.userCanUpload) {
-        setStorageSetupError(
-          `Storage bucket exists but upload is not allowed: ${info.error}`
-        );
-        toast.error('Upload permissions not configured');
-      } else {
-        setStorageSetupError(null);
-        toast.success('Storage is now properly configured!');
-      }
-    } catch (error) {
-      console.error('Error rechecking storage:', error);
-      toast.error('Failed to check storage configuration');
-    } finally {
-      setCheckingStorage(false);
-    }
-  };
-
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user) return;
-
-    // Check for storage setup error first
-    if (storageSetupError) {
-      toast.error('Storage not configured. Please set up the storage bucket first.');
-      return;
-    }
 
     const file = acceptedFiles[0];
     if (!file) return;
@@ -214,24 +126,11 @@ const DashboardPage: React.FC = () => {
 
     } catch (error) {
       console.error('Upload error:', error);
-      
-      // Provide specific error messages based on the error type
-      if (error instanceof Error) {
-        if (error.message.includes('Bucket not found')) {
-          toast.error('Storage bucket not found. Please check the setup instructions in the README.');
-          setStorageSetupError(error.message);
-        } else if (error.message.includes('not allowed')) {
-          toast.error('File upload not allowed. Please check your storage bucket policies.');
-        } else {
-          toast.error(`Upload failed: ${error.message}`);
-        }
-      } else {
-        toast.error('Failed to upload file. Please try again.');
-      }
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
-  }, [user, storageSetupError]);
+  }, [user]);
 
   // Simulate processing for demo purposes
   const simulateProcessing = async (jobId: string) => {
@@ -271,7 +170,7 @@ const DashboardPage: React.FC = () => {
       'application/json': ['.json']
     },
     maxFiles: 1,
-    disabled: uploading || !!storageSetupError
+    disabled: uploading
   });
 
   const getStatusIcon = (status: Job['status']) => {
@@ -336,68 +235,6 @@ const DashboardPage: React.FC = () => {
             </Badge>
           )}
         </div>
-
-        {/* Storage Setup Error Alert */}
-        {storageSetupError && (
-          <Alert className="mb-6 border-orange-200 bg-orange-50">
-            <AlertCircle className="h-4 w-4 text-orange-600" />
-            <AlertDescription className="text-orange-800">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <strong>Storage Setup Required:</strong> {storageSetupError}
-                  <div className="mt-2">
-                    <p className="text-sm">To fix this:</p>
-                    <ol className="list-decimal list-inside text-sm mt-1 space-y-1">
-                      <li>Go to your Supabase dashboard</li>
-                      <li>Navigate to Storage section</li>
-                      <li>Create a new bucket named "conversation-files"</li>
-                      <li>Set up the required storage policies (see README)</li>
-                    </ol>
-                    <div className="flex gap-2 mt-3">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
-                      >
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        Open Supabase Dashboard
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={recheckStorage}
-                        disabled={checkingStorage}
-                      >
-                        {checkingStorage ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                        )}
-                        Recheck Storage
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Storage Info Debug (only show if there are issues) */}
-        {storageInfo && (storageSetupError || !storageInfo.userCanUpload) && (
-          <Alert className="mb-6 border-blue-200 bg-blue-50">
-            <Settings className="h-4 w-4 text-blue-600" />
-            <AlertDescription className="text-blue-800">
-              <strong>Storage Diagnostic Info:</strong>
-              <div className="mt-2 text-sm space-y-1">
-                <div>Bucket exists: {storageInfo.bucketExists ? '✅' : '❌'}</div>
-                <div>Bucket accessible: {storageInfo.bucketAccessible ? '✅' : '❌'}</div>
-                <div>User can upload: {storageInfo.userCanUpload ? '✅' : '❌'}</div>
-                {storageInfo.error && <div>Error: {storageInfo.error}</div>}
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -487,7 +324,7 @@ const DashboardPage: React.FC = () => {
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
               isDragActive 
                 ? 'border-primary bg-primary/5' 
-                : uploading || storageSetupError
+                : uploading
                 ? 'border-muted-foreground/25 bg-muted/50 cursor-not-allowed'
                 : 'border-muted-foreground/25 hover:border-primary/50'
             }`}
@@ -495,25 +332,18 @@ const DashboardPage: React.FC = () => {
             <input {...getInputProps()} />
             {uploading ? (
               <Loader2 className="h-12 w-12 mx-auto mb-4 text-muted-foreground animate-spin" />
-            ) : storageSetupError ? (
-              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-orange-500" />
             ) : (
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             )}
             {uploading ? (
               <p className="text-lg">Uploading your file...</p>
-            ) : storageSetupError ? (
-              <div>
-                <p className="text-lg mb-2 text-orange-600">Storage Setup Required</p>
-                <p className="text-muted-foreground">Please configure the storage bucket before uploading files</p>
-              </div>
             ) : isDragActive ? (
               <p className="text-lg">Drop your conversations.json file here...</p>
             ) : (
               <div>
                 <p className="text-lg mb-2">Drag & drop your conversations.json file here</p>
                 <p className="text-muted-foreground mb-4">or click to browse files</p>
-                <Button variant="outline" disabled={uploading || !!storageSetupError}>
+                <Button variant="outline" disabled={uploading}>
                   <FileText className="h-4 w-4 mr-2" />
                   Choose File
                 </Button>

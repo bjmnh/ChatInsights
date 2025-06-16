@@ -32,9 +32,9 @@ import {
   X,
   ArrowLeft,
   Activity,
-  PieChart,
-  LineChart,
-  BarChart,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  BarChart as BarChartIcon,
   Maximize2,
   Settings,
   Download,
@@ -546,7 +546,7 @@ const AnalysisPage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <BarChart className="h-5 w-5 mr-2" />
+                  <BarChartIcon className="h-5 w-5 mr-2" />
                   Activity by Hour
                 </CardTitle>
                 <CardDescription>Your conversation patterns throughout the day</CardDescription>
@@ -567,7 +567,7 @@ const AnalysisPage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <PieChart className="h-5 w-5 mr-2" />
+                  <PieChartIcon className="h-5 w-5 mr-2" />
                   Topic Distribution
                 </CardTitle>
                 <CardDescription>What you discuss most frequently</CardDescription>
@@ -600,7 +600,7 @@ const AnalysisPage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <LineChart className="h-5 w-5 mr-2" />
+                  <LineChartIcon className="h-5 w-5 mr-2" />
                   Weekly Engagement Trends
                 </CardTitle>
                 <CardDescription>Your engagement patterns over time</CardDescription>

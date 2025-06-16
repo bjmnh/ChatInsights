@@ -21,7 +21,6 @@ import {
   Lightbulb,
   Target,
   ArrowRight,
-  DatabaseIcon,
   Code,
   Network,
   Loader2,
@@ -29,9 +28,19 @@ import {
   Zap,
   Search,
   Eye,
-  Layers
+  Layers,
+  X,
+  ArrowLeft,
+  Activity,
+  PieChart,
+  LineChart,
+  BarChart,
+  Maximize2,
+  Settings,
+  Download,
+  Share2
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { JobService } from '../services/jobService';
 import { ReportService } from '../services/reportService';
 import { StripeService } from '../services/stripeService';
@@ -50,6 +59,8 @@ const AnalysisPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]);
   const [reprocessing, setReprocessing] = useState(false);
+  const [fullScreen, setFullScreen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (!user) {
@@ -137,6 +148,18 @@ const AnalysisPage: React.FC = () => {
         { name: 'Career', value: 20, color: '#ffc658' },
         { name: 'Technical', value: 12, color: '#ff7300' },
         { name: 'Other', value: 8, color: '#00ff88' }
+      ],
+      weeklyActivity: [
+        { week: 'Week 1', messages: 45, engagement: 7.2 },
+        { week: 'Week 2', messages: 67, engagement: 8.1 },
+        { week: 'Week 3', messages: 89, engagement: 8.8 },
+        { week: 'Week 4', messages: 78, engagement: 9.2 }
+      ],
+      skillProgression: [
+        { skill: 'JavaScript', level: 85, growth: 15 },
+        { skill: 'Python', level: 78, growth: 22 },
+        { skill: 'React', level: 92, growth: 8 },
+        { skill: 'Node.js', level: 73, growth: 18 }
       ]
     };
   };
@@ -232,6 +255,14 @@ const AnalysisPage: React.FC = () => {
     }
   };
 
+  const handleBackToDashboard = () => {
+    navigate('/dashboard');
+  };
+
+  const toggleFullScreen = () => {
+    setFullScreen(!fullScreen);
+  };
+
   // Check if user has premium access
   const isPremiumUser = StripeService.isPremiumUser(orders);
   const isBasicAnalysis = job?.analysis_type === 'basic' || !job?.analysis_type;
@@ -243,9 +274,11 @@ const AnalysisPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <h2 className="text-2xl font-semibold">Loading Analysis</h2>
+          <p className="text-muted-foreground">Preparing your insights...</p>
         </div>
       </div>
     );
@@ -253,9 +286,9 @@ const AnalysisPage: React.FC = () => {
 
   if (!job) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Analysis Not Found</h1>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">Analysis Not Found</h1>
           <Button onClick={() => navigate('/dashboard')}>
             Return to Dashboard
           </Button>
@@ -266,14 +299,15 @@ const AnalysisPage: React.FC = () => {
 
   if (job.status !== 'completed') {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Analysis In Progress</h1>
-          <p className="text-muted-foreground mb-4">
-            Your analysis is still being processed. Please check back later.
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Activity className="h-16 w-16 mx-auto text-primary animate-pulse" />
+          <h1 className="text-2xl font-bold">Analysis In Progress</h1>
+          <p className="text-muted-foreground">
+            Your analysis is being processed. This may take a few minutes.
           </p>
-          <Progress value={job.progress} className="w-64 mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground mb-4">{job.progress}% complete</p>
+          <Progress value={job.progress} className="w-64 mx-auto" />
+          <p className="text-sm text-muted-foreground">{job.progress}% complete</p>
           <Button onClick={() => navigate('/dashboard')}>
             Return to Dashboard
           </Button>
@@ -284,10 +318,10 @@ const AnalysisPage: React.FC = () => {
 
   if (!report) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Report Not Available</h1>
-          <p className="text-muted-foreground mb-4">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">Report Not Available</h1>
+          <p className="text-muted-foreground">
             The analysis report is not available. Please try again later.
           </p>
           <Button onClick={() => navigate('/dashboard')}>
@@ -301,22 +335,69 @@ const AnalysisPage: React.FC = () => {
   const freeInsights = report.free_insights as any;
   const paidInsights = (isPremiumUser && job.analysis_type === 'premium') ? generateMockPremiumInsights() : null;
 
+  const containerClass = fullScreen 
+    ? "fixed inset-0 z-50 bg-background overflow-auto" 
+    : "container mx-auto px-4 py-8";
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className={containerClass}>
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleBackToDashboard}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+            {fullScreen && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={toggleFullScreen}
+                className="flex items-center"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Exit Full View
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {!fullScreen && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={toggleFullScreen}
+                className="flex items-center"
+              >
+                <Maximize2 className="h-4 w-4 mr-2" />
+                Full Screen
+              </Button>
+            )}
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Button variant="outline" size="sm">
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Analysis Results</h1>
+            <h1 className="text-3xl font-bold">Analysis Dashboard</h1>
             <p className="text-muted-foreground">
-              Insights from {job.filename} • {job.total_conversations || 'Unknown'} conversations
+              {job.filename} • {job.total_conversations || 'Unknown'} conversations • {new Date(job.created_at).toLocaleDateString()}
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="px-3 py-1">
-              <Calendar className="h-4 w-4 mr-1" />
-              {new Date(job.created_at).toLocaleDateString()}
-            </Badge>
             {job.analysis_type === 'premium' && (
               <Badge variant="secondary" className="px-3 py-1">
                 <Target className="h-4 w-4 mr-1" />
@@ -334,7 +415,7 @@ const AnalysisPage: React.FC = () => {
 
         {/* Premium Upgrade Alert */}
         {canUpgradeToPremium && (
-          <Alert className="mb-6 border-primary/20 bg-primary/5">
+          <Alert className="mt-6 border-primary/20 bg-primary/5">
             <Target className="h-4 w-4" />
             <AlertDescription>
               <div className="flex items-center justify-between">
@@ -364,71 +445,99 @@ const AnalysisPage: React.FC = () => {
           </Alert>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.totalMessages.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                Avg {freeInsights.averageMessageLength} chars per message
-              </p>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Messages</p>
+                  <p className="text-2xl font-bold">{freeInsights.totalMessages.toLocaleString()}</p>
+                </div>
+                <MessageSquare className="h-8 w-8 text-primary" />
+              </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Engagement Level</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.engagementLevel}/10</div>
-              <Progress value={freeInsights.engagementLevel * 10} className="mt-2" />
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Engagement</p>
+                  <p className="text-2xl font-bold">{freeInsights.engagementLevel}/10</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-primary" />
+              </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Most Active Hour</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.mostActiveHour}:00</div>
-              <p className="text-xs text-muted-foreground">
-                Peak conversation time
-              </p>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Peak Hour</p>
+                  <p className="text-2xl font-bold">{freeInsights.mostActiveHour}:00</p>
+                </div>
+                <Clock className="h-8 w-8 text-primary" />
+              </div>
             </CardContent>
           </Card>
           
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Analysis Type</CardTitle>
-              <Brain className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{job.analysis_type === 'premium' ? 'Advanced' : 'Basic'}</div>
-              <p className="text-xs text-muted-foreground">
-                {job.analysis_type === 'premium' ? 'Deep insights' : 'Standard analysis'}
-              </p>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Avg Length</p>
+                  <p className="text-2xl font-bold">{freeInsights.averageMessageLength}</p>
+                </div>
+                <BarChart3 className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Analysis Type</p>
+                  <p className="text-2xl font-bold">{job.analysis_type === 'premium' ? 'Advanced' : 'Basic'}</p>
+                </div>
+                <Brain className="h-8 w-8 text-primary" />
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="patterns">Patterns</TabsTrigger>
-          <TabsTrigger value="cognitive" className="relative">
-            Cognitive Analysis
-            {!paidInsights && <Target className="h-3 w-3 ml-1 text-primary" />}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="overview" className="flex items-center">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Overview
           </TabsTrigger>
-          <TabsTrigger value="progression" className="relative">
+          <TabsTrigger value="patterns" className="flex items-center">
+            <Activity className="h-4 w-4 mr-2" />
+            Patterns
+          </TabsTrigger>
+          <TabsTrigger value="cognitive" className="flex items-center relative">
+            <Search className="h-4 w-4 mr-2" />
+            Cognitive Analysis
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
+          </TabsTrigger>
+          <TabsTrigger value="progression" className="flex items-center relative">
+            <TrendingUp className="h-4 w-4 mr-2" />
             Learning Insights
-            {!paidInsights && <Target className="h-3 w-3 ml-1 text-primary" />}
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
+          </TabsTrigger>
+          <TabsTrigger value="behavioral" className="flex items-center relative">
+            <Eye className="h-4 w-4 mr-2" />
+            Behavioral Patterns
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="flex items-center relative">
+            <Network className="h-4 w-4 mr-2" />
+            Cross-Conversation
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
           </TabsTrigger>
         </TabsList>
 
@@ -436,7 +545,10 @@ const AnalysisPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Activity by Hour</CardTitle>
+                <CardTitle className="flex items-center">
+                  <BarChart className="h-5 w-5 mr-2" />
+                  Activity by Hour
+                </CardTitle>
                 <CardDescription>Your conversation patterns throughout the day</CardDescription>
               </CardHeader>
               <CardContent>
@@ -454,7 +566,10 @@ const AnalysisPage: React.FC = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Topic Distribution</CardTitle>
+                <CardTitle className="flex items-center">
+                  <PieChart className="h-5 w-5 mr-2" />
+                  Topic Distribution
+                </CardTitle>
                 <CardDescription>What you discuss most frequently</CardDescription>
               </CardHeader>
               <CardContent>
@@ -481,81 +596,128 @@ const AnalysisPage: React.FC = () => {
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Communication Analysis</CardTitle>
-              <CardDescription>Analysis of your conversation approach and topics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Primary Style:</span>
-                  <Badge variant="secondary">{freeInsights.communicationStyle}</Badge>
-                </div>
-                <div>
-                  <span className="font-medium">Top Topics:</span>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {(freeInsights.topTopics || []).map((topic: string, index: number) => (
-                      <Badge key={index} variant="outline">{topic}</Badge>
-                    ))}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <LineChart className="h-5 w-5 mr-2" />
+                  Weekly Engagement Trends
+                </CardTitle>
+                <CardDescription>Your engagement patterns over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={freeInsights.weeklyActivity}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="week" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="engagement" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Communication Analysis</CardTitle>
+                <CardDescription>Analysis of your conversation approach and topics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Primary Style:</span>
+                    <Badge variant="secondary">{freeInsights.communicationStyle}</Badge>
+                  </div>
+                  <div>
+                    <span className="font-medium">Top Topics:</span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {(freeInsights.topTopics || []).map((topic: string, index: number) => (
+                        <Badge key={index} variant="outline">{topic}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pt-4">
+                    <h4 className="font-medium mb-2">Skill Progression</h4>
+                    <div className="space-y-2">
+                      {freeInsights.skillProgression.map((skill: any, index: number) => (
+                        <div key={index} className="flex items-center justify-between">
+                          <span className="text-sm">{skill.skill}</span>
+                          <div className="flex items-center space-x-2">
+                            <Progress value={skill.level} className="w-20 h-2" />
+                            <span className="text-xs text-muted-foreground">+{skill.growth}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="patterns" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Conversation Patterns</CardTitle>
-              <CardDescription>Detailed analysis of your interaction patterns</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Message Characteristics</CardTitle>
+                <CardDescription>Analysis of your message patterns</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  <h4 className="font-semibold">Message Characteristics</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Average Length</span>
-                      <span className="font-medium">{freeInsights.averageMessageLength} characters</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Question Rate</span>
-                      <span className="font-medium">23%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Follow-up Rate</span>
-                      <span className="font-medium">67%</span>
-                    </div>
+                  <div className="flex justify-between">
+                    <span>Average Length</span>
+                    <span className="font-medium">{freeInsights.averageMessageLength} characters</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Question Rate</span>
+                    <span className="font-medium">23%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Follow-up Rate</span>
+                    <span className="font-medium">67%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Technical Focus</span>
+                    <span className="font-medium">9.2/10</span>
                   </div>
                 </div>
-                
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Engagement Metrics</CardTitle>
+                <CardDescription>How you interact with conversations</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  <h4 className="font-semibold">Engagement Metrics</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Response Depth</span>
-                      <span className="font-medium">High</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Topic Persistence</span>
-                      <span className="font-medium">Medium</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Technical Focus</span>
-                      <span className="font-medium">9.2/10</span>
-                    </div>
+                  <div className="flex justify-between">
+                    <span>Response Depth</span>
+                    <span className="font-medium">High</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Topic Persistence</span>
+                    <span className="font-medium">Medium</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Learning Velocity</span>
+                    <span className="font-medium">8.7/10</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Problem-Solving Style</span>
+                    <span className="font-medium">Systematic</span>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="cognitive" className="space-y-6">
           {!paidInsights ? (
-            <Card>
+            <Card className="border-2 border-dashed border-primary/20">
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
@@ -566,6 +728,15 @@ const AnalysisPage: React.FC = () => {
                     Advanced analysis of your problem-solving approaches, learning styles, and cognitive patterns 
                     extracted from your conversation data.
                   </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Your unique problem-solving methodology</li>
+                      <li>• Learning style and information processing patterns</li>
+                      <li>• Communication approach in technical discussions</li>
+                      <li>• Cognitive strengths and thinking preferences</li>
+                    </ul>
+                  </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button onClick={handleUpgrade} size="lg">
                       Unlock Advanced Analytics - $10
@@ -582,27 +753,27 @@ const AnalysisPage: React.FC = () => {
             <div className="space-y-6">
               <Card className="border-primary/20">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center">
-                      <Search className="h-5 w-5 mr-2 text-primary" />
-                      Cognitive Profile Analysis
-                    </CardTitle>
-                    <Badge variant="secondary">{paidInsights?.cognitiveProfile?.confidence}% confidence</Badge>
-                  </div>
+                  <CardTitle className="flex items-center">
+                    <Search className="h-5 w-5 mr-2 text-primary" />
+                    Cognitive Profile Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    Advanced analysis of your thinking patterns and cognitive approach
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                       <h4 className="font-semibold mb-2">Problem-Solving Approach</h4>
-                      <p className="text-muted-foreground">{paidInsights?.cognitiveProfile?.problemSolvingApproach}</p>
+                      <p className="text-sm text-muted-foreground">{paidInsights?.cognitiveProfile?.problemSolvingApproach}</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <h4 className="font-semibold mb-2">Learning Style</h4>
-                      <p className="text-muted-foreground">{paidInsights?.cognitiveProfile?.learningStyle}</p>
+                      <p className="text-sm text-muted-foreground">{paidInsights?.cognitiveProfile?.learningStyle}</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <h4 className="font-semibold mb-2">Communication Pattern</h4>
-                      <p className="text-muted-foreground">{paidInsights?.cognitiveProfile?.communicationPattern}</p>
+                      <p className="text-sm text-muted-foreground">{paidInsights?.cognitiveProfile?.communicationPattern}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -613,7 +784,7 @@ const AnalysisPage: React.FC = () => {
 
         <TabsContent value="progression" className="space-y-6">
           {!paidInsights ? (
-            <Card>
+            <Card className="border-2 border-dashed border-primary/20">
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
@@ -624,6 +795,15 @@ const AnalysisPage: React.FC = () => {
                     Track your skill development, learning velocity, and knowledge acquisition patterns 
                     using advanced data analysis techniques.
                   </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Skill development trajectories over time</li>
+                      <li>• Learning velocity and knowledge acquisition rate</li>
+                      <li>• Key milestones and breakthrough moments</li>
+                      <li>• Areas of rapid growth vs. steady progression</li>
+                    </ul>
+                  </div>
                   <Button onClick={handleUpgrade} size="lg">
                     Unlock Learning Insights - $10
                     <Target className="ml-2 h-4 w-4" />
@@ -633,7 +813,6 @@ const AnalysisPage: React.FC = () => {
             </Card>
           ) : (
             <div className="space-y-6">
-              {/* Learning Progression */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -668,8 +847,41 @@ const AnalysisPage: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
+        </TabsContent>
 
-              {/* Behavioral Patterns */}
+        <TabsContent value="behavioral" className="space-y-6">
+          {!paidInsights ? (
+            <Card className="border-2 border-dashed border-primary/20">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <Eye className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Behavioral Pattern Analysis</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Identify consistent behavioral patterns and approaches in your technical conversations 
+                    and problem-solving methodology.
+                  </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Consistent behavioral patterns across conversations</li>
+                      <li>• Problem-solving methodology and approach</li>
+                      <li>• Decision-making patterns and preferences</li>
+                      <li>• Communication style in different contexts</li>
+                    </ul>
+                  </div>
+                  <Button onClick={handleUpgrade} size="lg">
+                    Unlock Behavioral Analysis - $10
+                    <Target className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -695,8 +907,41 @@ const AnalysisPage: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          )}
+        </TabsContent>
 
-              {/* Cross-Conversation Insights */}
+        <TabsContent value="insights" className="space-y-6">
+          {!paidInsights ? (
+            <Card className="border-2 border-dashed border-primary/20">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <Network className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Cross-Conversation Insights</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Discover connections and themes that span across your entire conversation history 
+                    to reveal long-term patterns and evolution.
+                  </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Connections between different conversation topics</li>
+                      <li>• Evolution of your thinking over time</li>
+                      <li>• Recurring themes and interests</li>
+                      <li>• Long-term learning and development patterns</li>
+                    </ul>
+                  </div>
+                  <Button onClick={handleUpgrade} size="lg">
+                    Unlock Cross-Conversation Analysis - $10
+                    <Target className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">

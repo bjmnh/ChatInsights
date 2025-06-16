@@ -60,7 +60,49 @@ VITE_APP_URL=http://localhost:5173
      - `supabase/migrations/20250615044735_dark_coast.sql`
      - `supabase/migrations/20250616090703_velvet_river.sql`
 
-5. Configure Supabase Authentication:
+5. **CRITICAL: Set up Storage Bucket:**
+   
+   **This step is required before file uploads will work:**
+   
+   - Go to your Supabase project dashboard
+   - Navigate to **Storage** in the left sidebar
+   - Click **"New bucket"**
+   - Create a bucket with the following settings:
+     - **Name**: `conversation-files` (exactly this name)
+     - **Public**: Leave unchecked (private bucket)
+     - **File size limit**: 500MB (optional)
+     - **Allowed MIME types**: `application/json` (optional)
+   
+   **Set up Storage Policies:**
+   
+   After creating the bucket, you need to set up Row Level Security policies:
+   
+   - Go to **Storage** → **Policies**
+   - Click **"New Policy"** for the `conversation-files` bucket
+   - Create the following policies:
+   
+   **Policy 1: Allow authenticated users to upload their own files**
+   ```sql
+   CREATE POLICY "Users can upload own files" ON storage.objects
+   FOR INSERT TO authenticated
+   WITH CHECK (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+   ```
+   
+   **Policy 2: Allow authenticated users to read their own files**
+   ```sql
+   CREATE POLICY "Users can read own files" ON storage.objects
+   FOR SELECT TO authenticated
+   USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+   ```
+   
+   **Policy 3: Allow authenticated users to delete their own files**
+   ```sql
+   CREATE POLICY "Users can delete own files" ON storage.objects
+   FOR DELETE TO authenticated
+   USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+   ```
+
+6. Configure Supabase Authentication:
    
    **Basic Setup:**
    - Go to Authentication → URL Configuration in your Supabase dashboard
@@ -69,7 +111,7 @@ VITE_APP_URL=http://localhost:5173
      - `http://localhost:5173/auth/confirm`
      - `http://localhost:5173/auth/reset-password`
 
-   **Google OAuth Setup:**
+   **Google OAuth Setup (Optional - Currently Disabled):**
    - Go to Authentication → Providers → Google
    - Enable Google provider
    - Add your Google OAuth credentials:
@@ -78,7 +120,7 @@ VITE_APP_URL=http://localhost:5173
    - Set **Authorized redirect URIs** in Google Cloud Console:
      - `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
 
-   **Apple OAuth Setup:**
+   **Apple OAuth Setup (Optional - Currently Disabled):**
    - Go to Authentication → Providers → Apple
    - Enable Apple provider
    - Add your Apple OAuth credentials:
@@ -89,15 +131,42 @@ VITE_APP_URL=http://localhost:5173
    - Set **Return URLs** in Apple Developer Console:
      - `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
 
-6. Set up Storage:
-   - Go to Storage in your Supabase dashboard
-   - Create a new bucket called `conversation-files`
-   - Set appropriate policies for authenticated users
-
 7. Start the development server:
 ```bash
 npm run dev
 ```
+
+## Troubleshooting
+
+### "Bucket not found" Error
+
+If you encounter a "Bucket not found" error when uploading files:
+
+1. **Verify the bucket exists:**
+   - Go to your Supabase dashboard → Storage
+   - Ensure a bucket named `conversation-files` exists
+   - If not, create it following step 5 above
+
+2. **Check bucket policies:**
+   - Go to Storage → Policies
+   - Ensure the three policies listed in step 5 are created
+   - Verify the policy names and SQL match exactly
+
+3. **Test bucket access:**
+   - Try uploading a test file through the Supabase dashboard
+   - If that fails, check your project permissions
+
+### Authentication Issues
+
+If authentication isn't working:
+
+1. **Check environment variables:**
+   - Verify `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are correct
+   - Ensure no trailing slashes in the URL
+
+2. **Verify Site URL:**
+   - In Supabase dashboard → Authentication → URL Configuration
+   - Site URL should match your development URL exactly
 
 ## OAuth Provider Setup Guide
 

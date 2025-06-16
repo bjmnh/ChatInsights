@@ -3,9 +3,34 @@ import { supabase, handleSupabaseError } from '../lib/supabase';
 export class StorageService {
   private static readonly BUCKET_NAME = 'conversation-files';
 
+  // Check if bucket exists and is accessible
+  static async checkBucketExists(): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.storage.listBuckets();
+      
+      if (error) {
+        console.error('Error checking buckets:', error);
+        return false;
+      }
+
+      return data?.some(bucket => bucket.name === this.BUCKET_NAME) || false;
+    } catch (error) {
+      console.error('Error checking bucket existence:', error);
+      return false;
+    }
+  }
+
   // Upload a file to Supabase Storage
   static async uploadFile(file: File, userId: string, jobId: string): Promise<string> {
     try {
+      // First check if bucket exists
+      const bucketExists = await this.checkBucketExists();
+      if (!bucketExists) {
+        throw new Error(
+          `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard under Storage section.`
+        );
+      }
+
       const fileExt = file.name.split('.').pop();
       const fileName = `${userId}/${jobId}/conversations.${fileExt}`;
 
@@ -17,7 +42,18 @@ export class StorageService {
         });
 
       if (error) {
-        throw new Error(handleSupabaseError(error));
+        // Provide more specific error messages
+        if (error.message?.includes('Bucket not found')) {
+          throw new Error(
+            `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard under Storage section.`
+          );
+        } else if (error.message?.includes('not allowed')) {
+          throw new Error(
+            'File upload not allowed. Please check your storage bucket policies in Supabase dashboard.'
+          );
+        } else {
+          throw new Error(handleSupabaseError(error));
+        }
       }
 
       return data.path;
@@ -35,6 +71,11 @@ export class StorageService {
         .createSignedUrl(filePath, expiresIn);
 
       if (error) {
+        if (error.message?.includes('Bucket not found')) {
+          throw new Error(
+            `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard.`
+          );
+        }
         throw new Error(handleSupabaseError(error));
       }
 
@@ -53,6 +94,11 @@ export class StorageService {
         .download(filePath);
 
       if (error) {
+        if (error.message?.includes('Bucket not found')) {
+          throw new Error(
+            `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard.`
+          );
+        }
         throw new Error(handleSupabaseError(error));
       }
 
@@ -71,6 +117,11 @@ export class StorageService {
         .remove([filePath]);
 
       if (error) {
+        if (error.message?.includes('Bucket not found')) {
+          throw new Error(
+            `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard.`
+          );
+        }
         throw new Error(handleSupabaseError(error));
       }
     } catch (error) {
@@ -87,6 +138,11 @@ export class StorageService {
         .list(`${userId}/${jobId}`);
 
       if (listError) {
+        if (listError.message?.includes('Bucket not found')) {
+          throw new Error(
+            `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard.`
+          );
+        }
         throw new Error(handleSupabaseError(listError));
       }
 
@@ -98,6 +154,11 @@ export class StorageService {
           .remove(filePaths);
 
         if (deleteError) {
+          if (deleteError.message?.includes('Bucket not found')) {
+            throw new Error(
+              `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard.`
+            );
+          }
           throw new Error(handleSupabaseError(deleteError));
         }
       }
@@ -115,6 +176,11 @@ export class StorageService {
         .list(filePath.split('/').slice(0, -1).join('/'));
 
       if (error) {
+        if (error.message?.includes('Bucket not found')) {
+          throw new Error(
+            `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard.`
+          );
+        }
         throw new Error(handleSupabaseError(error));
       }
 

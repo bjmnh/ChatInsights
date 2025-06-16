@@ -21,7 +21,7 @@ import {
   Lightbulb,
   Target,
   ArrowRight,
-  Database,
+  Database as DatabaseIcon,
   Code,
   Network,
   Loader2,
@@ -532,7 +532,7 @@ const AnalysisPage: React.FC = () => {
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Database className="h-8 w-8 text-primary" />
+                    <DatabaseIcon className="h-8 w-8 text-primary" />
                   </div>
                   <h3 className="text-xl font-semibold">Behavioral Profile Analysis</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
@@ -557,7 +557,7 @@ const AnalysisPage: React.FC = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center">
-                      <Database className="h-5 w-5 mr-2 text-primary" />
+                      <DatabaseIcon className="h-5 w-5 mr-2 text-primary" />
                       Behavioral Profile Analysis
                     </CardTitle>
                     <Badge variant="secondary">{paidInsights?.behavioralProfile?.confidence}% confidence</Badge>

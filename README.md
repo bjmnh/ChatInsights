@@ -4,7 +4,7 @@ A React application that analyzes ChatGPT conversation data to provide insights 
 
 ## Features
 
-- **User Authentication**: Secure sign-up and login with Supabase Auth
+- **User Authentication**: Secure sign-up and login with Supabase Auth (Email, Google, Apple)
 - **File Upload**: Upload ChatGPT conversations.json files
 - **Real-time Analysis**: Track analysis progress in real-time
 - **Free Insights**: Basic conversation analytics and patterns
@@ -61,11 +61,33 @@ VITE_APP_URL=http://localhost:5173
      - `supabase/migrations/20250616090703_velvet_river.sql`
 
 5. Configure Supabase Authentication:
+   
+   **Basic Setup:**
    - Go to Authentication → URL Configuration in your Supabase dashboard
    - Set **Site URL** to: `http://localhost:5173` (for development)
    - Add **Redirect URLs**:
      - `http://localhost:5173/auth/confirm`
      - `http://localhost:5173/auth/reset-password`
+
+   **Google OAuth Setup:**
+   - Go to Authentication → Providers → Google
+   - Enable Google provider
+   - Add your Google OAuth credentials:
+     - **Client ID**: Get from [Google Cloud Console](https://console.cloud.google.com/)
+     - **Client Secret**: Get from Google Cloud Console
+   - Set **Authorized redirect URIs** in Google Cloud Console:
+     - `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
+
+   **Apple OAuth Setup:**
+   - Go to Authentication → Providers → Apple
+   - Enable Apple provider
+   - Add your Apple OAuth credentials:
+     - **Services ID**: Get from [Apple Developer](https://developer.apple.com/)
+     - **Team ID**: Your Apple Developer Team ID
+     - **Key ID**: Your Apple Sign In Key ID
+     - **Private Key**: Your Apple Sign In private key
+   - Set **Return URLs** in Apple Developer Console:
+     - `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
 
 6. Set up Storage:
    - Go to Storage in your Supabase dashboard
@@ -76,6 +98,50 @@ VITE_APP_URL=http://localhost:5173
 ```bash
 npm run dev
 ```
+
+## OAuth Provider Setup Guide
+
+### Google OAuth Setup
+
+1. **Create Google Cloud Project:**
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing one
+
+2. **Enable Google+ API:**
+   - Go to APIs & Services → Library
+   - Search for "Google+ API" and enable it
+
+3. **Create OAuth Credentials:**
+   - Go to APIs & Services → Credentials
+   - Click "Create Credentials" → "OAuth 2.0 Client IDs"
+   - Choose "Web application"
+   - Add authorized redirect URI: `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
+
+4. **Configure in Supabase:**
+   - Copy Client ID and Client Secret to Supabase Auth settings
+
+### Apple OAuth Setup
+
+1. **Apple Developer Account:**
+   - You need an active Apple Developer account ($99/year)
+
+2. **Create App ID:**
+   - Go to [Apple Developer](https://developer.apple.com/)
+   - Certificates, Identifiers & Profiles → Identifiers
+   - Create new App ID with Sign In with Apple capability
+
+3. **Create Services ID:**
+   - Create new Services ID
+   - Enable Sign In with Apple
+   - Configure return URL: `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
+
+4. **Create Private Key:**
+   - Go to Keys section
+   - Create new key with Sign In with Apple capability
+   - Download the .p8 file
+
+5. **Configure in Supabase:**
+   - Add Services ID, Team ID, Key ID, and Private Key content
 
 ## Production Deployment
 
@@ -100,7 +166,11 @@ VITE_APP_URL=https://yourdomain.com
    - `https://yourdomain.com/auth/confirm`
    - `https://yourdomain.com/auth/reset-password`
 
-3. **Deploy Steps**:
+3. **Update OAuth Provider Settings:**
+   - **Google**: Update authorized redirect URIs in Google Cloud Console
+   - **Apple**: Update return URLs in Apple Developer Console
+
+4. **Deploy Steps**:
    ```bash
    npm run build
    ```
@@ -159,7 +229,7 @@ src/
 ```
 
 ### Key Services
-- **AuthContext**: Manages user authentication state
+- **AuthContext**: Manages user authentication state with social providers
 - **JobService**: Handles analysis job operations
 - **ReportService**: Manages insight reports
 - **StorageService**: File upload and management

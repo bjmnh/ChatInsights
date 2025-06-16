@@ -10,6 +10,8 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithApple: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -43,6 +45,10 @@ const getAuthErrorMessage = (error: AuthError | Error): string => {
         return 'An account with this email already exists. Please try signing in instead.';
       case 'too_many_requests':
         return 'Too many requests. Please wait a moment before trying again.';
+      case 'provider_email_needs_verification':
+        return 'Please verify your email address with your OAuth provider and try again.';
+      case 'oauth_provider_not_supported':
+        return 'This OAuth provider is not supported. Please try a different sign-in method.';
       default:
         return error.message || 'An authentication error occurred. Please try again.';
     }
@@ -157,6 +163,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: config.getRedirectUrl('/dashboard'),
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // The redirect will happen automatically
+    } catch (error) {
+      const message = getAuthErrorMessage(error as AuthError);
+      toast.error(message);
+      throw new Error(message);
+    }
+  };
+
+  const loginWithApple = async () => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: config.getRedirectUrl('/dashboard'),
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // The redirect will happen automatically
+    } catch (error) {
+      const message = getAuthErrorMessage(error as AuthError);
+      toast.error(message);
+      throw new Error(message);
+    }
+  };
+
   const logout = async () => {
     try {
       setLoading(true);
@@ -197,6 +249,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     login,
     register,
+    loginWithGoogle,
+    loginWithApple,
     logout,
     resetPassword,
   };

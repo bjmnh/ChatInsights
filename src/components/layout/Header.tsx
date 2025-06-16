@@ -18,7 +18,6 @@ import { StripeService } from '../../services/stripeService';
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [subscription, setSubscription] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
@@ -29,12 +28,7 @@ const Header: React.FC = () => {
 
   const fetchUserData = async () => {
     try {
-      const [subscriptionData, ordersData] = await Promise.all([
-        StripeService.getUserSubscription(),
-        StripeService.getUserOrders(),
-      ]);
-
-      setSubscription(subscriptionData);
+      const ordersData = await StripeService.getUserOrders();
       setOrders(ordersData);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -47,7 +41,7 @@ const Header: React.FC = () => {
   };
 
   // Check if user has premium access
-  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
+  const isPremiumUser = StripeService.isPremiumUser(orders);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

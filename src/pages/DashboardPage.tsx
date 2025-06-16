@@ -34,10 +34,9 @@ const DashboardPage: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
 
-  // Fetch user jobs and subscription data
+  // Fetch user jobs and order data
   useEffect(() => {
     if (!user) {
       navigate('/auth');
@@ -46,14 +45,12 @@ const DashboardPage: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        const [userJobs, subscriptionData, ordersData] = await Promise.all([
+        const [userJobs, ordersData] = await Promise.all([
           JobService.getUserJobs(user.id),
-          StripeService.getUserSubscription(),
           StripeService.getUserOrders(),
         ]);
         
         setJobs(userJobs);
-        setSubscription(subscriptionData);
         setOrders(ordersData);
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -197,7 +194,7 @@ const DashboardPage: React.FC = () => {
   const totalConversations = completedJobs.reduce((acc, job) => acc + (job.total_conversations || 0), 0);
   
   // Check if user has premium access
-  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
+  const isPremiumUser = StripeService.isPremiumUser(orders);
 
   return (
     <div className="container mx-auto px-4 py-8">

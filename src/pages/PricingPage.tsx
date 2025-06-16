@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Switch } from '../components/ui/switch';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { 
   Check, 
@@ -20,23 +19,19 @@ import {
   Search,
   Network,
   Loader2,
-  Star,
-  Settings
+  Star
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StripeService } from '../services/stripeService';
-import { products, getProductById, getFreeTrialProduct, getPremiumProduct } from '../stripe-config';
+import { getPremiumProduct } from '../stripe-config';
 
 const PricingPage: React.FC = () => {
   const { user } = useAuth();
-  const [isAnnual, setIsAnnual] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [subscription, setSubscription] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const premiumProduct = getPremiumProduct();
-  const freeTrialProduct = getFreeTrialProduct();
 
   useEffect(() => {
     if (user) {
@@ -48,12 +43,7 @@ const PricingPage: React.FC = () => {
 
   const fetchUserData = async () => {
     try {
-      const [subscriptionData, ordersData] = await Promise.all([
-        StripeService.getUserSubscription(),
-        StripeService.getUserOrders(),
-      ]);
-
-      setSubscription(subscriptionData);
+      const ordersData = await StripeService.getUserOrders();
       setOrders(ordersData);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -62,20 +52,20 @@ const PricingPage: React.FC = () => {
     }
   };
 
-  const handlePurchase = async (product = premiumProduct) => {
+  const handlePurchase = async () => {
     if (!user) {
       toast.error('Please sign in to purchase');
       return;
     }
 
-    if (!product) {
+    if (!premiumProduct) {
       toast.error('Product not found');
       return;
     }
 
     setIsLoading(true);
     try {
-      await StripeService.purchaseProduct(product);
+      await StripeService.purchaseProduct(premiumProduct);
     } catch (error) {
       console.error('Purchase error:', error);
       toast.error('Failed to start checkout. Please try again.');
@@ -84,15 +74,7 @@ const PricingPage: React.FC = () => {
     }
   };
 
-  const handleFreeTrialPurchase = () => {
-    if (!freeTrialProduct) {
-      toast.error('Free trial product not configured. Please contact support.');
-      return;
-    }
-    handlePurchase(freeTrialProduct);
-  };
-
-  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
+  const isPremiumUser = StripeService.isPremiumUser(orders);
 
   const features = {
     free: [
@@ -122,19 +104,16 @@ const PricingPage: React.FC = () => {
       icon: <Eye className="h-6 w-6" />,
       name: "The Digital Mirror",
       description: "See yourself as the AI sees you. Discover the personality profile built from your digital conversations—it might be unsettlingly accurate.",
-      alternative: "The AI's Dossier"
     },
     {
       icon: <Search className="h-6 w-6" />,
       name: "Hidden Patterns",
       description: "Uncover the recurring themes, anxieties, and personal details you've unknowingly cataloged. What has your digital subconscious revealed?",
-      alternative: "The Unconscious Archive"
     },
     {
       icon: <Network className="h-6 w-6" />,
       name: "The Revelation Map",
       description: "Connect the dots across months of conversations. We trace the narrative threads you've woven, revealing the grand story your subconscious has been telling.",
-      alternative: "Digital Archaeology"
     }
   ];
 
@@ -142,25 +121,19 @@ const PricingPage: React.FC = () => {
     {
       name: "Maya K.",
       role: "Freelance Writer",
-      content: "I genuinely gasped. Chat Insights showed me a timeline of my health queries and anxieties I'd discussed over months. Seeing it all laid out was... intense. It was a stark reminder of what I'd put out there, even if just to an AI.",
+      content: "I genuinely gasped. Chat Insights showed me a timeline of my health queries and anxieties I'd discussed over months. Seeing it all laid out was... intense.",
       plan: "Premium"
     },
     {
       name: "Ben S.",
       role: "Software Developer",
-      content: "The 'Hidden Patterns' feature was an eye-opener. It flagged how often I'd mentioned details about past projects, old colleagues, even my partner's job hunt. Things I'd completely forgotten I'd typed. Made me rethink what I casually share.",
+      content: "The 'Hidden Patterns' feature was an eye-opener. It flagged how often I'd mentioned details about past projects, old colleagues, even my partner's job hunt.",
       plan: "Premium"
     },
     {
       name: "Dr. Evelyn Reed",
       role: "Researcher",
-      content: "The 'Digital Mirror' was unsettlingly accurate. The inferred personality traits and even some of my niche academic interests were spot on. It's like looking at an objective, if slightly unnerving, reflection built from pure data.",
-      plan: "Premium"
-    },
-    {
-      name: "Chloe T.",
-      role: "Artist",
-      content: "I use ChatGPT for brainstorming a lot. 'The Revelation Map' highlighted recurring symbols and anxieties in my creative ideation that I hadn't consciously connected. It's like my own AI-powered dream journal analysis. Fascinating, and a little bit spooky!",
+      content: "The 'Digital Mirror' was unsettlingly accurate. The inferred personality traits and even some of my niche academic interests were spot on.",
       plan: "Premium"
     }
   ];
@@ -173,27 +146,8 @@ const PricingPage: React.FC = () => {
           Choose Your Level of Self-Discovery
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          Start with basic insights, or dare to see what your conversations really reveal about you
+          Start with basic insights, or unlock the full power of your conversation data
         </p>
-        
-        {/* Annual/Monthly Toggle - Hidden since we have different product types */}
-        <div className="hidden items-center justify-center space-x-4 mb-8">
-          <span className={`text-sm ${!isAnnual ? 'font-semibold' : 'text-muted-foreground'}`}>
-            Monthly
-          </span>
-          <Switch
-            checked={isAnnual}
-            onCheckedChange={setIsAnnual}
-          />
-          <span className={`text-sm ${isAnnual ? 'font-semibold' : 'text-muted-foreground'}`}>
-            Annual
-          </span>
-          {isAnnual && (
-            <Badge variant="secondary" className="ml-2">
-              Save 20%
-            </Badge>
-          )}
-        </div>
       </section>
 
       {/* Pricing Cards */}
@@ -226,21 +180,10 @@ const PricingPage: React.FC = () => {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={handleFreeTrialPurchase}
-                disabled={isLoading || !user || dataLoading || !freeTrialProduct}
+                disabled={!user}
+                onClick={() => !user && toast.info('Sign up to get started with the free version')}
               >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : !user ? (
-                  'Sign Up to Start'
-                ) : !freeTrialProduct ? (
-                  'Not Available'
-                ) : (
-                  'Get Started Free'
-                )}
+                {!user ? 'Sign Up to Start' : 'Current Plan'}
               </Button>
             </CardContent>
           </Card>
@@ -250,7 +193,7 @@ const PricingPage: React.FC = () => {
             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
               <Badge className="px-3 py-1">
                 <Crown className="h-3 w-3 mr-1" />
-                Unlock Your Secrets
+                Most Popular
               </Badge>
             </div>
             <CardHeader>
@@ -263,16 +206,9 @@ const PricingPage: React.FC = () => {
               </div>
               <div className="mt-4">
                 <span className="text-4xl font-bold">
-                  ${premiumProduct?.price || '24.99'}
+                  ${premiumProduct?.price || '10'}
                 </span>
-                <span className="text-muted-foreground">
-                  /{premiumProduct?.interval || 'month'}
-                </span>
-                {freeTrialProduct && (
-                  <div className="text-sm text-blue-600 font-medium mt-1">
-                    Free trial available
-                  </div>
-                )}
+                <span className="text-muted-foreground"> one-time</span>
               </div>
             </CardHeader>
             <CardContent>
@@ -292,6 +228,7 @@ const PricingPage: React.FC = () => {
                   It's a mirror to your digital subconscious—fascinating and sometimes unsettling.
                 </p>
               </div>
+              
               <ul className="space-y-3 mb-6">
                 {features.premium.map((feature, index) => (
                   <li key={index} className="flex items-center">
@@ -301,47 +238,24 @@ const PricingPage: React.FC = () => {
                 ))}
               </ul>
               
-              <div className="space-y-3">
-                <Button 
-                  className="w-full" 
-                  onClick={() => handlePurchase()}
-                  disabled={isLoading || isPremiumUser || !user || dataLoading}
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : isPremiumUser ? (
-                    'Already Purchased'
-                  ) : !user ? (
-                    'Sign In to Purchase'
-                  ) : (
-                    'Unlock Your Digital Self'
-                  )}
-                </Button>
-                
-                {freeTrialProduct && !isPremiumUser && user && (
-                  <Button 
-                    variant="outline"
-                    className="w-full" 
-                    onClick={handleFreeTrialPurchase}
-                    disabled={isLoading || dataLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="mr-2 h-4 w-4" />
-                        Try Premium Free
-                      </>
-                    )}
-                  </Button>
+              <Button 
+                className="w-full" 
+                onClick={handlePurchase}
+                disabled={isLoading || isPremiumUser || !user || dataLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : isPremiumUser ? (
+                  'Already Purchased'
+                ) : !user ? (
+                  'Sign In to Purchase'
+                ) : (
+                  'Unlock Your Digital Self'
                 )}
-              </div>
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -365,87 +279,10 @@ const PricingPage: React.FC = () => {
                   <CardTitle className="text-lg">{feature.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground text-sm mb-3">{feature.description}</p>
-                  <Badge variant="outline" className="text-xs">
-                    Also known as: {feature.alternative}
-                  </Badge>
+                  <p className="text-muted-foreground text-sm">{feature.description}</p>
                 </CardContent>
               </Card>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Comparison */}
-      <section className="container mx-auto px-4 mb-16">
-        <h2 className="text-3xl font-bold text-center mb-8">Free vs Premium Insights</h2>
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <BarChart3 className="h-8 w-8 text-blue-500 mb-2" />
-                <CardTitle>Surface Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Basic conversation metrics and patterns—what you'd expect from any analytics tool.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Free</span>
-                    <Check className="h-4 w-4 text-green-500" />
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Premium</span>
-                    <Check className="h-4 w-4 text-green-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Brain className="h-8 w-8 text-purple-500 mb-2" />
-                <CardTitle>Psychological Profiling</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Deep personality analysis and behavioral predictions based on your conversation patterns.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Free</span>
-                    <span className="text-muted-foreground">—</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Premium</span>
-                    <Check className="h-4 w-4 text-green-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <Lightbulb className="h-8 w-8 text-yellow-500 mb-2" />
-                <CardTitle>Hidden Revelations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Uncover the unconscious patterns, recurring themes, and personal details you never realized you'd shared.
-                </p>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Free</span>
-                    <span className="text-muted-foreground">—</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Premium</span>
-                    <Check className="h-4 w-4 text-green-500" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
@@ -457,7 +294,7 @@ const PricingPage: React.FC = () => {
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
             Real reactions from users who dared to see what their conversations revealed
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {testimonials.map((testimonial, index) => (
               <Card key={index}>
                 <CardContent className="pt-6">
@@ -479,63 +316,6 @@ const PricingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="container mx-auto px-4 py-16">
-        <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
-        <div className="max-w-3xl mx-auto space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">How revealing are the premium insights?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Premium insights analyze patterns in what you've already shared with AI. They don't create new information, 
-                but they reveal connections and themes you may not have consciously noticed. Many users are surprised 
-                by what their conversation patterns reveal about their interests, concerns, and personality.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Is my conversation data secure?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Yes, we take privacy seriously. Your raw conversation data is automatically deleted within hours 
-                of analysis completion. We retain only the generated insights, which you can delete at any time. 
-                Your data is encrypted and processed securely throughout.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Can I cancel my subscription anytime?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Absolutely. You can cancel your Premium subscription at any time from your account settings. 
-                You'll continue to have access to Premium features until the end of your billing period.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">What if the insights are too revealing?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                You have complete control over your data. You can delete individual reports or your entire account 
-                at any time. The insights are based on what you've already shared with AI—we're just helping you 
-                see the patterns. Think of it as a mirror, not a magnifying glass.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-4 text-center">
@@ -544,56 +324,32 @@ const PricingPage: React.FC = () => {
             Join thousands who have discovered the hidden patterns in their digital conversations. 
             Some insights might surprise you.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              variant="secondary"
-              onClick={() => handlePurchase()}
-              disabled={isLoading || isPremiumUser || !user}
-              className="text-lg px-8 py-6"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Processing...
-                </>
-              ) : isPremiumUser ? (
-                <>
-                  <Crown className="mr-2 h-5 w-5" />
-                  You Have Premium!
-                </>
-              ) : !user ? (
-                'Sign In to Purchase'
-              ) : (
-                <>
-                  <Crown className="mr-2 h-5 w-5" />
-                  Unlock Your Digital Self
-                </>
-              )}
-            </Button>
-            
-            {freeTrialProduct && !isPremiumUser && user && (
-              <Button 
-                size="lg" 
-                variant="outline"
-                onClick={handleFreeTrialPurchase}
-                disabled={isLoading}
-                className="text-lg px-8 py-6 bg-white/10 border-white/20 hover:bg-white/20"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="mr-2 h-5 w-5" />
-                    Try Free First
-                  </>
-                )}
-              </Button>
+          <Button 
+            size="lg" 
+            variant="secondary"
+            onClick={handlePurchase}
+            disabled={isLoading || isPremiumUser || !user}
+            className="text-lg px-8 py-6"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Processing...
+              </>
+            ) : isPremiumUser ? (
+              <>
+                <Crown className="mr-2 h-5 w-5" />
+                You Have Premium!
+              </>
+            ) : !user ? (
+              'Sign In to Purchase'
+            ) : (
+              <>
+                <Crown className="mr-2 h-5 w-5" />
+                Unlock Your Digital Self - $10
+              </>
             )}
-          </div>
+          </Button>
         </div>
       </section>
     </div>

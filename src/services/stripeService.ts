@@ -6,24 +6,12 @@ export interface CheckoutSessionRequest {
   priceId: string;
   successUrl?: string;
   cancelUrl?: string;
-  mode: 'payment' | 'subscription';
+  mode: 'payment';
 }
 
 export interface CheckoutSessionResponse {
   sessionId: string;
   url: string;
-}
-
-export interface SubscriptionData {
-  customer_id: string;
-  subscription_id: string | null;
-  subscription_status: string;
-  price_id: string | null;
-  current_period_start: number | null;
-  current_period_end: number | null;
-  cancel_at_period_end: boolean;
-  payment_method_brand: string | null;
-  payment_method_last4: string | null;
 }
 
 export interface OrderData {
@@ -61,8 +49,10 @@ export class StripeService {
     try {
       const headers = await this.getAuthHeaders();
       
-      const defaultSuccessUrl = `${config.app.url}/success?session_id={CHECKOUT_SESSION_ID}`;
-      const defaultCancelUrl = `${config.app.url}/pricing`;
+      // Use the current domain for redirect URLs
+      const currentDomain = window.location.origin;
+      const defaultSuccessUrl = `${currentDomain}/success?session_id={CHECKOUT_SESSION_ID}`;
+      const defaultCancelUrl = `${currentDomain}/pricing`;
 
       const response = await fetch(this.getApiUrl('stripe-checkout'), {
         method: 'POST',
@@ -85,25 +75,6 @@ export class StripeService {
     } catch (error) {
       console.error('Error creating checkout session:', error);
       throw error;
-    }
-  }
-
-  static async getUserSubscription(): Promise<SubscriptionData | null> {
-    try {
-      const { data, error } = await supabase
-        .from('stripe_user_subscriptions')
-        .select('*')
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching user subscription:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Error fetching user subscription:', error);
-      return null;
     }
   }
 
@@ -134,6 +105,7 @@ export class StripeService {
       });
 
       if (checkoutSession.url) {
+        // Redirect to Stripe checkout
         window.location.href = checkoutSession.url;
       } else {
         throw new Error('No checkout URL received');
@@ -144,32 +116,14 @@ export class StripeService {
     }
   }
 
-  static hasActiveSubscription(subscription: SubscriptionData | null): boolean {
-    if (!subscription) return false;
-    
-    const activeStatuses = ['active', 'trialing'];
-    return activeStatuses.includes(subscription.subscription_status);
-  }
-
-  static hasPurchasedProduct(orders: OrderData[], productPriceId: string): boolean {
+  static hasPurchasedPremium(orders: OrderData[]): boolean {
     return orders.some(order => 
       order.payment_status === 'paid' && 
       order.order_status === 'completed'
     );
   }
 
-  static isPremiumUser(subscription: SubscriptionData | null, orders: OrderData[]): boolean {
-    // Check for active subscription
-    if (this.hasActiveSubscription(subscription)) {
-      return true;
-    }
-
-    // Check for purchased products (including free trial)
-    const premiumPriceIds = [
-      'price_1Rad3iQSrLveGa6rUMWt9SWj', // Premium subscription
-      'price_1RacYAQSrLveGa6rriCJf0nu', // Free version (acts as trial)
-    ];
-
-    return premiumPriceIds.some(priceId => this.hasPurchasedProduct(orders, priceId));
+  static isPremiumUser(orders: OrderData[]): boolean {
+    return this.hasPurchasedPremium(orders);
   }
 }

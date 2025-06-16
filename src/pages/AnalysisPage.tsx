@@ -43,7 +43,6 @@ const AnalysisPage: React.FC = () => {
   const [job, setJob] = useState<Job | null>(null);
   const [report, setReport] = useState<UserReport | null>(null);
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
 
   useEffect(() => {
@@ -93,13 +92,8 @@ const AnalysisPage: React.FC = () => {
           }
         }
 
-        // Fetch user's subscription and order data
-        const [subscriptionData, ordersData] = await Promise.all([
-          StripeService.getUserSubscription(),
-          StripeService.getUserOrders(),
-        ]);
-
-        setSubscription(subscriptionData);
+        // Fetch user's order data
+        const ordersData = await StripeService.getUserOrders();
         setOrders(ordersData);
       } catch (error) {
         console.error('Error fetching analysis data:', error);
@@ -186,7 +180,7 @@ const AnalysisPage: React.FC = () => {
   };
 
   // Check if user has premium access
-  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
+  const isPremiumUser = StripeService.isPremiumUser(orders);
 
   if (!user) {
     return null;
@@ -480,7 +474,7 @@ const AnalysisPage: React.FC = () => {
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button onClick={handleUpgrade} size="lg">
-                      Unlock Digital Mirror
+                      Unlock Digital Mirror - $10
                       <Crown className="ml-2 h-4 w-4" />
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/pricing')}>
@@ -532,7 +526,7 @@ const AnalysisPage: React.FC = () => {
                     Uncover the recurring themes, anxieties, and personal details you've unknowingly cataloged. What has your digital subconscious revealed?
                   </p>
                   <Button onClick={handleUpgrade} size="lg">
-                    Reveal Hidden Patterns
+                    Reveal Hidden Patterns - $10
                     <Crown className="ml-2 h-4 w-4" />
                   </Button>
                 </div>

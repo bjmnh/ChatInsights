@@ -128,46 +128,8 @@ export class StripeService {
 
   static async purchaseProduct(product: Product): Promise<void> {
     try {
-      // For test products with $0 price, simulate a successful purchase
-      if (product.isTest && product.price === 0) {
-        // Create a mock successful order in the database
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
-
-        // Create a test customer record if it doesn't exist
-        const { data: customer } = await supabase
-          .from('stripe_customers')
-          .select('customer_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        let customerId = customer?.customer_id;
-        
-        if (!customerId) {
-          customerId = `test_customer_${user.id}`;
-          await supabase.from('stripe_customers').insert({
-            user_id: user.id,
-            customer_id: customerId,
-          });
-        }
-
-        // Create a test order
-        await supabase.from('stripe_orders').insert({
-          checkout_session_id: `test_session_${Date.now()}`,
-          payment_intent_id: `test_pi_${Date.now()}`,
-          customer_id: customerId,
-          amount_subtotal: 0,
-          amount_total: 0,
-          currency: 'usd',
-          payment_status: 'paid',
-          status: 'completed',
-        });
-
-        // Redirect to success page
-        window.location.href = `${config.app.url}/success?session_id=test_session_${Date.now()}`;
-        return;
-      }
-
+      // All products, including test products, should go through the proper Stripe checkout flow
+      // This ensures that database writes are handled by the backend webhook and comply with RLS policies
       const checkoutSession = await this.createCheckoutSession({
         priceId: product.priceId,
         mode: product.mode,

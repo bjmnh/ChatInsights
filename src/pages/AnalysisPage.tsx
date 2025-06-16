@@ -21,10 +21,12 @@ import {
   Lightbulb,
   Target,
   ArrowRight,
-  Eye,
-  Search,
+  Database,
+  Code,
   Network,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { JobService } from '../services/jobService';
@@ -44,6 +46,7 @@ const AnalysisPage: React.FC = () => {
   const [report, setReport] = useState<UserReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]);
+  const [reprocessing, setReprocessing] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -113,8 +116,8 @@ const AnalysisPage: React.FC = () => {
       totalMessages: jobData.total_conversations ? jobData.total_conversations * 15 : 2847,
       averageMessageLength: 127,
       mostActiveHour: 14,
-      topTopics: ['Programming', 'Data Science', 'Career Advice', 'Creative Writing', 'Learning'],
-      communicationStyle: 'Analytical and Curious',
+      topTopics: ['Programming', 'Data Science', 'Career Advice', 'Technical Writing', 'Learning'],
+      communicationStyle: 'Analytical and Systematic',
       engagementLevel: 8.5,
       activityPatterns: [
         { hour: '6AM', messages: 12 },
@@ -129,48 +132,48 @@ const AnalysisPage: React.FC = () => {
         { name: 'Programming', value: 35, color: '#8884d8' },
         { name: 'Data Science', value: 25, color: '#82ca9d' },
         { name: 'Career', value: 20, color: '#ffc658' },
-        { name: 'Creative', value: 12, color: '#ff7300' },
+        { name: 'Technical', value: 12, color: '#ff7300' },
         { name: 'Other', value: 8, color: '#00ff88' }
       ]
     };
   };
 
-  // Generate mock paid insights
-  const generateMockPaidInsights = () => {
+  // Generate mock premium insights
+  const generateMockPremiumInsights = () => {
     return {
-      digitalMirror: {
-        personalityProfile: 'Highly analytical individual with strong curiosity drives and systematic thinking patterns',
-        aiPerception: 'The AI sees you as someone who approaches problems methodically, values learning, and seeks comprehensive understanding before making decisions',
+      behavioralProfile: {
+        personalityAnalysis: 'Highly analytical individual with systematic thinking patterns and strong problem-solving orientation',
+        cognitiveStyle: 'Detail-oriented with preference for structured information and logical reasoning',
         confidence: 94
       },
-      hiddenPatterns: [
+      dataPatterns: [
         {
-          pattern: 'Recurring Health Anxiety',
-          frequency: 'Mentioned 23 times across 8 months',
-          description: 'You frequently sought reassurance about health symptoms, particularly during stressful work periods',
-          surprise_factor: 'High'
+          pattern: 'Technical Skill Progression',
+          frequency: 'Tracked across 8 months',
+          description: 'Clear progression from basic concepts to advanced implementations, with consistent learning velocity',
+          significance: 'High'
         },
         {
-          pattern: 'Career Transition Signals',
-          frequency: 'Escalating mentions over 6 months',
-          description: 'Your questions evolved from general career advice to specific industry research, suggesting unconscious preparation for a change',
-          surprise_factor: 'Medium'
+          pattern: 'Problem-Solving Methodology',
+          frequency: 'Consistent pattern in 85% of technical queries',
+          description: 'Systematic approach: problem decomposition → research → implementation → optimization',
+          significance: 'High'
         },
         {
-          pattern: 'Creative Outlet Seeking',
-          frequency: 'Consistent weekly mentions',
-          description: 'Despite your technical focus, you regularly explored creative writing and artistic projects',
-          surprise_factor: 'Low'
+          pattern: 'Knowledge Gaps and Learning',
+          frequency: 'Identified 23 distinct learning cycles',
+          description: 'Regular pattern of identifying knowledge gaps and systematically addressing them',
+          significance: 'Medium'
         }
       ],
-      revelationMap: {
-        overarchingNarrative: 'Your conversations reveal a journey from technical expertise toward more holistic thinking, with increasing emphasis on work-life balance and creative expression',
+      insightMap: {
+        overarchingNarrative: 'Your conversation data reveals a systematic learner with strong analytical capabilities, progressing from foundational concepts to advanced technical implementations',
         connectionPoints: [
-          'Technical questions → Leadership concerns → Work-life balance',
-          'Health queries → Stress management → Mindfulness practices',
-          'Career advice → Industry research → Entrepreneurial ideas'
+          'Technical questions → Implementation challenges → Optimization strategies',
+          'Learning queries → Skill development → Career advancement',
+          'Problem identification → Research methodology → Solution implementation'
         ],
-        unconsciousThemes: ['Control and certainty', 'Growth through challenge', 'Authentic self-expression']
+        cognitiveThemes: ['Systematic thinking', 'Continuous learning', 'Problem-solving orientation']
       }
     };
   };
@@ -179,8 +182,33 @@ const AnalysisPage: React.FC = () => {
     navigate('/pricing');
   };
 
+  const handleReprocessWithPremium = async () => {
+    if (!job || !isPremiumUser) {
+      toast.error('Premium access required');
+      return;
+    }
+
+    setReprocessing(true);
+    try {
+      await JobService.reprocessWithPremium(job.id);
+      toast.success('Starting premium analysis...');
+      
+      // Refresh the page after a short delay to show the updated job
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (error) {
+      console.error('Error reprocessing with premium:', error);
+      toast.error('Failed to start premium analysis');
+    } finally {
+      setReprocessing(false);
+    }
+  };
+
   // Check if user has premium access
   const isPremiumUser = StripeService.isPremiumUser(orders);
+  const isBasicAnalysis = job?.analysis_type === 'basic' || !job?.analysis_type;
+  const canUpgradeToPremium = isPremiumUser && isBasicAnalysis && job?.status === 'completed';
 
   if (!user) {
     return null;
@@ -244,7 +272,7 @@ const AnalysisPage: React.FC = () => {
   }
 
   const freeInsights = report.free_insights as any;
-  const paidInsights = isPremiumUser ? generateMockPaidInsights() : null;
+  const paidInsights = (isPremiumUser && job.analysis_type === 'premium') ? generateMockPremiumInsights() : null;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -262,14 +290,52 @@ const AnalysisPage: React.FC = () => {
               <Calendar className="h-4 w-4 mr-1" />
               {new Date(job.created_at).toLocaleDateString()}
             </Badge>
+            {job.analysis_type === 'premium' && (
+              <Badge variant="secondary" className="px-3 py-1">
+                <Zap className="h-4 w-4 mr-1" />
+                Premium Analysis
+              </Badge>
+            )}
             {isPremiumUser && (
               <Badge variant="secondary" className="px-3 py-1">
                 <Crown className="h-4 w-4 mr-1" />
-                Premium
+                Premium User
               </Badge>
             )}
           </div>
         </div>
+
+        {/* Premium Upgrade Alert */}
+        {canUpgradeToPremium && (
+          <Alert className="mb-6 border-primary/20 bg-primary/5">
+            <Zap className="h-4 w-4" />
+            <AlertDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <strong>Upgrade Available:</strong> Run advanced analysis on this dataset with your premium access.
+                </div>
+                <Button 
+                  onClick={handleReprocessWithPremium}
+                  disabled={reprocessing}
+                  size="sm"
+                  className="ml-4"
+                >
+                  {reprocessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Run Premium Analysis
+                    </>
+                  )}
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -312,13 +378,13 @@ const AnalysisPage: React.FC = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Processing Time</CardTitle>
+              <CardTitle className="text-sm font-medium">Analysis Type</CardTitle>
               <Brain className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">2m 34s</div>
+              <div className="text-2xl font-bold">{job.analysis_type === 'premium' ? 'Premium' : 'Basic'}</div>
               <p className="text-xs text-muted-foreground">
-                Analysis completed
+                {job.analysis_type === 'premium' ? 'Advanced insights' : 'Standard analysis'}
               </p>
             </CardContent>
           </Card>
@@ -329,13 +395,13 @@ const AnalysisPage: React.FC = () => {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="patterns">Patterns</TabsTrigger>
-          <TabsTrigger value="mirror" className="relative">
-            Digital Mirror
-            {!isPremiumUser && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+          <TabsTrigger value="behavioral" className="relative">
+            Behavioral Profile
+            {!paidInsights && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
           </TabsTrigger>
-          <TabsTrigger value="revelations" className="relative">
-            Hidden Patterns
-            {!isPremiumUser && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+          <TabsTrigger value="insights" className="relative">
+            Data Insights
+            {!paidInsights && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
           </TabsTrigger>
         </TabsList>
 
@@ -362,7 +428,7 @@ const AnalysisPage: React.FC = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Topic Distribution</CardTitle>
-                <CardDescription>What you talk about most</CardDescription>
+                <CardDescription>What you discuss most frequently</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -390,8 +456,8 @@ const AnalysisPage: React.FC = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Communication Style</CardTitle>
-              <CardDescription>Analysis of your conversation approach</CardDescription>
+              <CardTitle>Communication Analysis</CardTitle>
+              <CardDescription>Analysis of your conversation approach and topics</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -450,7 +516,7 @@ const AnalysisPage: React.FC = () => {
                       <span className="font-medium">Medium</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Curiosity Score</span>
+                      <span>Technical Focus</span>
                       <span className="font-medium">9.2/10</span>
                     </div>
                   </div>
@@ -460,21 +526,22 @@ const AnalysisPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="mirror" className="space-y-6">
-          {!isPremiumUser ? (
+        <TabsContent value="behavioral" className="space-y-6">
+          {!paidInsights ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Eye className="h-8 w-8 text-primary" />
+                    <Database className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">The Digital Mirror is Locked</h3>
+                  <h3 className="text-xl font-semibold">Behavioral Profile Analysis</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    See yourself as the AI sees you. Discover the personality profile built from your digital conversations—it might be unsettlingly accurate.
+                    Advanced behavioral analysis using machine learning to identify cognitive patterns, 
+                    learning styles, and problem-solving approaches from your conversation data.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button onClick={handleUpgrade} size="lg">
-                      Unlock Digital Mirror - $10
+                      Unlock Advanced Analysis - $10
                       <Crown className="ml-2 h-4 w-4" />
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/pricing')}>
@@ -490,21 +557,21 @@ const AnalysisPage: React.FC = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center">
-                      <Eye className="h-5 w-5 mr-2 text-primary" />
-                      How the AI Sees You
+                      <Database className="h-5 w-5 mr-2 text-primary" />
+                      Behavioral Profile Analysis
                     </CardTitle>
-                    <Badge variant="secondary">{paidInsights?.digitalMirror?.confidence}% confidence</Badge>
+                    <Badge variant="secondary">{paidInsights?.behavioralProfile?.confidence}% confidence</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                      <h4 className="font-semibold mb-2">AI Personality Profile</h4>
-                      <p className="text-muted-foreground">{paidInsights?.digitalMirror?.personalityProfile}</p>
+                      <h4 className="font-semibold mb-2">Personality Analysis</h4>
+                      <p className="text-muted-foreground">{paidInsights?.behavioralProfile?.personalityAnalysis}</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
-                      <h4 className="font-semibold mb-2">AI's Perception of You</h4>
-                      <p className="text-muted-foreground">{paidInsights?.digitalMirror?.aiPerception}</p>
+                      <h4 className="font-semibold mb-2">Cognitive Style</h4>
+                      <p className="text-muted-foreground">{paidInsights?.behavioralProfile?.cognitiveStyle}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -513,20 +580,21 @@ const AnalysisPage: React.FC = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="revelations" className="space-y-6">
-          {!isPremiumUser ? (
+        <TabsContent value="insights" className="space-y-6">
+          {!paidInsights ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Search className="h-8 w-8 text-primary" />
+                    <Code className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">Hidden Patterns Locked</h3>
+                  <h3 className="text-xl font-semibold">Advanced Data Insights</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Uncover the recurring themes, anxieties, and personal details you've unknowingly cataloged. What has your digital subconscious revealed?
+                    Deep data analysis revealing learning patterns, skill progression, and knowledge acquisition 
+                    strategies extracted from your conversation history.
                   </p>
                   <Button onClick={handleUpgrade} size="lg">
-                    Reveal Hidden Patterns - $10
+                    Unlock Data Insights - $10
                     <Crown className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
@@ -534,16 +602,16 @@ const AnalysisPage: React.FC = () => {
             </Card>
           ) : (
             <div className="space-y-6">
-              {(paidInsights?.hiddenPatterns || []).map((pattern: any, index: number) => (
+              {(paidInsights?.dataPatterns || []).map((pattern: any, index: number) => (
                 <Card key={index} className="border-l-4 border-l-primary">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="flex items-center">
-                        <Search className="h-5 w-5 mr-2 text-primary" />
+                        <Code className="h-5 w-5 mr-2 text-primary" />
                         {pattern.pattern}
                       </CardTitle>
-                      <Badge variant={pattern.surprise_factor === 'High' ? 'destructive' : pattern.surprise_factor === 'Medium' ? 'default' : 'secondary'}>
-                        {pattern.surprise_factor} Surprise
+                      <Badge variant={pattern.significance === 'High' ? 'destructive' : pattern.significance === 'Medium' ? 'default' : 'secondary'}>
+                        {pattern.significance} Significance
                       </Badge>
                     </div>
                     <CardDescription>{pattern.frequency}</CardDescription>
@@ -558,20 +626,20 @@ const AnalysisPage: React.FC = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Network className="h-5 w-5 mr-2 text-primary" />
-                    The Revelation Map
+                    Insight Mapping
                   </CardTitle>
-                  <CardDescription>Connecting the dots across your conversations</CardDescription>
+                  <CardDescription>Connecting patterns across your conversation data</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-semibold mb-2">Your Overarching Narrative</h4>
-                      <p className="text-muted-foreground">{paidInsights?.revelationMap?.overarchingNarrative}</p>
+                      <h4 className="font-semibold mb-2">Learning Narrative</h4>
+                      <p className="text-muted-foreground">{paidInsights?.insightMap?.overarchingNarrative}</p>
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">Connection Points</h4>
                       <ul className="space-y-1">
-                        {(paidInsights?.revelationMap?.connectionPoints || []).map((point: string, index: number) => (
+                        {(paidInsights?.insightMap?.connectionPoints || []).map((point: string, index: number) => (
                           <li key={index} className="text-muted-foreground flex items-center">
                             <ArrowRight className="h-4 w-4 mr-2 text-primary" />
                             {point}
@@ -580,9 +648,9 @@ const AnalysisPage: React.FC = () => {
                       </ul>
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Unconscious Themes</h4>
+                      <h4 className="font-semibold mb-2">Cognitive Themes</h4>
                       <div className="flex flex-wrap gap-2">
-                        {(paidInsights?.revelationMap?.unconsciousThemes || []).map((theme: string, index: number) => (
+                        {(paidInsights?.insightMap?.cognitiveThemes || []).map((theme: string, index: number) => (
                           <Badge key={index} variant="outline">{theme}</Badge>
                         ))}
                       </div>

@@ -126,4 +126,23 @@ export class StripeService {
   static isPremiumUser(orders: OrderData[]): boolean {
     return this.hasPurchasedPremium(orders);
   }
+
+  // Check if user has premium access via database function
+  static async checkPremiumAccess(): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.rpc('user_has_premium_access', {
+        user_id_param: (await supabase.auth.getUser()).data.user?.id
+      });
+
+      if (error) {
+        console.error('Error checking premium access:', error);
+        return false;
+      }
+
+      return data || false;
+    } catch (error) {
+      console.error('Error checking premium access:', error);
+      return false;
+    }
+  }
 }

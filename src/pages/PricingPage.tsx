@@ -15,8 +15,8 @@ import {
   TrendingUp,
   Users,
   Lightbulb,
-  Eye,
-  Search,
+  Database,
+  Code,
   Network,
   Loader2,
   Star
@@ -87,12 +87,13 @@ const PricingPage: React.FC = () => {
     ],
     premium: [
       'Unlimited conversation analyses',
-      'The Digital Mirror: AI personality profiling',
-      'Hidden Patterns: Unconscious theme discovery',
-      'The Revelation Map: Cross-conversation connections',
-      'Emotional archaeology of your chats',
-      'Advanced behavioral predictions',
-      'What you unknowingly revealed analysis',
+      'Advanced behavioral profiling',
+      'Machine learning pattern detection',
+      'Cognitive style analysis',
+      'Learning progression tracking',
+      'Skill development insights',
+      'Problem-solving methodology analysis',
+      'Knowledge gap identification',
       'Custom deep-dive reports',
       'Priority support',
       'Data export capabilities'
@@ -101,39 +102,39 @@ const PricingPage: React.FC = () => {
 
   const premiumFeatures = [
     {
-      icon: <Eye className="h-6 w-6" />,
-      name: "The Digital Mirror",
-      description: "See yourself as the AI sees you. Discover the personality profile built from your digital conversations—it might be unsettlingly accurate.",
+      icon: <Database className="h-6 w-6" />,
+      name: "Behavioral Profile Analysis",
+      description: "Advanced ML analysis of cognitive patterns, learning styles, and problem-solving approaches extracted from conversation data.",
     },
     {
-      icon: <Search className="h-6 w-6" />,
-      name: "Hidden Patterns",
-      description: "Uncover the recurring themes, anxieties, and personal details you've unknowingly cataloged. What has your digital subconscious revealed?",
+      icon: <Code className="h-6 w-6" />,
+      name: "Data Pattern Detection",
+      description: "Identify skill progression, learning velocity, and knowledge acquisition patterns using advanced data science techniques.",
     },
     {
       icon: <Network className="h-6 w-6" />,
-      name: "The Revelation Map",
-      description: "Connect the dots across months of conversations. We trace the narrative threads you've woven, revealing the grand story your subconscious has been telling.",
+      name: "Insight Mapping",
+      description: "Connect patterns across conversations to reveal learning trajectories, skill development, and cognitive evolution over time.",
     }
   ];
 
   const testimonials = [
     {
-      name: "Maya K.",
-      role: "Freelance Writer",
-      content: "I genuinely gasped. Chat Insights showed me a timeline of my health queries and anxieties I'd discussed over months. Seeing it all laid out was... intense.",
+      name: "Alex Chen",
+      role: "Senior Software Engineer",
+      content: "The behavioral analysis was incredibly accurate. It identified my learning patterns and problem-solving approach better than I could have described myself.",
       plan: "Premium"
     },
     {
-      name: "Ben S.",
-      role: "Software Developer",
-      content: "The 'Hidden Patterns' feature was an eye-opener. It flagged how often I'd mentioned details about past projects, old colleagues, even my partner's job hunt.",
+      name: "Sarah Kim",
+      role: "Data Scientist",
+      content: "The pattern detection found clear progression in my technical skills over months. It's like having a data-driven career coach.",
       plan: "Premium"
     },
     {
-      name: "Dr. Evelyn Reed",
-      role: "Researcher",
-      content: "The 'Digital Mirror' was unsettlingly accurate. The inferred personality traits and even some of my niche academic interests were spot on.",
+      name: "Marcus Rodriguez",
+      role: "Tech Lead",
+      content: "As someone who values privacy, I appreciate the transparent data handling. The insights into my cognitive style were surprisingly detailed.",
       plan: "Premium"
     }
   ];
@@ -143,10 +144,10 @@ const PricingPage: React.FC = () => {
       {/* Hero Section */}
       <section className="container mx-auto px-4 text-center mb-16">
         <h1 className="text-4xl lg:text-5xl font-bold mb-6">
-          Choose Your Level of Self-Discovery
+          Advanced Conversation Analytics
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          Start with basic insights, or unlock the full power of your conversation data
+          Professional-grade analysis tools for developers who want data-driven insights into their learning and communication patterns
         </p>
       </section>
 
@@ -158,8 +159,8 @@ const PricingPage: React.FC = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl">Free Version</CardTitle>
-                  <CardDescription>Perfect for trying out ChatInsights</CardDescription>
+                  <CardTitle className="text-2xl">Basic Analytics</CardTitle>
+                  <CardDescription>Essential conversation insights</CardDescription>
                 </div>
                 <MessageSquare className="h-8 w-8 text-muted-foreground" />
               </div>
@@ -181,7 +182,7 @@ const PricingPage: React.FC = () => {
                 variant="outline" 
                 className="w-full"
                 disabled={!user}
-                onClick={() => !user && toast.info('Sign up to get started with the free version')}
+                onClick={() => !user && toast.info('Sign up to get started with basic analytics')}
               >
                 {!user ? 'Sign Up to Start' : 'Current Plan'}
               </Button>
@@ -193,14 +194,14 @@ const PricingPage: React.FC = () => {
             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
               <Badge className="px-3 py-1">
                 <Crown className="h-3 w-3 mr-1" />
-                Most Popular
+                Professional
               </Badge>
             </div>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-2xl">Premium</CardTitle>
-                  <CardDescription>Discover what you've unknowingly revealed</CardDescription>
+                  <CardTitle className="text-2xl">Advanced Analytics</CardTitle>
+                  <CardDescription>Professional-grade insights and analysis</CardDescription>
                 </div>
                 <Crown className="h-8 w-8 text-yellow-500" />
               </div>
@@ -216,16 +217,16 @@ const PricingPage: React.FC = () => {
                 <Alert className="mb-6 border-green-200 bg-green-50">
                   <Crown className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-800">
-                    <strong>You have Premium access!</strong> All features are unlocked.
+                    <strong>Premium Active:</strong> All advanced features are unlocked.
                   </AlertDescription>
                 </Alert>
               )}
 
               <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
-                <h4 className="font-semibold text-primary mb-2">Prepare to be surprised</h4>
+                <h4 className="font-semibold text-primary mb-2">Data-Driven Insights</h4>
                 <p className="text-sm text-muted-foreground">
-                  Premium reveals patterns, themes, and personal details you never realized you'd shared. 
-                  It's a mirror to your digital subconscious—fascinating and sometimes unsettling.
+                  Advanced machine learning analysis of your conversation patterns, learning progression, 
+                  and cognitive style. Privacy-focused with automatic data deletion.
                 </p>
               </div>
               
@@ -253,7 +254,7 @@ const PricingPage: React.FC = () => {
                 ) : !user ? (
                   'Sign In to Purchase'
                 ) : (
-                  'Unlock Your Digital Self'
+                  'Unlock Advanced Analytics'
                 )}
               </Button>
             </CardContent>
@@ -263,10 +264,10 @@ const PricingPage: React.FC = () => {
 
       {/* Premium Features Deep Dive */}
       <section className="container mx-auto px-4 mb-16">
-        <h2 className="text-3xl font-bold text-center mb-4">What Premium Reveals</h2>
+        <h2 className="text-3xl font-bold text-center mb-4">Advanced Analytics Features</h2>
         <p className="text-xl text-muted-foreground text-center mb-12 max-w-3xl mx-auto">
-          These aren't just analytics—they're revelations about the digital trail you've left behind. 
-          Prepare to see yourself through the lens of your own data.
+          Professional-grade analysis tools designed for developers who want comprehensive insights 
+          into their learning patterns and communication data.
         </p>
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -290,9 +291,9 @@ const PricingPage: React.FC = () => {
       {/* Testimonials */}
       <section className="bg-muted/30 py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-4">What Premium Users Discovered</h2>
+          <h2 className="text-3xl font-bold text-center mb-4">What Developers Say</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Real reactions from users who dared to see what their conversations revealed
+            Real feedback from developers who use our advanced analytics
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {testimonials.map((testimonial, index) => (
@@ -316,13 +317,45 @@ const PricingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Privacy Section */}
+      <section className="container mx-auto px-4 mb-16">
+        <div className="max-w-4xl mx-auto text-center">
+          <Shield className="h-16 w-16 text-primary mx-auto mb-6" />
+          <h2 className="text-3xl font-bold mb-4">Privacy-First Analytics</h2>
+          <p className="text-xl text-muted-foreground mb-8">
+            Your conversation data is processed securely and automatically deleted after analysis. 
+            We only retain the insights, never your raw conversations.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold mb-2">Automatic Deletion</h4>
+              <p className="text-sm text-muted-foreground">
+                Raw conversation files are permanently deleted within hours of processing
+              </p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold mb-2">Encrypted Processing</h4>
+              <p className="text-sm text-muted-foreground">
+                All data is encrypted in transit and at rest during analysis
+              </p>
+            </div>
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <h4 className="font-semibold mb-2">No Data Sharing</h4>
+              <p className="text-sm text-muted-foreground">
+                Your data is never shared, sold, or used for training other models
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="bg-primary text-primary-foreground py-16">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to See What You've Revealed?</h2>
+          <h2 className="text-3xl font-bold mb-4">Ready for Advanced Analytics?</h2>
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-            Join thousands who have discovered the hidden patterns in their digital conversations. 
-            Some insights might surprise you.
+            Join developers who use data-driven insights to understand their learning patterns 
+            and optimize their professional growth.
           </p>
           <Button 
             size="lg" 
@@ -346,7 +379,7 @@ const PricingPage: React.FC = () => {
             ) : (
               <>
                 <Crown className="mr-2 h-5 w-5" />
-                Unlock Your Digital Self - $10
+                Unlock Advanced Analytics - $10
               </>
             )}
           </Button>

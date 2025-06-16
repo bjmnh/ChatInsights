@@ -137,7 +137,7 @@ export class JobService {
   }
 
   // Process a job (trigger the edge function)
-  static async processJob(jobId: string): Promise<void> {
+  static async processJob(jobId: string, analysisType: 'basic' | 'premium' = 'basic'): Promise<void> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -151,7 +151,10 @@ export class JobService {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ jobId }),
+        body: JSON.stringify({ 
+          jobId,
+          analysisType 
+        }),
       });
 
       if (!response.ok) {
@@ -163,6 +166,33 @@ export class JobService {
       console.log('Processing result:', result);
     } catch (error) {
       console.error('Error processing job:', error);
+      throw error;
+    }
+  }
+
+  // Reprocess job with premium analysis
+  static async reprocessWithPremium(jobId: string): Promise<void> {
+    try {
+      // Update job to indicate premium reprocessing
+      await this.updateJobStatus(jobId, 'processing');
+      
+      // Update analysis type
+      const { error } = await supabase
+        .from('jobs')
+        .update({ 
+          analysis_type: 'premium',
+          premium_features_enabled: true 
+        })
+        .eq('id', jobId);
+
+      if (error) {
+        throw new Error(handleSupabaseError(error));
+      }
+
+      // Trigger premium processing
+      await this.processJob(jobId, 'premium');
+    } catch (error) {
+      console.error('Error reprocessing with premium:', error);
       throw error;
     }
   }

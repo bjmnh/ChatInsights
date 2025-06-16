@@ -19,7 +19,9 @@ import {
   TrendingUp,
   Users,
   Loader2,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { JobService } from '../services/jobService';
@@ -35,15 +37,35 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [storageSetupError, setStorageSetupError] = useState<string | null>(null);
+  const [storageInfo, setStorageInfo] = useState<{
+    bucketExists: boolean;
+    bucketAccessible: boolean;
+    userCanUpload: boolean;
+    error?: string;
+  } | null>(null);
+  const [checkingStorage, setCheckingStorage] = useState(false);
 
   // Check storage setup on component mount
   useEffect(() => {
     const checkStorageSetup = async () => {
+      if (!user) return;
+      
+      setCheckingStorage(true);
       try {
-        const bucketExists = await StorageService.checkBucketExists();
-        if (!bucketExists) {
+        const info = await StorageService.getStorageInfo();
+        setStorageInfo(info);
+        
+        if (!info.bucketExists) {
           setStorageSetupError(
             "Storage bucket 'conversation-files' not found. Please create it in your Supabase dashboard."
+          );
+        } else if (!info.bucketAccessible) {
+          setStorageSetupError(
+            `Storage bucket exists but is not accessible: ${info.error}`
+          );
+        } else if (!info.userCanUpload) {
+          setStorageSetupError(
+            `Storage bucket exists but upload is not allowed: ${info.error}`
           );
         } else {
           setStorageSetupError(null);
@@ -51,12 +73,12 @@ const DashboardPage: React.FC = () => {
       } catch (error) {
         console.error('Error checking storage setup:', error);
         setStorageSetupError('Unable to verify storage setup. Please check your Supabase configuration.');
+      } finally {
+        setCheckingStorage(false);
       }
     };
 
-    if (user) {
-      checkStorageSetup();
-    }
+    checkStorageSetup();
   }, [user]);
 
   // Fetch user jobs
@@ -107,6 +129,41 @@ const DashboardPage: React.FC = () => {
       subscriptions.forEach(unsubscribe => unsubscribe());
     };
   }, [jobs]);
+
+  const recheckStorage = async () => {
+    if (!user) return;
+    
+    setCheckingStorage(true);
+    try {
+      const info = await StorageService.getStorageInfo();
+      setStorageInfo(info);
+      
+      if (!info.bucketExists) {
+        setStorageSetupError(
+          "Storage bucket 'conversation-files' not found. Please create it in your Supabase dashboard."
+        );
+        toast.error('Storage bucket still not found');
+      } else if (!info.bucketAccessible) {
+        setStorageSetupError(
+          `Storage bucket exists but is not accessible: ${info.error}`
+        );
+        toast.error('Storage bucket not accessible');
+      } else if (!info.userCanUpload) {
+        setStorageSetupError(
+          `Storage bucket exists but upload is not allowed: ${info.error}`
+        );
+        toast.error('Upload permissions not configured');
+      } else {
+        setStorageSetupError(null);
+        toast.success('Storage is now properly configured!');
+      }
+    } catch (error) {
+      console.error('Error rechecking storage:', error);
+      toast.error('Failed to check storage configuration');
+    } finally {
+      setCheckingStorage(false);
+    }
+  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user) return;
@@ -269,10 +326,10 @@ const DashboardPage: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome back, {user.name}! Upload your ChatGPT conversations to get started.
+              Welcome back, {user.email}! Upload your ChatGPT conversations to get started.
             </p>
           </div>
-          {user.premium_status && (
+          {user.user_metadata?.premium_status && (
             <Badge variant="secondary" className="px-3 py-1">
               <Crown className="h-4 w-4 mr-1" />
               Premium
@@ -285,24 +342,58 @@ const DashboardPage: React.FC = () => {
           <Alert className="mb-6 border-orange-200 bg-orange-50">
             <AlertCircle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800">
-              <strong>Storage Setup Required:</strong> {storageSetupError}
-              <div className="mt-2">
-                <p className="text-sm">To fix this:</p>
-                <ol className="list-decimal list-inside text-sm mt-1 space-y-1">
-                  <li>Go to your Supabase dashboard</li>
-                  <li>Navigate to Storage section</li>
-                  <li>Create a new bucket named "conversation-files"</li>
-                  <li>Set up the required storage policies (see README)</li>
-                </ol>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="mt-2"
-                  onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
-                >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Open Supabase Dashboard
-                </Button>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <strong>Storage Setup Required:</strong> {storageSetupError}
+                  <div className="mt-2">
+                    <p className="text-sm">To fix this:</p>
+                    <ol className="list-decimal list-inside text-sm mt-1 space-y-1">
+                      <li>Go to your Supabase dashboard</li>
+                      <li>Navigate to Storage section</li>
+                      <li>Create a new bucket named "conversation-files"</li>
+                      <li>Set up the required storage policies (see README)</li>
+                    </ol>
+                    <div className="flex gap-2 mt-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => window.open('https://supabase.com/dashboard', '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Open Supabase Dashboard
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={recheckStorage}
+                        disabled={checkingStorage}
+                      >
+                        {checkingStorage ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                        )}
+                        Recheck Storage
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Storage Info Debug (only show if there are issues) */}
+        {storageInfo && (storageSetupError || !storageInfo.userCanUpload) && (
+          <Alert className="mb-6 border-blue-200 bg-blue-50">
+            <Settings className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>Storage Diagnostic Info:</strong>
+              <div className="mt-2 text-sm space-y-1">
+                <div>Bucket exists: {storageInfo.bucketExists ? '✅' : '❌'}</div>
+                <div>Bucket accessible: {storageInfo.bucketAccessible ? '✅' : '❌'}</div>
+                <div>User can upload: {storageInfo.userCanUpload ? '✅' : '❌'}</div>
+                {storageInfo.error && <div>Error: {storageInfo.error}</div>}
               </div>
             </AlertDescription>
           </Alert>
@@ -355,9 +446,14 @@ const DashboardPage: React.FC = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{user.premium_status ? 'Premium' : 'Free'}</div>
+              <div className="text-2xl font-bold">
+                {user.user_metadata?.premium_status ? 'Premium' : 'Free'}
+              </div>
               <p className="text-xs text-muted-foreground">
-                {user.premium_status ? 'All features unlocked' : `${Math.max(0, 3 - jobs.length)} free analyses remaining`}
+                {user.user_metadata?.premium_status 
+                  ? 'All features unlocked' 
+                  : `${Math.max(0, 3 - jobs.length)} free analyses remaining`
+                }
               </p>
             </CardContent>
           </Card>

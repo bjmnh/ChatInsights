@@ -20,14 +20,136 @@ export class StorageService {
     }
   }
 
+  // Test bucket access by trying to list files
+  static async testBucketAccess(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { data, error } = await supabase.storage
+        .from(this.BUCKET_NAME)
+        .list('', { limit: 1 });
+
+      if (error) {
+        return { 
+          success: false, 
+          error: `Bucket access failed: ${error.message}` 
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: `Bucket test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
+    }
+  }
+
+  // Get detailed storage info for debugging
+  static async getStorageInfo(): Promise<{
+    bucketExists: boolean;
+    bucketAccessible: boolean;
+    userCanUpload: boolean;
+    error?: string;
+  }> {
+    try {
+      // Check if bucket exists
+      const bucketExists = await this.checkBucketExists();
+      
+      if (!bucketExists) {
+        return {
+          bucketExists: false,
+          bucketAccessible: false,
+          userCanUpload: false,
+          error: `Bucket '${this.BUCKET_NAME}' does not exist`
+        };
+      }
+
+      // Test bucket access
+      const accessTest = await this.testBucketAccess();
+      
+      if (!accessTest.success) {
+        return {
+          bucketExists: true,
+          bucketAccessible: false,
+          userCanUpload: false,
+          error: accessTest.error
+        };
+      }
+
+      // Test upload capability with a tiny test file
+      const testResult = await this.testUploadCapability();
+
+      return {
+        bucketExists: true,
+        bucketAccessible: true,
+        userCanUpload: testResult.success,
+        error: testResult.error
+      };
+
+    } catch (error) {
+      return {
+        bucketExists: false,
+        bucketAccessible: false,
+        userCanUpload: false,
+        error: `Storage info check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  // Test upload capability without actually uploading a file
+  private static async testUploadCapability(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return { 
+          success: false, 
+          error: 'User not authenticated' 
+        };
+      }
+
+      // Try to create a signed upload URL as a test
+      const testPath = `${user.id}/test/test.json`;
+      const { data, error } = await supabase.storage
+        .from(this.BUCKET_NAME)
+        .createSignedUploadUrl(testPath);
+
+      if (error) {
+        return { 
+          success: false, 
+          error: `Upload test failed: ${error.message}` 
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: `Upload capability test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      };
+    }
+  }
+
   // Upload a file to Supabase Storage
   static async uploadFile(file: File, userId: string, jobId: string): Promise<string> {
     try {
-      // First check if bucket exists
-      const bucketExists = await this.checkBucketExists();
-      if (!bucketExists) {
+      // Get detailed storage info for better error messages
+      const storageInfo = await this.getStorageInfo();
+      
+      if (!storageInfo.bucketExists) {
         throw new Error(
           `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard under Storage section.`
+        );
+      }
+
+      if (!storageInfo.bucketAccessible) {
+        throw new Error(
+          `Cannot access storage bucket '${this.BUCKET_NAME}'. Error: ${storageInfo.error}`
+        );
+      }
+
+      if (!storageInfo.userCanUpload) {
+        throw new Error(
+          `Upload not allowed to bucket '${this.BUCKET_NAME}'. Please check your storage policies. Error: ${storageInfo.error}`
         );
       }
 
@@ -47,12 +169,16 @@ export class StorageService {
           throw new Error(
             `Storage bucket '${this.BUCKET_NAME}' not found. Please create the bucket in your Supabase dashboard under Storage section.`
           );
-        } else if (error.message?.includes('not allowed')) {
+        } else if (error.message?.includes('not allowed') || error.message?.includes('permission')) {
           throw new Error(
-            'File upload not allowed. Please check your storage bucket policies in Supabase dashboard.'
+            `File upload not allowed. Please check your storage bucket policies in Supabase dashboard. Error: ${error.message}`
+          );
+        } else if (error.message?.includes('already exists')) {
+          throw new Error(
+            'A file with this name already exists. Please try again or contact support.'
           );
         } else {
-          throw new Error(handleSupabaseError(error));
+          throw new Error(`Upload failed: ${error.message}`);
         }
       }
 

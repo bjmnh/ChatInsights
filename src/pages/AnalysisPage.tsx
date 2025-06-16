@@ -189,7 +189,8 @@ const AnalysisPage: React.FC = () => {
   // Check if user has premium access
   const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
   const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, 'price_1RaacGQSrLveGa6rGX1kBexA');
-  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
+  const hasPurchasedTest = StripeService.hasPurchasedProduct(orders, 'price_test_free');
+  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium || hasPurchasedTest;
 
   if (!user) {
     return null;

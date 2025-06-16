@@ -20,11 +20,12 @@ import {
   Search,
   Network,
   Loader2,
-  Star
+  Star,
+  TestTube
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StripeService } from '../services/stripeService';
-import { products, getProductById } from '../stripe-config';
+import { products, getProductById, getTestProduct } from '../stripe-config';
 
 const PricingPage: React.FC = () => {
   const { user } = useAuth();
@@ -33,8 +34,10 @@ const PricingPage: React.FC = () => {
   const [subscription, setSubscription] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [showTestMode, setShowTestMode] = useState(false);
 
   const premiumProduct = getProductById('prod_SVbpaHbrdScZy7');
+  const testProduct = getTestProduct();
 
   useEffect(() => {
     if (user) {
@@ -58,20 +61,20 @@ const PricingPage: React.FC = () => {
     }
   };
 
-  const handlePurchase = async () => {
+  const handlePurchase = async (product = premiumProduct) => {
     if (!user) {
       toast.error('Please sign in to purchase');
       return;
     }
 
-    if (!premiumProduct) {
+    if (!product) {
       toast.error('Product not found');
       return;
     }
 
     setIsLoading(true);
     try {
-      await StripeService.purchaseProduct(premiumProduct);
+      await StripeService.purchaseProduct(product);
     } catch (error) {
       console.error('Purchase error:', error);
       toast.error('Failed to start checkout. Please try again.');
@@ -80,9 +83,14 @@ const PricingPage: React.FC = () => {
     }
   };
 
+  const handleTestPurchase = () => {
+    handlePurchase(testProduct);
+  };
+
   const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
   const hasPurchasedPremium = StripeService.hasPurchasedProduct(orders, premiumProduct?.priceId || '');
-  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium;
+  const hasPurchasedTest = StripeService.hasPurchasedProduct(orders, testProduct?.priceId || '');
+  const isPremiumUser = hasActiveSubscription || hasPurchasedPremium || hasPurchasedTest;
 
   const features = {
     free: [
@@ -166,6 +174,30 @@ const PricingPage: React.FC = () => {
           Start with basic insights, or dare to see what your conversations really reveal about you
         </p>
         
+        {/* Test Mode Toggle */}
+        <div className="flex items-center justify-center space-x-4 mb-8">
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={showTestMode}
+              onCheckedChange={setShowTestMode}
+            />
+            <span className="text-sm font-medium flex items-center">
+              <TestTube className="h-4 w-4 mr-1" />
+              Test Mode ($0)
+            </span>
+          </div>
+        </div>
+
+        {showTestMode && (
+          <Alert className="max-w-2xl mx-auto mb-8 border-blue-200 bg-blue-50">
+            <TestTube className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Test Mode Active:</strong> You can test the premium purchase flow with a $0 payment. 
+              This will give you access to all premium features for testing purposes.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {/* Annual/Monthly Toggle - Hidden for now since we only have one-time payment */}
         <div className="hidden items-center justify-center space-x-4 mb-8">
           <span className={`text-sm ${!isAnnual ? 'font-semibold' : 'text-muted-foreground'}`}>
@@ -241,9 +273,14 @@ const PricingPage: React.FC = () => {
               </div>
               <div className="mt-4">
                 <span className="text-4xl font-bold">
-                  ${premiumProduct?.price || '9.99'}
+                  ${showTestMode ? testProduct?.price || '0.00' : premiumProduct?.price || '9.99'}
                 </span>
                 <span className="text-muted-foreground">/one-time</span>
+                {showTestMode && (
+                  <div className="text-sm text-blue-600 font-medium">
+                    Test Mode - Free Trial
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -273,7 +310,7 @@ const PricingPage: React.FC = () => {
               </ul>
               <Button 
                 className="w-full" 
-                onClick={handlePurchase}
+                onClick={showTestMode ? handleTestPurchase : () => handlePurchase()}
                 disabled={isLoading || isPremiumUser || !user || dataLoading}
               >
                 {isLoading ? (
@@ -285,6 +322,11 @@ const PricingPage: React.FC = () => {
                   'Already Purchased'
                 ) : !user ? (
                   'Sign In to Purchase'
+                ) : showTestMode ? (
+                  <>
+                    <TestTube className="mr-2 h-4 w-4" />
+                    Test Premium ($0)
+                  </>
                 ) : (
                   'Unlock Your Digital Self'
                 )}
@@ -495,7 +537,7 @@ const PricingPage: React.FC = () => {
           <Button 
             size="lg" 
             variant="secondary"
-            onClick={handlePurchase}
+            onClick={showTestMode ? handleTestPurchase : () => handlePurchase()}
             disabled={isLoading || isPremiumUser || !user}
             className="text-lg px-8 py-6"
           >
@@ -511,6 +553,11 @@ const PricingPage: React.FC = () => {
               </>
             ) : !user ? (
               'Sign In to Purchase'
+            ) : showTestMode ? (
+              <>
+                <TestTube className="mr-2 h-5 w-5" />
+                Test Premium ($0)
+              </>
             ) : (
               <>
                 <Crown className="mr-2 h-5 w-5" />

@@ -18,7 +18,11 @@ import {
   MessageSquare,
   TrendingUp,
   Users,
-  Loader2
+  Loader2,
+  Shield,
+  Lock,
+  Target,
+  Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { JobService } from '../services/jobService';
@@ -201,15 +205,15 @@ const DashboardPage: React.FC = () => {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome back, {user.email}! Upload your ChatGPT conversations to get started.
+              Welcome back! Upload your ChatGPT conversations to discover your data story.
             </p>
           </div>
           {isPremiumUser && (
             <Badge variant="secondary" className="px-3 py-1">
-              <Crown className="h-4 w-4 mr-1" />
-              Premium
+              <Target className="h-4 w-4 mr-1" />
+              Advanced Analytics
             </Badge>
           )}
         </div>
@@ -250,7 +254,7 @@ const DashboardPage: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{completedJobs.length * 12}</div>
               <p className="text-xs text-muted-foreground">
-                Unique behavioral patterns
+                Unique data patterns
               </p>
             </CardContent>
           </Card>
@@ -261,7 +265,7 @@ const DashboardPage: React.FC = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{isPremiumUser ? 'Premium' : 'Free'}</div>
+              <div className="text-2xl font-bold">{isPremiumUser ? 'Advanced' : 'Basic'}</div>
               <p className="text-xs text-muted-foreground">
                 {isPremiumUser 
                   ? 'All features unlocked' 
@@ -278,19 +282,19 @@ const DashboardPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Upload New Analysis</CardTitle>
           <CardDescription>
-            Upload your ChatGPT conversations.json file to get detailed insights about your communication patterns.
+            Upload your ChatGPT conversations.json file to discover insights about your communication patterns.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert className="mb-6">
-            <AlertCircle className="h-4 w-4" />
+            <Shield className="h-4 w-4" />
             <AlertDescription>
-              <strong>How to export your ChatGPT data:</strong>
+              <strong>Privacy-First Processing:</strong>
               <ol className="list-decimal list-inside mt-2 space-y-1">
-                <li>Go to ChatGPT Settings → Data Controls</li>
-                <li>Click "Export data"</li>
-                <li>Wait for the email with your data</li>
-                <li>Download and upload the conversations.json file here</li>
+                <li>Export your ChatGPT data from Settings → Data Controls → Export</li>
+                <li>Upload the conversations.json file securely</li>
+                <li>We analyze your patterns and automatically delete your raw data</li>
+                <li>Only insights are retained—never your actual conversations</li>
               </ol>
             </AlertDescription>
           </Alert>
@@ -326,6 +330,14 @@ const DashboardPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* Privacy Reminder */}
+          <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-muted">
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Lock className="h-4 w-4 mr-2" />
+              Your raw conversation data is automatically deleted after analysis. We keep only the insights.
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -334,7 +346,7 @@ const DashboardPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Analysis History</CardTitle>
           <CardDescription>
-            View and manage your previous conversation analyses
+            View and manage your conversation analyses
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -351,12 +363,19 @@ const DashboardPage: React.FC = () => {
                     {getStatusIcon(job.status)}
                     <div>
                       <p className="font-medium">{job.filename}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                         {job.status === 'completed' && job.total_conversations && (
-                          `${job.total_conversations} conversations analyzed • `
+                          <span>{job.total_conversations} conversations analyzed</span>
                         )}
-                        {new Date(job.created_at).toLocaleDateString()}
-                      </p>
+                        {job.analysis_type === 'premium' && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Target className="h-3 w-3 mr-1" />
+                            Advanced
+                          </Badge>
+                        )}
+                        <span>•</span>
+                        <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
                   

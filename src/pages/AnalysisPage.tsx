@@ -21,12 +21,15 @@ import {
   Lightbulb,
   Target,
   ArrowRight,
-  Database as DatabaseIcon,
+  DatabaseIcon,
   Code,
   Network,
   Loader2,
   RefreshCw,
-  Zap
+  Zap,
+  Search,
+  Eye,
+  Layers
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { JobService } from '../services/jobService';
@@ -141,39 +144,63 @@ const AnalysisPage: React.FC = () => {
   // Generate mock premium insights
   const generateMockPremiumInsights = () => {
     return {
-      behavioralProfile: {
-        personalityAnalysis: 'Highly analytical individual with systematic thinking patterns and strong problem-solving orientation',
-        cognitiveStyle: 'Detail-oriented with preference for structured information and logical reasoning',
-        confidence: 94
+      cognitiveProfile: {
+        problemSolvingApproach: 'Systematic decomposition with iterative refinement',
+        learningStyle: 'Analytical learner with preference for structured information and logical progression',
+        communicationPattern: 'Detail-oriented with clear articulation of technical concepts',
+        confidence: 92
       },
-      dataPatterns: [
+      learningProgression: [
         {
-          pattern: 'Technical Skill Progression',
-          frequency: 'Tracked across 8 months',
-          description: 'Clear progression from basic concepts to advanced implementations, with consistent learning velocity',
+          skill: 'Algorithm Design',
+          progression: 'Beginner → Intermediate → Advanced',
+          timeframe: '6 months',
+          keyMilestones: ['Basic sorting algorithms', 'Dynamic programming', 'Graph algorithms'],
+          proficiencyGrowth: 85
+        },
+        {
+          skill: 'System Architecture',
+          progression: 'Novice → Competent → Proficient',
+          timeframe: '8 months',
+          keyMilestones: ['Monolithic design', 'Microservices', 'Distributed systems'],
+          proficiencyGrowth: 78
+        },
+        {
+          skill: 'Data Structures',
+          progression: 'Basic → Advanced → Expert',
+          timeframe: '4 months',
+          keyMilestones: ['Arrays and lists', 'Trees and graphs', 'Advanced data structures'],
+          proficiencyGrowth: 94
+        }
+      ],
+      behavioralPatterns: [
+        {
+          pattern: 'Technical Problem Decomposition',
+          frequency: 'Consistent across 89% of technical discussions',
+          description: 'Systematic approach: problem analysis → solution design → implementation strategy → optimization',
           significance: 'High'
         },
         {
-          pattern: 'Problem-Solving Methodology',
-          frequency: 'Consistent pattern in 85% of technical queries',
-          description: 'Systematic approach: problem decomposition → research → implementation → optimization',
+          pattern: 'Knowledge Gap Identification',
+          frequency: 'Identified in 76% of learning conversations',
+          description: 'Proactive identification of knowledge gaps followed by targeted learning strategies',
           significance: 'High'
         },
         {
-          pattern: 'Knowledge Gaps and Learning',
-          frequency: 'Identified 23 distinct learning cycles',
-          description: 'Regular pattern of identifying knowledge gaps and systematically addressing them',
+          pattern: 'Iterative Refinement Process',
+          frequency: 'Present in 82% of project discussions',
+          description: 'Consistent pattern of initial implementation followed by iterative improvements',
           significance: 'Medium'
         }
       ],
-      insightMap: {
-        overarchingNarrative: 'Your conversation data reveals a systematic learner with strong analytical capabilities, progressing from foundational concepts to advanced technical implementations',
-        connectionPoints: [
+      crossConversationInsights: {
+        overarchingTheme: 'Your conversation data reveals a systematic learner with strong analytical capabilities, progressing from foundational concepts to advanced technical implementations',
+        connectionPatterns: [
           'Technical questions → Implementation challenges → Optimization strategies',
           'Learning queries → Skill development → Career advancement',
           'Problem identification → Research methodology → Solution implementation'
         ],
-        cognitiveThemes: ['Systematic thinking', 'Continuous learning', 'Problem-solving orientation']
+        cognitiveEvolution: 'Clear progression from reactive problem-solving to proactive system design thinking'
       }
     };
   };
@@ -184,14 +211,14 @@ const AnalysisPage: React.FC = () => {
 
   const handleReprocessWithPremium = async () => {
     if (!job || !isPremiumUser) {
-      toast.error('Premium access required');
+      toast.error('Advanced analytics access required');
       return;
     }
 
     setReprocessing(true);
     try {
       await JobService.reprocessWithPremium(job.id);
-      toast.success('Starting premium analysis...');
+      toast.success('Starting advanced analysis...');
       
       // Refresh the page after a short delay to show the updated job
       setTimeout(() => {
@@ -199,7 +226,7 @@ const AnalysisPage: React.FC = () => {
       }, 2000);
     } catch (error) {
       console.error('Error reprocessing with premium:', error);
-      toast.error('Failed to start premium analysis');
+      toast.error('Failed to start advanced analysis');
     } finally {
       setReprocessing(false);
     }
@@ -292,13 +319,13 @@ const AnalysisPage: React.FC = () => {
             </Badge>
             {job.analysis_type === 'premium' && (
               <Badge variant="secondary" className="px-3 py-1">
-                <Zap className="h-4 w-4 mr-1" />
-                Premium Analysis
+                <Target className="h-4 w-4 mr-1" />
+                Advanced Analysis
               </Badge>
             )}
             {isPremiumUser && (
               <Badge variant="secondary" className="px-3 py-1">
-                <Crown className="h-4 w-4 mr-1" />
+                <Zap className="h-4 w-4 mr-1" />
                 Premium User
               </Badge>
             )}
@@ -308,11 +335,11 @@ const AnalysisPage: React.FC = () => {
         {/* Premium Upgrade Alert */}
         {canUpgradeToPremium && (
           <Alert className="mb-6 border-primary/20 bg-primary/5">
-            <Zap className="h-4 w-4" />
+            <Target className="h-4 w-4" />
             <AlertDescription>
               <div className="flex items-center justify-between">
                 <div>
-                  <strong>Upgrade Available:</strong> Run advanced analysis on this dataset with your premium access.
+                  <strong>Advanced Analysis Available:</strong> Run deeper analysis on this dataset with your premium access.
                 </div>
                 <Button 
                   onClick={handleReprocessWithPremium}
@@ -328,7 +355,7 @@ const AnalysisPage: React.FC = () => {
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Run Premium Analysis
+                      Run Advanced Analysis
                     </>
                   )}
                 </Button>
@@ -382,9 +409,9 @@ const AnalysisPage: React.FC = () => {
               <Brain className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{job.analysis_type === 'premium' ? 'Premium' : 'Basic'}</div>
+              <div className="text-2xl font-bold">{job.analysis_type === 'premium' ? 'Advanced' : 'Basic'}</div>
               <p className="text-xs text-muted-foreground">
-                {job.analysis_type === 'premium' ? 'Advanced insights' : 'Standard analysis'}
+                {job.analysis_type === 'premium' ? 'Deep insights' : 'Standard analysis'}
               </p>
             </CardContent>
           </Card>
@@ -395,13 +422,13 @@ const AnalysisPage: React.FC = () => {
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="patterns">Patterns</TabsTrigger>
-          <TabsTrigger value="behavioral" className="relative">
-            Behavioral Profile
-            {!paidInsights && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+          <TabsTrigger value="cognitive" className="relative">
+            Cognitive Analysis
+            {!paidInsights && <Target className="h-3 w-3 ml-1 text-primary" />}
           </TabsTrigger>
-          <TabsTrigger value="insights" className="relative">
-            Data Insights
-            {!paidInsights && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+          <TabsTrigger value="progression" className="relative">
+            Learning Insights
+            {!paidInsights && <Target className="h-3 w-3 ml-1 text-primary" />}
           </TabsTrigger>
         </TabsList>
 
@@ -526,23 +553,23 @@ const AnalysisPage: React.FC = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="behavioral" className="space-y-6">
+        <TabsContent value="cognitive" className="space-y-6">
           {!paidInsights ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <DatabaseIcon className="h-8 w-8 text-primary" />
+                    <Search className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">Behavioral Profile Analysis</h3>
+                  <h3 className="text-xl font-semibold">Cognitive Pattern Analysis</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Advanced behavioral analysis using machine learning to identify cognitive patterns, 
-                    learning styles, and problem-solving approaches from your conversation data.
+                    Advanced analysis of your problem-solving approaches, learning styles, and cognitive patterns 
+                    extracted from your conversation data.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button onClick={handleUpgrade} size="lg">
-                      Unlock Advanced Analysis - $10
-                      <Crown className="ml-2 h-4 w-4" />
+                      Unlock Advanced Analytics - $10
+                      <Target className="ml-2 h-4 w-4" />
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/pricing')}>
                       View Pricing
@@ -557,21 +584,25 @@ const AnalysisPage: React.FC = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center">
-                      <DatabaseIcon className="h-5 w-5 mr-2 text-primary" />
-                      Behavioral Profile Analysis
+                      <Search className="h-5 w-5 mr-2 text-primary" />
+                      Cognitive Profile Analysis
                     </CardTitle>
-                    <Badge variant="secondary">{paidInsights?.behavioralProfile?.confidence}% confidence</Badge>
+                    <Badge variant="secondary">{paidInsights?.cognitiveProfile?.confidence}% confidence</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                      <h4 className="font-semibold mb-2">Personality Analysis</h4>
-                      <p className="text-muted-foreground">{paidInsights?.behavioralProfile?.personalityAnalysis}</p>
+                      <h4 className="font-semibold mb-2">Problem-Solving Approach</h4>
+                      <p className="text-muted-foreground">{paidInsights?.cognitiveProfile?.problemSolvingApproach}</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
-                      <h4 className="font-semibold mb-2">Cognitive Style</h4>
-                      <p className="text-muted-foreground">{paidInsights?.behavioralProfile?.cognitiveStyle}</p>
+                      <h4 className="font-semibold mb-2">Learning Style</h4>
+                      <p className="text-muted-foreground">{paidInsights?.cognitiveProfile?.learningStyle}</p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <h4 className="font-semibold mb-2">Communication Pattern</h4>
+                      <p className="text-muted-foreground">{paidInsights?.cognitiveProfile?.communicationPattern}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -580,80 +611,120 @@ const AnalysisPage: React.FC = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="insights" className="space-y-6">
+        <TabsContent value="progression" className="space-y-6">
           {!paidInsights ? (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Code className="h-8 w-8 text-primary" />
+                    <TrendingUp className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">Advanced Data Insights</h3>
+                  <h3 className="text-xl font-semibold">Learning Progression Analysis</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Deep data analysis revealing learning patterns, skill progression, and knowledge acquisition 
-                    strategies extracted from your conversation history.
+                    Track your skill development, learning velocity, and knowledge acquisition patterns 
+                    using advanced data analysis techniques.
                   </p>
                   <Button onClick={handleUpgrade} size="lg">
-                    Unlock Data Insights - $10
-                    <Crown className="ml-2 h-4 w-4" />
+                    Unlock Learning Insights - $10
+                    <Target className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-6">
-              {(paidInsights?.dataPatterns || []).map((pattern: any, index: number) => (
-                <Card key={index} className="border-l-4 border-l-primary">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center">
-                        <Code className="h-5 w-5 mr-2 text-primary" />
-                        {pattern.pattern}
-                      </CardTitle>
-                      <Badge variant={pattern.significance === 'High' ? 'destructive' : pattern.significance === 'Medium' ? 'default' : 'secondary'}>
-                        {pattern.significance} Significance
-                      </Badge>
-                    </div>
-                    <CardDescription>{pattern.frequency}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{pattern.description}</p>
-                  </CardContent>
-                </Card>
-              ))}
+              {/* Learning Progression */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2 text-primary" />
+                    Skill Development Progression
+                  </CardTitle>
+                  <CardDescription>Your learning journey across different technical areas</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {(paidInsights?.learningProgression || []).map((skill: any, index: number) => (
+                      <div key={index} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold">{skill.skill}</h4>
+                          <Badge variant="outline">{skill.timeframe}</Badge>
+                        </div>
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span>Progression</span>
+                            <span>{skill.proficiencyGrowth}% growth</span>
+                          </div>
+                          <Progress value={skill.proficiencyGrowth} className="h-2" />
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{skill.progression}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {skill.keyMilestones.map((milestone: string, i: number) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{milestone}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
+              {/* Behavioral Patterns */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Eye className="h-5 w-5 mr-2 text-primary" />
+                    Behavioral Patterns
+                  </CardTitle>
+                  <CardDescription>Consistent patterns identified across your conversations</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {(paidInsights?.behavioralPatterns || []).map((pattern: any, index: number) => (
+                      <div key={index} className="p-4 border-l-4 border-l-primary rounded-lg bg-primary/5">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold">{pattern.pattern}</h4>
+                          <Badge variant={pattern.significance === 'High' ? 'destructive' : 'secondary'}>
+                            {pattern.significance} Impact
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{pattern.frequency}</p>
+                        <p className="text-sm">{pattern.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Cross-Conversation Insights */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Network className="h-5 w-5 mr-2 text-primary" />
-                    Insight Mapping
+                    Cross-Conversation Insights
                   </CardTitle>
-                  <CardDescription>Connecting patterns across your conversation data</CardDescription>
+                  <CardDescription>Connections and themes across your entire conversation history</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-semibold mb-2">Learning Narrative</h4>
-                      <p className="text-muted-foreground">{paidInsights?.insightMap?.overarchingNarrative}</p>
+                      <h4 className="font-semibold mb-2">Overarching Theme</h4>
+                      <p className="text-muted-foreground">{paidInsights?.crossConversationInsights?.overarchingTheme}</p>
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Connection Points</h4>
+                      <h4 className="font-semibold mb-2">Connection Patterns</h4>
                       <ul className="space-y-1">
-                        {(paidInsights?.insightMap?.connectionPoints || []).map((point: string, index: number) => (
+                        {(paidInsights?.crossConversationInsights?.connectionPatterns || []).map((pattern: string, index: number) => (
                           <li key={index} className="text-muted-foreground flex items-center">
                             <ArrowRight className="h-4 w-4 mr-2 text-primary" />
-                            {point}
+                            {pattern}
                           </li>
                         ))}
                       </ul>
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Cognitive Themes</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {(paidInsights?.insightMap?.cognitiveThemes || []).map((theme: string, index: number) => (
-                          <Badge key={index} variant="outline">{theme}</Badge>
-                        ))}
-                      </div>
+                      <h4 className="font-semibold mb-2">Cognitive Evolution</h4>
+                      <p className="text-muted-foreground">{paidInsights?.crossConversationInsights?.cognitiveEvolution}</p>
                     </div>
                   </div>
                 </CardContent>

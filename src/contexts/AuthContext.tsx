@@ -74,6 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success('Successfully signed in!');
       } else if (event === 'SIGNED_OUT') {
         toast.success('Successfully signed out!');
+      } else if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed');
       }
     });
 
@@ -127,6 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           data: {
             name: name?.trim() || '',
           },
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
         },
       });
 
@@ -172,7 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = async (email: string) => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
       });
 
       if (error) {

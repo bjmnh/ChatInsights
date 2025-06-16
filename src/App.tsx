@@ -12,6 +12,7 @@ import PricingPage from './pages/PricingPage';
 import AuthPage from './pages/AuthPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
+import EmailConfirmationPage from './pages/EmailConfirmationPage';
 import './App.css';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
                 <Route path="/analysis/:jobId" element={<AnalysisPage />} />
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/auth/confirm" element={<EmailConfirmationPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/terms" element={<TermsPage />} />
               </Routes>

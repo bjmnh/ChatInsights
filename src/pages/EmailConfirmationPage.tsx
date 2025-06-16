@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { config } from '../lib/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Alert, AlertDescription } from '../components/ui/alert';
@@ -77,7 +78,8 @@ const EmailConfirmationPage: React.FC = () => {
           <div className="flex items-center justify-center mb-4">
             <Brain className="h-12 w-12 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Email Confirmation</h1>
+          <h1 className="text-2xl font-bold">{config.app.name}</h1>
+          <p className="text-muted-foreground">Email Confirmation</p>
         </div>
 
         <Card>
@@ -92,7 +94,7 @@ const EmailConfirmationPage: React.FC = () => {
             </CardTitle>
             <CardDescription className="text-center">
               {status === 'loading' && 'Please wait while we confirm your email address.'}
-              {status === 'success' && 'Welcome to ChatInsights! Your account is now active.'}
+              {status === 'success' && `Welcome to ${config.app.name}! Your account is now active.`}
               {status === 'error' && 'There was a problem confirming your email address.'}
             </CardDescription>
           </CardHeader>
@@ -128,8 +130,8 @@ const EmailConfirmationPage: React.FC = () => {
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>
               If you continue to have problems, please contact support at{' '}
-              <a href="mailto:support@chatinsights.com" className="text-primary hover:underline">
-                support@chatinsights.com
+              <a href={`mailto:${config.app.supportEmail}`} className="text-primary hover:underline">
+                {config.app.supportEmail}
               </a>
             </p>
           </div>

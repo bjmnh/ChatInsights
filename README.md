@@ -50,22 +50,68 @@ Edit `.env` and add your Supabase credentials:
 ```
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_APP_URL=http://localhost:5173
 ```
 
 4. Set up the database:
    - Go to your Supabase project dashboard
    - Navigate to the SQL Editor
-   - Run the migration file: `supabase/migrations/create_initial_schema.sql`
+   - Run the migration files in order:
+     - `supabase/migrations/20250615044735_dark_coast.sql`
+     - `supabase/migrations/20250616090703_velvet_river.sql`
 
-5. Set up Storage:
+5. Configure Supabase Authentication:
+   - Go to Authentication → URL Configuration in your Supabase dashboard
+   - Set **Site URL** to: `http://localhost:5173` (for development)
+   - Add **Redirect URLs**:
+     - `http://localhost:5173/auth/confirm`
+     - `http://localhost:5173/auth/reset-password`
+
+6. Set up Storage:
    - Go to Storage in your Supabase dashboard
    - Create a new bucket called `conversation-files`
    - Set appropriate policies for authenticated users
 
-6. Start the development server:
+7. Start the development server:
 ```bash
 npm run dev
 ```
+
+## Production Deployment
+
+### Environment Configuration
+
+For production deployment, update your environment variables:
+
+```bash
+# Production .env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_APP_URL=https://yourdomain.com
+```
+
+### Supabase Configuration for Production
+
+1. **Update Site URL** in Supabase Dashboard:
+   - Go to Authentication → URL Configuration
+   - Set **Site URL** to: `https://yourdomain.com`
+
+2. **Update Redirect URLs**:
+   - `https://yourdomain.com/auth/confirm`
+   - `https://yourdomain.com/auth/reset-password`
+
+3. **Deploy Steps**:
+   ```bash
+   npm run build
+   ```
+   Deploy the `dist` folder to your hosting platform (Vercel, Netlify, etc.)
+
+### Hosting Platform Setup
+
+The app is configured to work seamlessly with:
+- **Vercel**: Zero-config deployment
+- **Netlify**: Automatic builds and deploys
+- **Any static hosting**: Just upload the `dist` folder
 
 ## Database Schema
 
@@ -117,19 +163,6 @@ src/
 - **JobService**: Handles analysis job operations
 - **ReportService**: Manages insight reports
 - **StorageService**: File upload and management
-
-## Deployment
-
-1. Build the application:
-```bash
-npm run build
-```
-
-2. Deploy to your preferred hosting platform (Vercel, Netlify, etc.)
-
-3. Set up environment variables in your hosting platform
-
-4. Configure Supabase for production use
 
 ## Contributing
 

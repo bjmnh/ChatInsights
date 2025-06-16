@@ -1,22 +1,16 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, handleSupabaseError } from '../lib/supabase';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-import type { Database } from '../lib/database.types';
-
-type UserProfile = Database['public']['Tables']['users']['Row'];
-
-interface User extends UserProfile {
-  // Add any additional user properties if needed
-}
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { User, Session, AuthError } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   logout: () => Promise<void>;
-  updatePremiumStatus: (status: boolean) => Promise<void>;
-  refreshUser: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,127 +23,131 @@ export const useAuth = () => {
   return context;
 };
 
+const getAuthErrorMessage = (error: AuthError | Error): string => {
+  if ('code' in error) {
+    switch (error.code) {
+      case 'email_address_invalid':
+        return 'Please enter a valid email address. If you believe this email is valid, please contact support.';
+      case 'invalid_credentials':
+        return 'Invalid email or password. Please check your credentials and try again.';
+      case 'email_not_confirmed':
+        return 'Please check your email and click the confirmation link before signing in.';
+      case 'signup_disabled':
+        return 'New user registration is currently disabled. Please contact support.';
+      case 'email_address_not_authorized':
+        return 'This email address is not authorized to sign up. Please contact support.';
+      case 'weak_password':
+        return 'Password is too weak. Please choose a stronger password with at least 8 characters.';
+      case 'user_already_exists':
+        return 'An account with this email already exists. Please try signing in instead.';
+      case 'too_many_requests':
+        return 'Too many requests. Please wait a moment before trying again.';
+      default:
+        return error.message || 'An authentication error occurred. Please try again.';
+    }
+  }
+  return error.message || 'An unexpected error occurred. Please try again.';
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile from our users table
-  const fetchUserProfile = async (supabaseUser: SupabaseUser): Promise<User | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', supabaseUser.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
-      return null;
-    }
-  };
-
-  // Initialize auth state
   useEffect(() => {
-    let mounted = true;
-
-    const initializeAuth = async () => {
-      try {
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-        } else if (session?.user && mounted) {
-          const profile = await fetchUserProfile(session.user);
-          if (mounted) {
-            setUser(profile);
-          }
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeAuth();
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
 
-        if (event === 'SIGNED_IN' && session?.user) {
-          const profile = await fetchUserProfile(session.user);
-          setUser(profile);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-        
-        setLoading(false);
+      if (event === 'SIGNED_IN') {
+        toast.success('Successfully signed in!');
+      } else if (event === 'SIGNED_OUT') {
+        toast.success('Successfully signed out!');
       }
-    );
+    });
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
-    setLoading(true);
     try {
+      setLoading(true);
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
 
       if (error) {
-        throw new Error(handleSupabaseError(error));
+        throw error;
       }
 
-      if (data.user) {
-        const profile = await fetchUserProfile(data.user);
-        setUser(profile);
+      if (!data.user) {
+        throw new Error('Login failed - no user data received');
       }
+
     } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      const message = getAuthErrorMessage(error as AuthError);
+      toast.error(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
   };
 
   const register = async (email: string, password: string, name?: string) => {
-    setLoading(true);
     try {
+      setLoading(true);
+      
+      // Validate email format on client side first
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        throw new Error('Please enter a valid email address');
+      }
+
+      // Validate password strength
+      if (password.length < 8) {
+        throw new Error('Password must be at least 8 characters long');
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         options: {
           data: {
-            name: name || email.split('@')[0],
-          }
-        }
+            name: name?.trim() || '',
+          },
+        },
       });
 
       if (error) {
-        throw new Error(handleSupabaseError(error));
+        throw error;
       }
 
-      // Note: User profile will be created automatically via database trigger
-      // and the auth state change listener will fetch it
+      // Check if email confirmation is required
+      if (data.user && !data.session) {
+        toast.success('Registration successful! Please check your email for a confirmation link.');
+        return;
+      }
+
+      if (!data.user) {
+        throw new Error('Registration failed - no user data received');
+      }
+
     } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
+      const message = getAuthErrorMessage(error as AuthError);
+      toast.error(message);
+      throw new Error(message);
     } finally {
       setLoading(false);
     }
@@ -157,70 +155,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
-      
       if (error) {
-        throw new Error(handleSupabaseError(error));
+        throw error;
       }
-      
-      setUser(null);
     } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
+      const message = getAuthErrorMessage(error as AuthError);
+      toast.error(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updatePremiumStatus = async (status: boolean) => {
-    if (!user) return;
-
+  const resetPassword = async (email: string) => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .update({ premium_status: status })
-        .eq('id', user.id)
-        .select()
-        .single();
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
 
       if (error) {
-        throw new Error(handleSupabaseError(error));
+        throw error;
       }
 
-      setUser(data);
+      toast.success('Password reset email sent! Please check your inbox.');
     } catch (error) {
-      console.error('Error updating premium status:', error);
-      throw error;
-    }
-  };
-
-  const refreshUser = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        throw new Error(handleSupabaseError(error));
-      }
-
-      setUser(data);
-    } catch (error) {
-      console.error('Error refreshing user:', error);
-      throw error;
+      const message = getAuthErrorMessage(error as AuthError);
+      toast.error(message);
+      throw new Error(message);
     }
   };
 
   const value = {
     user,
+    session,
     loading,
     login,
     register,
     logout,
-    updatePremiumStatus,
-    refreshUser
+    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

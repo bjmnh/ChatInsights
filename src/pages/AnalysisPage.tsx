@@ -493,18 +493,18 @@ const AnalysisPage: React.FC = () => {
                       <Eye className="h-5 w-5 mr-2 text-primary" />
                       How the AI Sees You
                     </CardTitle>
-                    <Badge variant="secondary">{paidInsights?.digitalMirror.confidence}% confidence</Badge>
+                    <Badge variant="secondary">{paidInsights?.digitalMirror?.confidence}% confidence</Badge>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                       <h4 className="font-semibold mb-2">AI Personality Profile</h4>
-                      <p className="text-muted-foreground">{paidInsights?.digitalMirror.personalityProfile}</p>
+                      <p className="text-muted-foreground">{paidInsights?.digitalMirror?.personalityProfile}</p>
                     </div>
                     <div className="p-4 bg-muted/50 rounded-lg">
                       <h4 className="font-semibold mb-2">AI's Perception of You</h4>
-                      <p className="text-muted-foreground">{paidInsights?.digitalMirror.aiPerception}</p>
+                      <p className="text-muted-foreground">{paidInsights?.digitalMirror?.aiPerception}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -534,7 +534,7 @@ const AnalysisPage: React.FC = () => {
             </Card>
           ) : (
             <div className="space-y-6">
-              {paidInsights?.hiddenPatterns.map((pattern: any, index: number) => (
+              {paidInsights?.hiddenPatterns?.map((pattern: any, index: number) => (
                 <Card key={index} className="border-l-4 border-l-primary">
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -566,12 +566,12 @@ const AnalysisPage: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <h4 className="font-semibold mb-2">Your Overarching Narrative</h4>
-                      <p className="text-muted-foreground">{paidInsights?.revelationMap.overarchingNarrative}</p>
+                      <p className="text-muted-foreground">{paidInsights?.revelationMap?.overarchingNarrative}</p>
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">Connection Points</h4>
                       <ul className="space-y-1">
-                        {paidInsights?.revelationMap.connectionPoints.map((point: string, index: number) => (
+                        {paidInsights?.revelationMap?.connectionPoints?.map((point: string, index: number) => (
                           <li key={index} className="text-muted-foreground flex items-center">
                             <ArrowRight className="h-4 w-4 mr-2 text-primary" />
                             {point}
@@ -582,7 +582,7 @@ const AnalysisPage: React.FC = () => {
                     <div>
                       <h4 className="font-semibold mb-2">Unconscious Themes</h4>
                       <div className="flex flex-wrap gap-2">
-                        {paidInsights?.revelationMap.unconsciousThemes.map((theme: string, index: number) => (
+                        {paidInsights?.revelationMap?.unconsciousThemes?.map((theme: string, index: number) => (
                           <Badge key={index} variant="outline">{theme}</Badge>
                         ))}
                       </div>

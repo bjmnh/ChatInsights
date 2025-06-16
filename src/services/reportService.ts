@@ -96,12 +96,9 @@ export class ReportService {
           )
         `)
         .eq('job_id', jobId)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          return null; // Report not found
-        }
         throw new Error(handleSupabaseError(error));
       }
 

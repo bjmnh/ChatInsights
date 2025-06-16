@@ -7,20 +7,9 @@ export interface Product {
   price: number;
   currency: string;
   interval?: 'month' | 'year';
-  isTest?: boolean;
 }
 
 export const products: Product[] = [
-  {
-    id: 'prod_test_free',
-    priceId: 'price_test_free',
-    name: 'ChatInsights Premium (Test)',
-    description: 'Test the premium features with a $0 payment. This is for testing purposes only.',
-    mode: 'payment',
-    price: 0,
-    currency: 'usd',
-    isTest: true,
-  },
   {
     id: 'prod_SVbpaHbrdScZy7',
     priceId: 'price_1RaacGQSrLveGa6rGX1kBexA',
@@ -30,6 +19,18 @@ export const products: Product[] = [
     price: 9.99,
     currency: 'usd',
   },
+  // TODO: Add your new $0 Stripe product here
+  // Copy the Product ID and Price ID from your Stripe Dashboard
+  // Example:
+  // {
+  //   id: 'prod_YOUR_PRODUCT_ID',
+  //   priceId: 'price_YOUR_PRICE_ID',
+  //   name: 'ChatInsights Free Trial',
+  //   description: 'Try ChatInsights Premium features for free',
+  //   mode: 'payment',
+  //   price: 0,
+  //   currency: 'usd',
+  // },
 ];
 
 export const getProductById = (id: string): Product | undefined => {
@@ -40,6 +41,6 @@ export const getProductByPriceId = (priceId: string): Product | undefined => {
   return products.find(product => product.priceId === priceId);
 };
 
-export const getTestProduct = (): Product => {
-  return products.find(product => product.isTest) || products[0];
+export const getFreeTrialProduct = (): Product | undefined => {
+  return products.find(product => product.price === 0);
 };

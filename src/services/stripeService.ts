@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { config } from '../lib/config';
 import type { Product } from '../stripe-config';
 
 export interface CheckoutSessionRequest {
@@ -130,18 +129,62 @@ export class StripeService {
   // Check if user has premium access via database function
   static async checkPremiumAccess(): Promise<boolean> {
     try {
+      // First try to get the premium status directly from the users table
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return false;
+      }
+
+      // Check premium_status from users table first
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('premium_status')
+        .eq('id', user.id)
+        .single();
+
+      if (userError) {
+        console.error('Error fetching user premium status:', userError);
+        // Fall back to the RPC function if direct query fails
+        return await this.checkPremiumAccessViaRpc(user.id);
+      }
+
+      // If premium_status is true, return true immediately
+      if (userData?.premium_status) {
+        return true;
+      }
+
+      // Fall back to RPC check if premium_status is not set
+      return await this.checkPremiumAccessViaRpc(user.id);
+    } catch (error) {
+      console.error('Error in checkPremiumAccess:', error);
+      return false;
+    }
+  }
+
+  // Helper function to check premium access via RPC
+  private static async checkPremiumAccessViaRpc(userId: string): Promise<boolean> {
+    try {
       const { data, error } = await supabase.rpc('user_has_premium_access', {
-        user_id_param: (await supabase.auth.getUser()).data.user?.id
+        user_id_param: userId
       });
 
       if (error) {
-        console.error('Error checking premium access:', error);
+        console.error('RPC Error checking premium access:', error);
         return false;
+      }
+
+      // If RPC returns true, update the users table for faster future checks
+      if (data) {
+        await supabase
+          .from('users')
+          .update({ premium_status: true })
+          .eq('id', userId);
       }
 
       return data || false;
     } catch (error) {
-      console.error('Error checking premium access:', error);
+      console.error('Error in checkPremiumAccessViaRpc:', error);
       return false;
     }
   }

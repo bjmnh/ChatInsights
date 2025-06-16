@@ -1,5 +1,66 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// @deno-types="npm:@types/deno"
+import { serve } from "https://deno.land/std@0.152.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+// Type definitions
+interface WordFrequency {
+  word: string;
+  count: number;
+}
+
+interface AnalysisResult {
+  totalMessages: number;
+  totalConversations: number;
+  totalCharacters: number;
+  averageMessageLength: number;
+  mostUsedWords: WordFrequency[];
+  conversationTopics: string[];
+  timeSpan: {
+    start: string;
+    end: string;
+    durationDays: number;
+  };
+  communicationStyle: string;
+  activityPatterns: { hour: string; messages: number }[];
+  topicDistribution: { name: string; value: number; color: string }[];
+  analysisType: string;
+}
+
+interface PremiumInsights {
+  behavioralProfile: {
+    personalityAnalysis: string;
+    cognitiveStyle: string;
+    confidence: number;
+  };
+  dataPatterns: Array<{
+    pattern: string;
+    frequency: string;
+    description: string;
+    significance: string;
+  }>;
+  insightMap: {
+    overarchingNarrative: string;
+    connectionPoints: string[];
+    cognitiveThemes: string[];
+  };
+}
+
+interface Job {
+  id: string;
+  user_id: string;
+  status: string;
+  progress: number;
+  analysis_type: string;
+  premium_features_enabled: boolean;
+}
+
+interface UserReport {
+  user_id: string;
+  job_id: string;
+  free_insights: AnalysisResult;
+  paid_insights: PremiumInsights | null;
+  analysis_type: string;
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,7 +103,7 @@ serve(async (req) => {
 
     // Get job details
     const { data: job, error: jobError } = await supabaseClient
-      .from('jobs')
+      .from<Job>('jobs')
       .select('*')
       .eq('id', jobId)
       .eq('user_id', user.id)
@@ -64,7 +125,7 @@ serve(async (req) => {
 
     // Update job status to processing
     await supabaseClient
-      .from('jobs')
+      .from<Job>('jobs')
       .update({ 
         status: 'processing',
         progress: 10,
@@ -85,7 +146,7 @@ serve(async (req) => {
 
     // Update progress
     await supabaseClient
-      .from('jobs')
+      .from<Job>('jobs')
       .update({ progress: 30 })
       .eq('id', jobId)
 
@@ -95,7 +156,7 @@ serve(async (req) => {
 
     // Update progress
     await supabaseClient
-      .from('jobs')
+      .from<Job>('jobs')
       .update({ progress: 50 })
       .eq('id', jobId)
 
@@ -104,7 +165,7 @@ serve(async (req) => {
 
     // Update progress
     await supabaseClient
-      .from('jobs')
+      .from<Job>('jobs')
       .update({ 
         progress: 80,
         total_conversations: analysis.totalConversations,
@@ -127,14 +188,14 @@ serve(async (req) => {
     }
 
     // Generate premium insights if requested
-    let paidInsights = null
+    let paidInsights: PremiumInsights | null = null
     if (analysisType === 'premium') {
       paidInsights = generatePremiumInsights(analysis)
     }
 
     // Save the report
     const { error: reportError } = await supabaseClient
-      .from('user_reports')
+      .from<UserReport>('user_reports')
       .insert({
         user_id: user.id,
         job_id: jobId,
@@ -149,7 +210,7 @@ serve(async (req) => {
 
     // Update job to completed
     await supabaseClient
-      .from('jobs')
+      .from<Job>('jobs')
       .update({ 
         status: 'completed',
         progress: 100
@@ -190,7 +251,7 @@ serve(async (req) => {
   }
 })
 
-function analyzeConversations(data: any, analysisType: string = 'basic') {
+function analyzeConversations(data: any, analysisType: string = 'basic'): AnalysisResult {
   let totalMessages = 0
   let totalCharacters = 0
   let totalConversations = 0
@@ -275,7 +336,9 @@ function analyzeConversations(data: any, analysisType: string = 'basic') {
   } : null
 
   // Determine communication style based on analysis
-  const communicationStyle = determineCommunicationStyle(averageMessageLength, mostUsedWords, totalMessages)
+  const communicationStyle = determineCommunicationStyle(
+    totalMessages > 0 ? totalCharacters / totalMessages : 0
+  )
 
   // Generate activity patterns
   const activityPatterns = generateActivityPatterns(timestamps)
@@ -298,7 +361,10 @@ function analyzeConversations(data: any, analysisType: string = 'basic') {
   }
 }
 
-function generatePremiumInsights(analysis: any) {
+function generatePremiumInsights(analysis: AnalysisResult): PremiumInsights {
+  // Destructure needed properties from analysis
+  const { totalMessages, mostUsedWords } = analysis;
+  
   return {
     behavioralProfile: {
       personalityAnalysis: 'Highly analytical individual with systematic thinking patterns and strong problem-solving orientation',
@@ -337,7 +403,8 @@ function generatePremiumInsights(analysis: any) {
   }
 }
 
-function determineCommunicationStyle(avgLength: number, topWords: any[], totalMessages: number): string {
+// Determine communication style based on average message length
+function determineCommunicationStyle(avgLength: number): string {
   if (avgLength > 200) {
     return "Detailed and Systematic"
   } else if (avgLength > 100) {
@@ -370,7 +437,8 @@ function generateActivityPatterns(timestamps: Date[]) {
   }))
 }
 
-function generateTopicDistribution(topics: string[], topWords: any[]) {
+function generateTopicDistribution(topics: string[], topWords: WordFrequency[]): Array<{name: string; value: number; color: string}> {
+  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff88'];
   // Simple topic categorization based on common words
   const categories = {
     'Programming': ['code', 'programming', 'software', 'computer', 'tech', 'development', 'algorithm'],
@@ -381,8 +449,6 @@ function generateTopicDistribution(topics: string[], topWords: any[]) {
   }
 
   const distribution: { [category: string]: number } = {}
-  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff88']
-
   // Initialize categories
   Object.keys(categories).forEach(category => {
     distribution[category] = 0

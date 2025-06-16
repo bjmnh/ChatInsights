@@ -3,10 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Alert, AlertDescription } from '../components/ui/alert';
-import { CheckCircle, Crown, ArrowRight, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
+import { CheckCircle, Crown, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { StripeService } from '../services/stripeService';
-import { getProductByPriceId } from '../stripe-config';
 import { toast } from 'sonner';
 
 const SuccessPage: React.FC = () => {
@@ -14,10 +13,19 @@ const SuccessPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const [orders, setOrders] = useState<Array<{
+    checkout_session_id: string;
+    payment_status: string;
+    order_status: string;
+    amount_total: number;
+  }>>([]);
+  const [retryCount, setRetryCount] = useState(0);
 
   const sessionId = searchParams.get('session_id');
+  const maxRetries = 5; // Maximum number of retries for checking payment status
+  const retryDelay = 2000; // 2 seconds between retries
 
   useEffect(() => {
     if (!user) {
@@ -30,31 +38,58 @@ const SuccessPage: React.FC = () => {
       return;
     }
 
-    const fetchData = async () => {
+    const checkPaymentStatus = async () => {
       try {
-        // Wait a moment for webhook to process
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Fetch updated subscription and order data
-        const [subscriptionData, ordersData] = await Promise.all([
-          StripeService.getUserSubscription(),
-          StripeService.getUserOrders(),
-        ]);
+        // First, check if we already have premium access
+        const hasPremium = await StripeService.checkPremiumAccess();
+        if (hasPremium) {
+          setIsPremium(true);
+          setLoading(false);
+          toast.success('Premium access activated!');
+          return true;
+        }
 
-        setSubscription(subscriptionData);
+        // If we've reached max retries, stop trying
+        if (retryCount >= maxRetries) {
+          setError('Payment processing is taking longer than expected. Your premium access will be activated shortly.');
+          setLoading(false);
+          return false;
+        }
+
+        // Fetch latest orders to check for the current session
+        const ordersData = await StripeService.getUserOrders();
         setOrders(ordersData);
+
+        // Check if the current session is in the orders
+        const currentOrder = ordersData.find(order => 
+          order.checkout_session_id === sessionId && 
+          order.payment_status === 'paid' && 
+          order.order_status === 'completed'
+        );
+
+        if (currentOrder) {
+          // Update premium status in the UI
+          setIsPremium(true);
+          setLoading(false);
+          toast.success('Payment successful! Welcome to Premium!');
+          return true;
+        }
+
+        // If not found, retry after a delay
+        setRetryCount(prev => prev + 1);
+        setTimeout(checkPaymentStatus, retryDelay);
         
-        toast.success('Payment successful! Welcome to Premium!');
       } catch (error) {
-        console.error('Error fetching payment data:', error);
-        toast.error('Payment completed, but there was an issue loading your data');
-      } finally {
+        console.error('Error checking payment status:', error);
+        setError('Failed to verify payment status. Please refresh the page or contact support.');
         setLoading(false);
+        return false;
       }
     };
 
-    fetchData();
-  }, [user, sessionId, navigate]);
+    // Initial check
+    checkPaymentStatus();
+  }, [user, sessionId, navigate, retryCount]);
 
   const handleContinue = () => {
     navigate('/dashboard');
@@ -71,17 +106,46 @@ const SuccessPage: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Processing your payment...</p>
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <h2 className="text-2xl font-semibold">Processing your payment...</h2>
+          <p className="text-muted-foreground">
+            This may take a few moments. Please don't close this page.
+            {retryCount > 0 && ` (Attempt ${retryCount} of ${maxRetries})`}
+          </p>
         </div>
       </div>
     );
   }
 
-  const hasActiveSubscription = StripeService.hasActiveSubscription(subscription);
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="max-w-md w-full space-y-4 p-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-5 w-5" />
+            <AlertTitle>Payment Processing Issue</AlertTitle>
+            <AlertDescription>
+              {error}
+            </AlertDescription>
+          </Alert>
+          <div className="flex justify-end space-x-3 mt-4">
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+            <Button onClick={() => navigate('/dashboard')}>
+              Go to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const latestOrder = orders[0];
-  const isPremiumUser = StripeService.isPremiumUser(subscription, orders);
+  const hasActiveSubscription = latestOrder && 
+    latestOrder.payment_status === 'paid' && 
+    latestOrder.order_status === 'completed';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 py-12 px-4">
@@ -100,10 +164,12 @@ const SuccessPage: React.FC = () => {
           <CardHeader>
             <CardTitle className="flex items-center">
               <Crown className="h-5 w-5 mr-2 text-yellow-500" />
-              Welcome to Premium!
+              {isPremium ? 'Welcome to Premium!' : 'Premium Access'}
             </CardTitle>
             <CardDescription>
-              You now have access to all premium features
+              {isPremium 
+                ? 'You now have access to all premium features!'
+                : 'Verifying your premium access...'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -126,7 +192,7 @@ const SuccessPage: React.FC = () => {
                 </Alert>
               )}
 
-              {isPremiumUser && (
+              {isPremium && (
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <h4 className="font-semibold mb-2">What's included in your premium access:</h4>
                   <ul className="space-y-1 text-sm text-muted-foreground">

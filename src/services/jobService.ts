@@ -136,6 +136,37 @@ export class JobService {
     }
   }
 
+  // Process a job (trigger the edge function)
+  static async processJob(jobId: string): Promise<void> {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('No active session');
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-conversation`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ jobId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Processing failed');
+      }
+
+      const result = await response.json();
+      console.log('Processing result:', result);
+    } catch (error) {
+      console.error('Error processing job:', error);
+      throw error;
+    }
+  }
+
   // Delete a job
   static async deleteJob(jobId: string): Promise<void> {
     try {

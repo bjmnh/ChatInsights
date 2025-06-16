@@ -119,10 +119,10 @@ const DashboardPage: React.FC = () => {
       // Update job status to processing
       await JobService.updateJobStatus(newJob.id, 'processing');
 
-      toast.success('File uploaded successfully! Analysis starting...');
+      toast.success('File uploaded successfully! Starting analysis...');
 
-      // Simulate processing for demo (in real app, this would be handled by backend)
-      simulateProcessing(newJob.id);
+      // Start processing the job
+      await JobService.processJob(newJob.id);
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -131,38 +131,6 @@ const DashboardPage: React.FC = () => {
       setUploading(false);
     }
   }, [user]);
-
-  // Simulate processing for demo purposes
-  const simulateProcessing = async (jobId: string) => {
-    let progress = 0;
-    const interval = setInterval(async () => {
-      progress += Math.random() * 15;
-      
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-        
-        try {
-          // Update job to completed
-          await JobService.updateJobStatus(
-            jobId, 
-            'completed', 
-            undefined, 
-            Math.floor(Math.random() * 200) + 50, // Random conversation count
-            Math.floor(Math.random() * 200) + 50
-          );
-        } catch (error) {
-          console.error('Error completing job:', error);
-        }
-      } else {
-        try {
-          await JobService.updateJobProgress(jobId, Math.floor(progress));
-        } catch (error) {
-          console.error('Error updating progress:', error);
-        }
-      }
-    }, 1000);
-  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -194,7 +162,7 @@ const DashboardPage: React.FC = () => {
     try {
       await JobService.updateJobStatus(jobId, 'processing', null);
       toast.success('Retrying analysis...');
-      simulateProcessing(jobId);
+      await JobService.processJob(jobId);
     } catch (error) {
       console.error('Error retrying job:', error);
       toast.error('Failed to retry analysis');
@@ -336,7 +304,7 @@ const DashboardPage: React.FC = () => {
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             )}
             {uploading ? (
-              <p className="text-lg">Uploading your file...</p>
+              <p className="text-lg">Uploading and processing your file...</p>
             ) : isDragActive ? (
               <p className="text-lg">Drop your conversations.json file here...</p>
             ) : (

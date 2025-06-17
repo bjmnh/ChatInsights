@@ -675,69 +675,70 @@ const AnalysisPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+      </TabsContent>
 
-        <TabsContent value="patterns" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Message Characteristics</CardTitle>
-                <CardDescription>Analysis of your message patterns</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <h4 className="font-semibold">Message Characteristics</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Average Length</span>
-                      <span className="font-medium">{freeInsights.averageMessageLength} characters</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Question Rate</span>
-                      <span className="font-medium">23%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Follow-up Rate</span>
-                      <span className="font-medium">67%</span>
-                    </div>
+      <TabsContent value="patterns" className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Message Characteristics</CardTitle>
+              <CardDescription>Analysis of your message patterns</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <h4 className="font-semibold">Message Characteristics</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Average Length</span>
+                    <span className="font-medium">{freeInsights.averageMessageLength} characters</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Question Rate</span>
+                    <span className="font-medium">23%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Follow-up Rate</span>
+                    <span className="font-medium">67%</span>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Engagement Metrics</CardTitle>
-                <CardDescription>How you interact with conversations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Response Depth</span>
-                    <span className="font-medium">High</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Topic Persistence</span>
-                    <span className="font-medium">Medium</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Learning Velocity</span>
-                    <span className="font-medium">8.7/10</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Problem-Solving Style</span>
-                    <span className="font-medium">Systematic</span>
-                  </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Engagement Metrics</CardTitle>
+              <CardDescription>How you interact with conversations</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span>Response Depth</span>
+                  <span className="font-medium">High</span>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+                <div className="flex justify-between">
+                  <span>Topic Persistence</span>
+                  <span className="font-medium">Medium</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Learning Velocity</span>
+                  <span className="font-medium">8.7/10</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Problem-Solving Style</span>
+                  <span className="font-medium">Systematic</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </TabsContent>
 
-        <TabsContent value="cognitive" className="space-y-6">
-          {!paidInsights ? (
-            <Card className="border-2 border-dashed border-primary/20">
-              <CardContent className="pt-6">
+      <TabsContent value="cognitive" className="space-y-6">
+        {!paidInsights ? (
+          <Card className="border-2 border-dashed border-primary/20">
+            <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                     <Search className="h-8 w-8 text-primary" />

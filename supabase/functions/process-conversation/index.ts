@@ -1,48 +1,86 @@
 // @deno-types="npm:@types/deno"
-import { serve } from "https://deno.land/std@0.152.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts"; // Updated std version
+import { createClient, SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Type definitions
+// --- Shared Types (Consider moving to _shared/types.ts) ---
 interface WordFrequency {
   word: string;
   count: number;
 }
 
-interface AnalysisResult {
-  totalMessages: number;
-  totalConversations: number;
-  totalCharacters: number;
-  averageMessageLength: number;
-  mostUsedWords: WordFrequency[];
-  conversationTopics: string[];
-  timeSpan: {
-    start: string;
-    end: string;
-    durationDays: number;
-  };
-  communicationStyle: string;
-  activityPatterns: { hour: string; messages: number }[];
-  topicDistribution: { name: string; value: number; color: string }[];
-  analysisType: string;
+interface ActivityPattern {
+  hour: string; // "00:00", "01:00", etc.
+  dayOfWeek: string; // "Sunday", "Monday", etc.
+  messageCount: number;
+  userMessageCount: number;
+  aiMessageCount: number;
 }
 
-interface PremiumInsights {
-  behavioralProfile: {
-    personalityAnalysis: string;
-    cognitiveStyle: string;
-    confidence: number;
-  };
-  dataPatterns: Array<{
-    pattern: string;
-    frequency: string;
-    description: string;
-    significance: string;
-  }>;
-  insightMap: {
-    overarchingNarrative: string;
-    connectionPoints: string[];
-    cognitiveThemes: string[];
-  };
+interface TopicStat {
+  name: string;
+  messageCount: number; // How many messages fall under this topic (if we can infer)
+  conversationCount: number; // How many conversations have this topic
+  userInitiated: number; // How often user brought up this topic
+  color?: string; // For UI
+}
+
+interface CommunicationMetric {
+  metric: string;
+  value: string | number;
+  description: string;
+}
+
+// Result of the non-LLM basic analysis
+interface BasicAnalysisResult {
+  // Overall Stats
+  totalConversations: number;
+  totalMessages: number; // All messages (user + AI)
+  userMessagesCount: number;
+  aiMessagesCount: number;
+  totalUserCharacters: number;
+  totalAiCharacters: number;
+  averageUserMessageLength: number;
+  averageAiMessageLength: number;
+  firstMessageDate: string | null;
+  lastMessageDate: string | null;
+  conversationDaysSpan: number | null;
+
+  // Word & Language Analysis
+  mostUsedUserWords: WordFrequency[]; // Top words from user
+  userVocabularySizeEstimate: number; // Simple estimate based on unique words
+  averageWordsPerUserSentence: number; // Requires sentence splitting
+
+  // Interaction Patterns
+  userToAiMessageRatio: number;
+  averageMessagesPerConversation: number;
+  longestConversationByMessages: { id?: string, title?: string, count: number } | null;
+  shortestConversationByMessages: { id?: string, title?: string, count: number } | null;
+
+  // Time-based Activity
+  activityByHourOfDay: Array<{ hour: string; messageCount: number }>; // For charts
+  activityByDayOfWeek: Array<{ day: string; messageCount: number }>; // For charts
+  mostActiveHour: string | null;
+  mostActiveDay: string | null;
+
+  // Topics (derived from titles or simple keyword spotting)
+  conversationTitles: string[]; // Raw titles
+  // simpleTopicDistribution: TopicStat[]; // (More advanced, might need some LLM-lite or heuristic)
+
+  // Potentially Interesting Simple Metrics
+  questionMarksUsedByUser: number;
+  exclamationMarksUsedByUser: number;
+  averageInterMessageDelaySeconds?: number; // If timestamps are per message
+}
+
+// Placeholder for LLM-based advanced insights
+interface AdvancedAnalysisResult {
+  // These would be populated by LLM calls in a separate function
+  digitalPersonaProfile?: Record<string, any>;
+  behavioralTendencies?: Record<string, any>;
+  linguisticFingerprint?: Record<string, any>;
+  piiExposureAdvisory?: Record<string, any>;
+  topRevealingConversations?: Array<Record<string, any>>;
+  // ... other LLM generated insights
 }
 
 interface Job {
@@ -50,438 +88,413 @@ interface Job {
   user_id: string;
   status: string;
   progress: number;
-  analysis_type: string;
-  premium_features_enabled: boolean;
+  file_path: string; // Added, as it's used
+  analysis_type?: string; // Optional if you default
+  premium_features_enabled?: boolean; // Optional
+  total_conversations?: number; // Added
+  processed_conversations?: number; // Added
 }
 
 interface UserReport {
   user_id: string;
   job_id: string;
-  free_insights: AnalysisResult;
-  paid_insights: PremiumInsights | null;
+  free_insights: BasicAnalysisResult; // Renamed for clarity
+  paid_insights: AdvancedAnalysisResult | null;
   analysis_type: string;
 }
 
+// --- CORS Headers (Consider moving to _shared/cors.ts) ---
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('FRONTEND_URL') || '*', // Use env var for prod
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS', // This function is POST only
+};
+
+// --- Helper Functions (Consider moving to a utility file) ---
+
+const COMMON_STOP_WORDS = new Set([
+  'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours',
+  'yourself', 'yourselves', 'he', 'him', 'his', 'himself', 'she', 'her', 'hers',
+  'herself', 'it', 'its', 'itself', 'they', 'them', 'their', 'theirs', 'themselves',
+  'what', 'which', 'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are',
+  'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does',
+  'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'until',
+  'while', 'of', 'at', 'by', 'for', 'with', 'about', 'against', 'between', 'into',
+  'through', 'during', 'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down',
+  'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further', 'then', 'once', 'here',
+  'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more',
+  'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so',
+  'than', 'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'chatgpt'
+  // Add more domain-specific stop words if needed
+]);
+
+function getWords(text: string): string[] {
+  if (!text || typeof text !== 'string') return [];
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s'-]|(?<=\w)-(?=\w)|(?<=\s)-(?=\w)|(?<=\w)-(?=\s)/g, ' ') // Keep apostrophes and hyphens within words
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !COMMON_STOP_WORDS.has(word) && !/^\d+$/.test(word)); // Min length 3, not a stop word, not purely numeric
 }
 
+function getSentences(text: string): string[] {
+    if (!text || typeof text !== 'string') return [];
+    // Basic sentence splitter, can be improved for edge cases (e.g. Mr. Dr. abbreviations)
+    return text.split(/(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s+/).filter(s => s.trim().length > 0);
+}
+
+
+// --- Main Server Logic ---
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: corsHeaders });
   }
 
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '' // Use service role for backend operations
+  );
+
   try {
-    // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('No authorization header')
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Missing or invalid authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-
-    // Get user from auth header
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
     if (authError || !user) {
-      throw new Error('Invalid authentication')
+      return new Response(JSON.stringify({ error: 'Invalid token or user not found' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Parse request body
-    const { jobId, analysisType = 'basic' } = await req.json()
+    const requestBody = await req.json();
+    const jobId = requestBody.jobId;
+    // 'basic' or 'premium', defaults to 'basic' if not provided by the worker/coordinator
+    const analysisType = requestBody.analysisType || 'basic';
+
+
     if (!jobId) {
-      throw new Error('Job ID is required')
+      return new Response(JSON.stringify({ error: 'Job ID is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Get job details
     const { data: job, error: jobError } = await supabaseClient
       .from<Job>('jobs')
-      .select('*')
+      .select('id, user_id, file_path, status, premium_features_enabled') // Select only needed fields
       .eq('id', jobId)
       .eq('user_id', user.id)
-      .single()
+      .single();
 
-    if (jobError || !job) {
-      throw new Error('Job not found or access denied')
+    if (jobError) throw new Error(`Job query error: ${jobError.message}`);
+    if (!job) throw new Error('Job not found or access denied');
+    if (job.status === 'completed') {
+        return new Response(JSON.stringify({ success: true, message: 'Analysis already completed for this job.' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+    if (!job.file_path) throw new Error('Job record missing file_path');
 
-    // Check if user has premium access for premium analysis
+    // Premium check
     if (analysisType === 'premium') {
-      const { data: hasPremium, error: premiumError } = await supabaseClient
-        .rpc('user_has_premium_access', { user_id_param: user.id })
+      // Assuming you have a way to check premium status, e.g., a 'premium_status' column on your 'users' or 'profiles' table
+      const { data: userProfile, error: profileError } = await supabaseClient
+        .from('profiles') // Or your user profiles table
+        .select('premium_status')
+        .eq('id', user.id)
+        .single();
 
-      if (premiumError || !hasPremium) {
-        throw new Error('Premium access required for advanced analysis')
+      if (profileError || !userProfile || !userProfile.premium_status) {
+        // Update job to failed if premium analysis requested without access
+        await supabaseClient.from<Job>('jobs').update({ status: 'failed', progress: 0, error_message: 'Premium access required' }).eq('id', jobId);
+        return new Response(JSON.stringify({ error: 'Premium access required for advanced analysis' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      // If job object doesn't reflect premium, update it
+      if (!job.premium_features_enabled) {
+        await supabaseClient.from<Job>('jobs').update({ premium_features_enabled: true }).eq('id', jobId);
       }
     }
 
-    // Update job status to processing
-    await supabaseClient
-      .from<Job>('jobs')
-      .update({ 
-        status: 'processing',
-        progress: 10,
-        analysis_type: analysisType,
-        premium_features_enabled: analysisType === 'premium'
-      })
-      .eq('id', jobId)
 
-    // Download the file from storage
-    const filePath = `${user.id}/${jobId}/conversations.json`
+    await supabaseClient.from<Job>('jobs').update({ status: 'processing', progress: 10, analysis_type: analysisType }).eq('id', jobId);
+
     const { data: fileData, error: downloadError } = await supabaseClient.storage
-      .from('conversation-files')
-      .download(filePath)
+      .from('conversation-files') // Ensure this is your correct bucket name
+      .download(job.file_path);
 
-    if (downloadError || !fileData) {
-      throw new Error('Failed to download conversation file')
+    if (downloadError) throw new Error(`Failed to download conversation file: ${downloadError.message}`);
+    if (!fileData) throw new Error('Conversation file data is null');
+
+    await supabaseClient.from<Job>('jobs').update({ progress: 30 }).eq('id', jobId);
+
+    const fileText = await fileData.text();
+    let parsedConversationData: any[]; // Expecting an array of conversations
+    try {
+        parsedConversationData = JSON.parse(fileText);
+        if (!Array.isArray(parsedConversationData)) {
+            // Attempt to find the array if nested (common in OpenAI exports)
+            let foundArray = false;
+            for (const key in parsedConversationData) {
+                if (Array.isArray((parsedConversationData as any)[key])) {
+                    parsedConversationData = (parsedConversationData as any)[key];
+                    foundArray = true;
+                    break;
+                }
+            }
+            if (!foundArray && typeof parsedConversationData === 'object' && parsedConversationData !== null) {
+                 // If it's a single conversation object, wrap it in an array
+                if (parsedConversationData.hasOwnProperty('id') && parsedConversationData.hasOwnProperty('mapping')) {
+                     parsedConversationData = [parsedConversationData];
+                } else {
+                    throw new Error('Parsed data is not an array and no conversation array found within the object.');
+                }
+            } else if (!foundArray) {
+                 throw new Error('Parsed data is not an array and no conversation array found within the object.');
+            }
+        }
+    } catch (parseError) {
+        await supabaseClient.from<Job>('jobs').update({ status: 'failed', progress: 0, error_message: `JSON parsing error: ${parseError.message}` }).eq('id', jobId);
+        throw new Error(`JSON parsing error: ${parseError.message}`);
     }
 
-    // Update progress
-    await supabaseClient
-      .from<Job>('jobs')
-      .update({ progress: 30 })
-      .eq('id', jobId)
 
-    // Parse the JSON file
-    const fileText = await fileData.text()
-    const conversationData = JSON.parse(fileText)
+    await supabaseClient.from<Job>('jobs').update({ progress: 50 }).eq('id', jobId);
 
-    // Update progress
-    await supabaseClient
-      .from<Job>('jobs')
-      .update({ progress: 50 })
-      .eq('id', jobId)
+    // --- Perform Analysis ---
+    const basicInsights = performBasicAnalysis(parsedConversationData);
 
-    // Analyze the conversation data
-    const analysis = analyzeConversations(conversationData, analysisType)
+    let advancedInsights: AdvancedAnalysisResult | null = null;
+    if (analysisType === 'premium' && job.premium_features_enabled) {
+      // Placeholder: In a real scenario, this would call an LLM
+      // advancedInsights = await performAdvancedAnalysis(parsedConversationData, basicInsights, supabaseClient);
+      advancedInsights = generateMockPremiumInsights(basicInsights); // Using your mock for now
+    }
 
-    // Update progress
-    await supabaseClient
-      .from<Job>('jobs')
-      .update({ 
+    await supabaseClient.from<Job>('jobs').update({
         progress: 80,
-        total_conversations: analysis.totalConversations,
-        processed_conversations: analysis.totalConversations
-      })
-      .eq('id', jobId)
+        total_conversations: basicInsights.totalConversations,
+        // processed_conversations might be updated incrementally by workers in a multi-stage process
+    }).eq('id', jobId);
 
-    // Create the insights report
-    const freeInsights = {
-      totalMessages: analysis.totalMessages,
-      totalConversations: analysis.totalConversations,
-      totalCharacters: analysis.totalCharacters,
-      averageMessageLength: analysis.averageMessageLength,
-      mostUsedWords: analysis.mostUsedWords,
-      conversationTopics: analysis.conversationTopics,
-      timeSpan: analysis.timeSpan,
-      communicationStyle: analysis.communicationStyle,
-      activityPatterns: analysis.activityPatterns,
-      topicDistribution: analysis.topicDistribution
-    }
 
-    // Generate premium insights if requested
-    let paidInsights: PremiumInsights | null = null
-    if (analysisType === 'premium') {
-      paidInsights = generatePremiumInsights(analysis)
-    }
-
-    // Save the report
     const { error: reportError } = await supabaseClient
       .from<UserReport>('user_reports')
       .insert({
         user_id: user.id,
         job_id: jobId,
-        free_insights: freeInsights,
-        paid_insights: paidInsights,
-        analysis_type: analysisType
-      })
+        free_insights: basicInsights,
+        paid_insights: advancedInsights,
+        analysis_type: analysisType,
+      });
 
     if (reportError) {
-      throw new Error('Failed to save analysis report')
+        await supabaseClient.from<Job>('jobs').update({ status: 'failed', progress: 80, error_message: `Failed to save report: ${reportError.message}` }).eq('id', jobId);
+        throw new Error(`Failed to save analysis report: ${reportError.message}`);
     }
 
-    // Update job to completed
-    await supabaseClient
-      .from<Job>('jobs')
-      .update({ 
-        status: 'completed',
-        progress: 100
-      })
-      .eq('id', jobId)
+    await supabaseClient.from<Job>('jobs').update({ status: 'completed', progress: 100 }).eq('id', jobId);
 
     // Delete the original file for privacy
-    await supabaseClient.storage
-      .from('conversation-files')
-      .remove([filePath])
+    await supabaseClient.storage.from('conversation-files').remove([job.file_path]);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `${analysisType === 'premium' ? 'Premium' : 'Basic'} analysis completed successfully`,
-        insights: freeInsights,
-        premiumInsights: paidInsights
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
+    return new Response(JSON.stringify({
+      success: true,
+      message: `${analysisType} analysis completed successfully`,
+      report: { free_insights: basicInsights, paid_insights: advancedInsights } // Return the full report structure
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
 
   } catch (error) {
-    console.error('Processing error:', error)
-    
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Processing failed',
-        success: false
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      },
-    )
+    console.error('Processing error:', error);
+    // Attempt to update job status to failed if jobId is available
+    // This part needs careful handling to ensure jobId is in scope or passed correctly
+    // For simplicity, we'll assume it might not always be available here if error is early
+    const jobIdFromBody = (await req.json().catch(() => ({}))).jobId; // Try to get jobId again if error was early
+    if (jobIdFromBody) {
+        await supabaseClient.from<Job>('jobs').update({ status: 'failed', progress: 0, error_message: error.message }).eq('id', jobIdFromBody).catch(e => console.error("Failed to update job to failed status:", e));
+    }
+
+    return new Response(JSON.stringify({ error: error.message || 'Processing failed' }), {
+      status: error.message.includes('Premium access required') ? 403 : (error.message.includes('Job not found') ? 404 : 500),
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
-})
+});
 
-function analyzeConversations(data: any, analysisType: string = 'basic'): AnalysisResult {
-  let totalMessages = 0
-  let totalCharacters = 0
-  let totalConversations = 0
-  const wordFrequency: { [key: string]: number } = {}
-  const topics: string[] = []
-  const timestamps: Date[] = []
 
-  // Handle different possible JSON structures
-  let conversations = []
-  
-  if (Array.isArray(data)) {
-    conversations = data
-  } else if (data.conversations && Array.isArray(data.conversations)) {
-    conversations = data.conversations
-  } else if (data.data && Array.isArray(data.data)) {
-    conversations = data.data
-  } else {
-    // Try to find any array in the data
-    for (const key in data) {
-      if (Array.isArray(data[key])) {
-        conversations = data[key]
-        break
+// --- Analysis Functions ---
+
+function performBasicAnalysis(conversations: any[]): BasicAnalysisResult {
+  let totalMessages = 0;
+  let userMessagesCount = 0;
+  let aiMessagesCount = 0;
+  let totalUserCharacters = 0;
+  let totalAiCharacters = 0;
+  const userWordFrequency: { [key: string]: number } = {};
+  const allTimestamps: number[] = []; // Store as epoch ms for easier min/max
+  const conversationTitles: string[] = [];
+
+  let questionMarksUsedByUser = 0;
+  let exclamationMarksUsedByUser = 0;
+  let totalUserSentences = 0;
+  let totalUserWordsInSentences = 0;
+
+  const activityByHour: { [hour: string]: number } = {};
+  const activityByDay: { [day: string]: number } = {};
+  for (let i = 0; i < 24; i++) activityByHour[i.toString().padStart(2, '0')] = 0;
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  days.forEach(day => activityByDay[day] = 0);
+
+  let longestConversationMessageCount = 0;
+  let longestConversation: { id?: string, title?: string, count: number } | null = null;
+  let shortestConversationMessageCount = Infinity;
+  let shortestConversation: { id?: string, title?: string, count: number } | null = null;
+
+
+  conversations.forEach((conv: any) => {
+    if (conv.title) conversationTitles.push(conv.title);
+
+    let currentConversationMessageCount = 0;
+    const conversationCreateTime = conv.create_time ? conv.create_time * 1000 : (conv.created_at ? new Date(conv.created_at).getTime() : null);
+    if (conversationCreateTime) allTimestamps.push(conversationCreateTime);
+
+    // Standard OpenAI export structure often has 'mapping'
+    // where keys are message IDs and values are message objects.
+    // If 'mapping' doesn't exist, try to find messages in 'messages' array or similar.
+    let messagesInConversation: any[] = [];
+    if (conv.mapping && typeof conv.mapping === 'object') {
+        messagesInConversation = Object.values(conv.mapping).filter((m: any) => m?.message);
+    } else if (Array.isArray(conv.messages)) {
+        messagesInConversation = conv.messages;
+    }
+    // Sort messages by create_time if available within message object
+    messagesInConversation.sort((a: any, b: any) => {
+        const timeA = a.message?.create_time || a.create_time || 0;
+        const timeB = b.message?.create_time || b.create_time || 0;
+        return timeA - timeB;
+    });
+
+
+    messagesInConversation.forEach((msgContainer: any) => {
+      const msg = msgContainer.message; // Message data is often nested here
+      if (!msg || !msg.author || !msg.content || !msg.content.parts) return;
+
+      const authorRole = msg.author.role;
+      const messageTextParts = msg.content.parts
+        .filter((part: any) => typeof part === 'string' && part.trim().length > 0)
+        .join(" "); // Join parts into a single string for analysis
+
+      if (!messageTextParts) return;
+
+      totalMessages++;
+      currentConversationMessageCount++;
+      const messageTimestamp = msg.create_time ? msg.create_time * 1000 : (conversationCreateTime || Date.now()); // Fallback if no specific msg timestamp
+      if (!allTimestamps.includes(messageTimestamp)) allTimestamps.push(messageTimestamp); // Add individual message timestamps too
+
+      const dateObj = new Date(messageTimestamp);
+      activityByHour[dateObj.getHours().toString().padStart(2, '0')]++;
+      activityByDay[days[dateObj.getDay()]]++;
+
+      if (authorRole === 'user') {
+        userMessagesCount++;
+        totalUserCharacters += messageTextParts.length;
+        const words = getWords(messageTextParts);
+        words.forEach(word => userWordFrequency[word] = (userWordFrequency[word] || 0) + 1);
+
+        questionMarksUsedByUser += (messageTextParts.match(/\?/g) || []).length;
+        exclamationMarksUsedByUser += (messageTextParts.match(/!/g) || []).length;
+
+        const sentences = getSentences(messageTextParts);
+        totalUserSentences += sentences.length;
+        sentences.forEach(sentence => totalUserWordsInSentences += getWords(sentence).length);
+
+      } else if (authorRole === 'assistant' || authorRole === 'tool' || authorRole === 'system') { // Consider tool/system as AI
+        aiMessagesCount++;
+        totalAiCharacters += messageTextParts.length;
       }
+    });
+
+    if (currentConversationMessageCount > longestConversationMessageCount) {
+        longestConversationMessageCount = currentConversationMessageCount;
+        longestConversation = { id: conv.id, title: conv.title, count: currentConversationMessageCount };
     }
-  }
-
-  totalConversations = conversations.length
-
-  conversations.forEach((conversation: any) => {
-    // Extract conversation title/topic
-    if (conversation.title) {
-      topics.push(conversation.title)
+    if (currentConversationMessageCount > 0 && currentConversationMessageCount < shortestConversationMessageCount) {
+        shortestConversationMessageCount = currentConversationMessageCount;
+        shortestConversation = { id: conv.id, title: conv.title, count: currentConversationMessageCount };
     }
+  });
 
-    // Extract timestamp
-    if (conversation.create_time) {
-      timestamps.push(new Date(conversation.create_time * 1000))
-    } else if (conversation.created_at) {
-      timestamps.push(new Date(conversation.created_at))
-    }
 
-    // Process messages
-    const messages = conversation.mapping ? Object.values(conversation.mapping) : []
-    
-    messages.forEach((messageObj: any) => {
-      const message = messageObj as any
-      if (message?.message?.content?.parts) {
-        message.message.content.parts.forEach((part: string) => {
-          if (typeof part === 'string' && part.trim()) {
-            totalMessages++
-            totalCharacters += part.length
-            
-            // Extract words for frequency analysis
-            const words = part.toLowerCase()
-              .replace(/[^\w\s]/g, ' ')
-              .split(/\s+/)
-              .filter(word => word.length > 3) // Only count words longer than 3 characters
-            
-            words.forEach(word => {
-              wordFrequency[word] = (wordFrequency[word] || 0) + 1
-            })
-          }
-        })
-      }
-    })
-  })
-
-  // Get most used words (top 20)
-  const mostUsedWords = Object.entries(wordFrequency)
-    .sort(([,a], [,b]) => b - a)
+  const sortedUserWords = Object.entries(userWordFrequency)
+    .sort(([, a], [, b]) => b - a)
     .slice(0, 20)
-    .map(([word, count]) => ({ word, count }))
+    .map(([word, count]) => ({ word, count }));
 
-  // Calculate average message length
-  const averageMessageLength = totalMessages > 0 ? Math.round(totalCharacters / totalMessages) : 0
+  const firstMessageDate = allTimestamps.length > 0 ? new Date(Math.min(...allTimestamps)).toISOString() : null;
+  const lastMessageDate = allTimestamps.length > 0 ? new Date(Math.max(...allTimestamps)).toISOString() : null;
+  const conversationDaysSpan = firstMessageDate && lastMessageDate ?
+    Math.ceil((new Date(lastMessageDate).getTime() - new Date(firstMessageDate).getTime()) / (1000 * 60 * 60 * 24)) : null;
 
-  // Analyze time span
-  const timeSpan = timestamps.length > 0 ? {
-    start: new Date(Math.min(...timestamps.map(d => d.getTime()))).toISOString(),
-    end: new Date(Math.max(...timestamps.map(d => d.getTime()))).toISOString(),
-    durationDays: Math.ceil((Math.max(...timestamps.map(d => d.getTime())) - Math.min(...timestamps.map(d => d.getTime()))) / (1000 * 60 * 60 * 24))
-  } : null
+  const activityByHourFinal = Object.entries(activityByHour).map(([hour, messageCount]) => ({ hour: `${hour}:00`, messageCount }));
+  const mostActiveHourEntry = Object.entries(activityByHour).sort(([,a], [,b]) => b - a)[0];
+  const mostActiveHour = mostActiveHourEntry && mostActiveHourEntry[1] > 0 ? `${mostActiveHourEntry[0]}:00` : null;
 
-  // Determine communication style based on analysis
-  const communicationStyle = determineCommunicationStyle(
-    totalMessages > 0 ? totalCharacters / totalMessages : 0
-  )
 
-  // Generate activity patterns
-  const activityPatterns = generateActivityPatterns(timestamps)
+  const activityByDayFinal = Object.entries(activityByDay).map(([day, messageCount]) => ({ day, messageCount }));
+  const mostActiveDayEntry = Object.entries(activityByDay).sort(([,a], [,b]) => b-a)[0];
+  const mostActiveDay = mostActiveDayEntry && mostActiveDayEntry[1] > 0 ? mostActiveDayEntry[0] : null;
 
-  // Generate topic distribution
-  const topicDistribution = generateTopicDistribution(topics, mostUsedWords)
 
   return {
+    totalConversations: conversations.length,
     totalMessages,
-    totalConversations,
-    totalCharacters,
-    averageMessageLength,
-    mostUsedWords,
-    conversationTopics: topics.slice(0, 10), // Top 10 topics
-    timeSpan,
-    communicationStyle,
-    activityPatterns,
-    topicDistribution,
-    analysisType
-  }
+    userMessagesCount,
+    aiMessagesCount,
+    totalUserCharacters,
+    totalAiCharacters,
+    averageUserMessageLength: userMessagesCount > 0 ? Math.round(totalUserCharacters / userMessagesCount) : 0,
+    averageAiMessageLength: aiMessagesCount > 0 ? Math.round(totalAiCharacters / aiMessagesCount) : 0,
+    firstMessageDate,
+    lastMessageDate,
+    conversationDaysSpan,
+    mostUsedUserWords: sortedUserWords,
+    userVocabularySizeEstimate: Object.keys(userWordFrequency).length, // Very rough estimate
+    averageWordsPerUserSentence: totalUserSentences > 0 ? parseFloat((totalUserWordsInSentences / totalUserSentences).toFixed(1)) : 0,
+    userToAiMessageRatio: aiMessagesCount > 0 ? parseFloat((userMessagesCount / aiMessagesCount).toFixed(2)) : userMessagesCount > 0 ? Infinity : 0,
+    averageMessagesPerConversation: conversations.length > 0 ? parseFloat((totalMessages / conversations.length).toFixed(1)) : 0,
+    longestConversationByMessages: longestConversation,
+    shortestConversationByMessages: shortestConversationMessageCount === Infinity ? null : shortestConversation,
+    activityByHourOfDay: activityByHourFinal,
+    activityByDayOfWeek: activityByDayFinal,
+    mostActiveHour,
+    mostActiveDay,
+    conversationTitles: conversationTitles.slice(0, 50), // Limit for display
+    questionMarksUsedByUser,
+    exclamationMarksUsedByUser,
+  };
 }
 
-function generatePremiumInsights(analysis: AnalysisResult): PremiumInsights {
-  // Destructure needed properties from analysis
-  const { totalMessages, mostUsedWords } = analysis;
-  
+// Mock function for premium insights - replace with actual LLM calls
+function generateMockPremiumInsights(basicInsights: BasicAnalysisResult): AdvancedAnalysisResult {
+  // This is where you'd use a powerful LLM with basicInsights and potentially snippets of raw data
+  // For now, it's just a placeholder based on your original mock
   return {
-    behavioralProfile: {
-      personalityAnalysis: 'Highly analytical individual with systematic thinking patterns and strong problem-solving orientation',
-      cognitiveStyle: 'Detail-oriented with preference for structured information and logical reasoning',
-      confidence: 94
+    digitalPersonaProfile: {
+      inferredPersonalityTraits: "Appears curious and detail-oriented based on question frequency and message length.",
+      communicationStyleSummary: `Tends towards ${basicInsights.averageUserMessageLength > 100 ? 'detailed' : 'concise'} responses. Ratio of user to AI messages is ${basicInsights.userToAiMessageRatio.toFixed(1)}:1.`,
+      dominantInterests: basicInsights.mostUsedUserWords.slice(0,3).map(w => w.word).join(', ') || 'General Exploration',
     },
-    dataPatterns: [
-      {
-        pattern: 'Technical Skill Progression',
-        frequency: 'Tracked across 8 months',
-        description: 'Clear progression from basic concepts to advanced implementations, with consistent learning velocity',
-        significance: 'High'
-      },
-      {
-        pattern: 'Problem-Solving Methodology',
-        frequency: 'Consistent pattern in 85% of technical queries',
-        description: 'Systematic approach: problem decomposition → research → implementation → optimization',
-        significance: 'High'
-      },
-      {
-        pattern: 'Knowledge Gaps and Learning',
-        frequency: 'Identified 23 distinct learning cycles',
-        description: 'Regular pattern of identifying knowledge gaps and systematically addressing them',
-        significance: 'Medium'
-      }
-    ],
-    insightMap: {
-      overarchingNarrative: 'Your conversation data reveals a systematic learner with strong analytical capabilities, progressing from foundational concepts to advanced technical implementations',
-      connectionPoints: [
-        'Technical questions → Implementation challenges → Optimization strategies',
-        'Learning queries → Skill development → Career advancement',
-        'Problem identification → Research methodology → Solution implementation'
-      ],
-      cognitiveThemes: ['Systematic thinking', 'Continuous learning', 'Problem-solving orientation']
-    }
-  }
+    behavioralTendencies: {
+      informationSeekingLevel: basicInsights.questionMarksUsedByUser > basicInsights.userMessagesCount * 0.1 ? "High" : "Moderate",
+      expressivenessLevel: basicInsights.exclamationMarksUsedByUser > basicInsights.userMessagesCount * 0.05 ? "Noticeable" : "Subtle",
+    },
+    // ... more advanced insights generated by an LLM using basicInsights as context
+  };
 }
 
-// Determine communication style based on average message length
-function determineCommunicationStyle(avgLength: number): string {
-  if (avgLength > 200) {
-    return "Detailed and Systematic"
-  } else if (avgLength > 100) {
-    return "Analytical and Thorough"
-  } else if (avgLength > 50) {
-    return "Concise and Direct"
-  } else {
-    return "Brief and Focused"
-  }
-}
-
-function generateActivityPatterns(timestamps: Date[]) {
-  const hourCounts: { [hour: string]: number } = {}
-  
-  // Initialize all hours
-  for (let i = 0; i < 24; i++) {
-    const hour = i.toString().padStart(2, '0') + ':00'
-    hourCounts[hour] = 0
-  }
-
-  // Count messages by hour
-  timestamps.forEach(timestamp => {
-    const hour = timestamp.getHours().toString().padStart(2, '0') + ':00'
-    hourCounts[hour]++
-  })
-
-  return Object.entries(hourCounts).map(([hour, count]) => ({
-    hour,
-    messages: count
-  }))
-}
-
-function generateTopicDistribution(topics: string[], topWords: WordFrequency[]): Array<{name: string; value: number; color: string}> {
-  const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff88'];
-  // Simple topic categorization based on common words
-  const categories = {
-    'Programming': ['code', 'programming', 'software', 'computer', 'tech', 'development', 'algorithm'],
-    'Data Science': ['data', 'analysis', 'machine', 'learning', 'model', 'statistics', 'python'],
-    'Career': ['career', 'job', 'work', 'professional', 'interview', 'resume', 'salary'],
-    'Technical': ['technical', 'system', 'architecture', 'design', 'implementation', 'optimization'],
-    'Learning': ['learn', 'study', 'education', 'knowledge', 'understand', 'explain', 'tutorial']
-  }
-
-  const distribution: { [category: string]: number } = {}
-  // Initialize categories
-  Object.keys(categories).forEach(category => {
-    distribution[category] = 0
-  })
-
-  // Count topic matches
-  topics.forEach(topic => {
-    const topicLower = topic.toLowerCase()
-    Object.entries(categories).forEach(([category, keywords]) => {
-      keywords.forEach(keyword => {
-        if (topicLower.includes(keyword)) {
-          distribution[category]++
-        }
-      })
-    })
-  })
-
-  // Also check top words
-  topWords.forEach(({ word }) => {
-    Object.entries(categories).forEach(([category, keywords]) => {
-      if (keywords.includes(word)) {
-        distribution[category] += 2 // Weight word frequency higher
-      }
-    })
-  })
-
-  // Convert to chart format
-  return Object.entries(distribution)
-    .map(([name, value], index) => ({
-      name,
-      value,
-      color: colors[index % colors.length]
-    }))
-    .filter(item => item.value > 0)
-    .sort((a, b) => b.value - a.value)
-}
+// TODO: Create performAdvancedAnalysis function using LLMs
+// async function performAdvancedAnalysis(
+//   conversations: any[],
+//   basicInsights: BasicAnalysisResult,
+//   supabaseClient: SupabaseClient // For LLM calls or further data access
+// ): Promise<AdvancedAnalysisResult> {
+//   // 1. Select key conversations or data points based on basicInsights
+//   // 2. Prepare prompts for your powerful LLM using _shared/prompts.ts
+//   // 3. Call LLM via _shared/llmService.ts
+//   // 4. Structure the LLM response into AdvancedAnalysisResult
+//   console.log("Performing advanced analysis with LLM (not implemented yet)...");
+//   return generateMockPremiumInsights(basicInsights); // Placeholder
+// }

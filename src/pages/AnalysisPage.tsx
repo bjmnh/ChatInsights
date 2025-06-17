@@ -114,27 +114,74 @@ const AnalysisPage: React.FC = () => {
   const generateMockFreeInsights = (jobData: Job) => {
     return {
       totalMessages: jobData.total_conversations ? jobData.total_conversations * 15 : 2847,
-      averageMessageLength: 127,
-      mostActiveHour: 14,
-      topTopics: ['Programming', 'Data Science', 'Career Advice', 'Technical Writing', 'Learning'],
-      communicationStyle: 'Analytical and Systematic',
-      engagementLevel: 8.5,
-      activityPatterns: [
-        { hour: '6AM', messages: 12 },
-        { hour: '9AM', messages: 45 },
-        { hour: '12PM', messages: 67 },
-        { hour: '3PM', messages: 89 },
-        { hour: '6PM', messages: 56 },
-        { hour: '9PM', messages: 78 },
-        { hour: '12AM', messages: 23 }
+      userMessagesCount: jobData.total_conversations ? Math.floor(jobData.total_conversations * 0.6 * 15) : 1708,
+      aiMessagesCount: jobData.total_conversations ? Math.ceil(jobData.total_conversations * 0.4 * 15) : 1139,
+      totalUserCharacters: jobData.total_conversations ? jobData.total_conversations * 2000 : 250000,
+      totalAiCharacters: jobData.total_conversations ? jobData.total_conversations * 3000 : 450000,
+      averageUserMessageLength: 127,
+      averageAiMessageLength: 198,
+      firstMessageDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+      lastMessageDate: new Date().toISOString(),
+      conversationDaysSpan: 30,
+      mostUsedUserWords: [
+        { word: 'code', count: 45 },
+        { word: 'problem', count: 32 },
+        { word: 'error', count: 28 },
+        { word: 'how', count: 25 },
+        { word: 'python', count: 22 },
+        { word: 'help', count: 20 },
+        { word: 'work', count: 18 },
+        { word: 'thanks', count: 15 },
+        { word: 'question', count: 14 },
+        { word: 'better', count: 12 }
       ],
-      topicDistribution: [
-        { name: 'Programming', value: 35, color: '#8884d8' },
-        { name: 'Data Science', value: 25, color: '#82ca9d' },
-        { name: 'Career', value: 20, color: '#ffc658' },
-        { name: 'Technical', value: 12, color: '#ff7300' },
-        { name: 'Other', value: 8, color: '#00ff88' }
-      ]
+      userVocabularySizeEstimate: 1250,
+      averageWordsPerUserSentence: 12.5,
+      userToAiMessageRatio: 1.5,
+      averageMessagesPerConversation: 8.3,
+      longestConversationByMessages: {
+        count: 42,
+        title: 'Python Data Analysis Project'
+      },
+      shortestConversationByMessages: {
+        count: 1,
+        title: 'Quick Question'
+      },
+      activityByHourOfDay: [
+        { hour: '00:00', messageCount: 12 },
+        { hour: '03:00', messageCount: 5 },
+        { hour: '06:00', messageCount: 8 },
+        { hour: '09:00', messageCount: 45 },
+        { hour: '12:00', messageCount: 67 },
+        { hour: '15:00', messageCount: 89 },
+        { hour: '18:00', messageCount: 56 },
+        { hour: '21:00', messageCount: 78 }
+      ],
+      activityByDayOfWeek: [
+        { day: 'Monday', messageCount: 120 },
+        { day: 'Tuesday', messageCount: 145 },
+        { day: 'Wednesday', messageCount: 132 },
+        { day: 'Thursday', messageCount: 156 },
+        { day: 'Friday', messageCount: 98 },
+        { day: 'Saturday', messageCount: 45 },
+        { day: 'Sunday', messageCount: 32 }
+      ],
+      mostActiveHour: '15:00',
+      mostActiveDay: 'Thursday',
+      conversationTitles: [
+        'Python Data Analysis Project',
+        'Web Development Help',
+        'Algorithm Optimization',
+        'Debugging Assistance',
+        'Learning New Framework',
+        'Code Review Feedback',
+        'Quick Question',
+        'System Design Discussion',
+        'Performance Tuning',
+        'API Integration Help'
+      ],
+      questionMarksUsedByUser: 245,
+      exclamationMarksUsedByUser: 87
     };
   };
 
@@ -274,6 +321,22 @@ const AnalysisPage: React.FC = () => {
   const freeInsights = report.free_insights as any;
   const paidInsights = (isPremiumUser && job.analysis_type === 'premium') ? generateMockPremiumInsights() : null;
 
+  // Transform data for the UI components
+  const activityData = freeInsights.activityByHourOfDay?.map(item => ({
+    hour: item.hour.split(':')[0] + (parseInt(item.hour.split(':')[0]) >= 12 ? 'PM' : 'AM'),
+    messages: item.messageCount
+  })) || [];
+
+  const topicData = freeInsights.mostUsedUserWords?.slice(0, 5).map((item: any, index: number) => ({
+    name: item.word,
+    value: item.count,
+    color: ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff88'][index % 5]
+  })) || [];
+
+  const topTopics = freeInsights.mostUsedUserWords?.slice(0, 5).map((item: any) => 
+    item.word.charAt(0).toUpperCase() + item.word.slice(1)
+  ) || [];
+
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Header */}
@@ -347,19 +410,34 @@ const AnalysisPage: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{freeInsights.totalMessages.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                Avg {freeInsights.averageMessageLength} chars per message
+                Avg {freeInsights.averageUserMessageLength} chars per user message
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Engagement Level</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">User Messages</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.engagementLevel}/10</div>
-              <Progress value={freeInsights.engagementLevel * 10} className="mt-2" />
+              <div className="text-2xl font-bold">{freeInsights.userMessagesCount.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                Avg {freeInsights.averageUserMessageLength} chars per user message
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">AI Messages</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{freeInsights.aiMessagesCount.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground">
+                Avg {freeInsights.averageAiMessageLength} chars per AI message
+              </p>
             </CardContent>
           </Card>
           
@@ -369,22 +447,9 @@ const AnalysisPage: React.FC = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.mostActiveHour}:00</div>
+              <div className="text-2xl font-bold">{freeInsights.mostActiveHour}</div>
               <p className="text-xs text-muted-foreground">
                 Peak conversation time
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Analysis Type</CardTitle>
-              <Brain className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{job.analysis_type === 'premium' ? 'Premium' : 'Basic'}</div>
-              <p className="text-xs text-muted-foreground">
-                {job.analysis_type === 'premium' ? 'Advanced insights' : 'Standard analysis'}
               </p>
             </CardContent>
           </Card>
@@ -414,7 +479,7 @@ const AnalysisPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={freeInsights.activityPatterns}>
+                  <BarChart data={activityData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="hour" />
                     <YAxis />
@@ -434,7 +499,7 @@ const AnalysisPage: React.FC = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={freeInsights.topicDistribution}
+                      data={topicData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -443,7 +508,7 @@ const AnalysisPage: React.FC = () => {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {(freeInsights.topicDistribution || []).map((entry: any, index: number) => (
+                      {topicData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -463,12 +528,12 @@ const AnalysisPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Primary Style:</span>
-                  <Badge variant="secondary">{freeInsights.communicationStyle}</Badge>
+                  <Badge variant="secondary">Analytical and Systematic</Badge>
                 </div>
                 <div>
                   <span className="font-medium">Top Topics:</span>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {(freeInsights.topTopics || []).map((topic: string, index: number) => (
+                    {topTopics.map((topic: string, index: number) => (
                       <Badge key={index} variant="outline">{topic}</Badge>
                     ))}
                   </div>
@@ -490,12 +555,20 @@ const AnalysisPage: React.FC = () => {
                   <h4 className="font-semibold">Message Characteristics</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span>Average Length</span>
-                      <span className="font-medium">{freeInsights.averageMessageLength} characters</span>
+                      <span>Average User Message Length</span>
+                      <span className="font-medium">{freeInsights.averageUserMessageLength} characters</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Question Rate</span>
-                      <span className="font-medium">23%</span>
+                      <span>Questions Asked</span>
+                      <span className="font-medium">{freeInsights.questionMarksUsedByUser || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>AI Responses</span>
+                      <span className="font-medium">{freeInsights.aiMessagesCount || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>User Messages</span>
+                      <span className="font-medium">{freeInsights.userMessagesCount || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Follow-up Rate</span>

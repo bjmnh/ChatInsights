@@ -19,7 +19,11 @@ import {
   Code,
   Network,
   Loader2,
-  Star
+  Star,
+  Target,
+  Search,
+  Layers,
+  Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { StripeService } from '../services/stripeService';
@@ -87,13 +91,13 @@ const PricingPage: React.FC = () => {
     ],
     premium: [
       'Unlimited conversation analyses',
-      'Advanced behavioral profiling',
-      'Machine learning pattern detection',
-      'Cognitive style analysis',
+      'Advanced cognitive pattern analysis',
       'Learning progression tracking',
       'Skill development insights',
       'Problem-solving methodology analysis',
       'Knowledge gap identification',
+      'Cross-conversation pattern recognition',
+      'Behavioral trend analysis',
       'Custom deep-dive reports',
       'Priority support',
       'Data export capabilities'
@@ -102,19 +106,19 @@ const PricingPage: React.FC = () => {
 
   const premiumFeatures = [
     {
-      icon: <Database className="h-6 w-6" />,
-      name: "Behavioral Profile Analysis",
-      description: "Advanced ML analysis of cognitive patterns, learning styles, and problem-solving approaches extracted from conversation data.",
+      icon: <Target className="h-6 w-6" />,
+      name: "Cognitive Pattern Analysis",
+      description: "Advanced algorithms identify your unique problem-solving approaches, thinking patterns, and decision-making styles from conversation data.",
     },
     {
-      icon: <Code className="h-6 w-6" />,
-      name: "Data Pattern Detection",
-      description: "Identify skill progression, learning velocity, and knowledge acquisition patterns using advanced data science techniques.",
+      icon: <TrendingUp className="h-6 w-6" />,
+      name: "Learning Progression Tracking",
+      description: "Track skill development, knowledge acquisition patterns, and learning velocity using data science techniques.",
     },
     {
       icon: <Network className="h-6 w-6" />,
-      name: "Insight Mapping",
-      description: "Connect patterns across conversations to reveal learning trajectories, skill development, and cognitive evolution over time.",
+      name: "Cross-Conversation Insights",
+      description: "Discover connections and themes that span across your entire conversation history to reveal long-term patterns.",
     }
   ];
 
@@ -122,20 +126,20 @@ const PricingPage: React.FC = () => {
     {
       name: "Alex Chen",
       role: "Senior Software Engineer",
-      content: "The behavioral analysis was incredibly accurate. It identified my learning patterns and problem-solving approach better than I could have described myself.",
-      plan: "Premium"
+      content: "The cognitive analysis identified patterns in my problem-solving approach that I never consciously recognized. It's like having a data scientist analyze your thinking process.",
+      plan: "Advanced Analytics"
     },
     {
       name: "Sarah Kim",
       role: "Data Scientist",
-      content: "The pattern detection found clear progression in my technical skills over months. It's like having a data-driven career coach.",
-      plan: "Premium"
+      content: "The learning progression analysis helped me understand my skill development velocity and identify knowledge gaps I wasn't aware of.",
+      plan: "Advanced Analytics"
     },
     {
       name: "Marcus Rodriguez",
       role: "Tech Lead",
-      content: "As someone who values privacy, I appreciate the transparent data handling. The insights into my cognitive style were surprisingly detailed.",
-      plan: "Premium"
+      content: "The cross-conversation insights revealed consistent patterns in how I approach technical discussions. Incredibly valuable for self-awareness.",
+      plan: "Advanced Analytics"
     }
   ];
 
@@ -143,11 +147,16 @@ const PricingPage: React.FC = () => {
     <div className="min-h-screen py-12">
       {/* Hero Section */}
       <section className="container mx-auto px-4 text-center mb-16">
+        <Badge variant="secondary" className="mb-6">
+          <Database className="h-3 w-3 mr-1" />
+          Professional Analytics Platform
+        </Badge>
         <h1 className="text-4xl lg:text-5xl font-bold mb-6">
           Advanced Conversation Analytics
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          Professional-grade analysis tools for developers who want data-driven insights into their learning and communication patterns
+          Professional-grade analysis tools for developers who want data-driven insights 
+          into their communication patterns and cognitive approaches
         </p>
       </section>
 
@@ -155,14 +164,14 @@ const PricingPage: React.FC = () => {
       <section className="container mx-auto px-4 mb-16">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Free Plan */}
-          <Card className="relative">
+          <Card className="relative border-2 border-muted">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-2xl">Basic Analytics</CardTitle>
                   <CardDescription>Essential conversation insights</CardDescription>
                 </div>
-                <MessageSquare className="h-8 w-8 text-muted-foreground" />
+                <BarChart3 className="h-8 w-8 text-muted-foreground" />
               </div>
               <div className="mt-4">
                 <span className="text-4xl font-bold">$0</span>
@@ -190,11 +199,11 @@ const PricingPage: React.FC = () => {
           </Card>
 
           {/* Premium Plan */}
-          <Card className="relative border-primary shadow-lg">
+          <Card className="relative border-2 border-primary shadow-lg">
             <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-              <Badge className="px-3 py-1">
-                <Crown className="h-3 w-3 mr-1" />
-                Professional
+              <Badge className="px-3 py-1 bg-primary">
+                <Zap className="h-3 w-3 mr-1" />
+                Advanced Analytics
               </Badge>
             </div>
             <CardHeader>
@@ -203,7 +212,7 @@ const PricingPage: React.FC = () => {
                   <CardTitle className="text-2xl">Advanced Analytics</CardTitle>
                   <CardDescription>Professional-grade insights and analysis</CardDescription>
                 </div>
-                <Crown className="h-8 w-8 text-yellow-500" />
+                <Target className="h-8 w-8 text-primary" />
               </div>
               <div className="mt-4">
                 <span className="text-4xl font-bold">
@@ -215,18 +224,18 @@ const PricingPage: React.FC = () => {
             <CardContent>
               {isPremiumUser && (
                 <Alert className="mb-6 border-green-200 bg-green-50">
-                  <Crown className="h-4 w-4 text-green-600" />
+                  <Target className="h-4 w-4 text-green-600" />
                   <AlertDescription className="text-green-800">
-                    <strong>Premium Active:</strong> All advanced features are unlocked.
+                    <strong>Advanced Analytics Active:</strong> All premium features are unlocked.
                   </AlertDescription>
                 </Alert>
               )}
 
               <div className="mb-6 p-4 bg-primary/5 rounded-lg border border-primary/20">
-                <h4 className="font-semibold text-primary mb-2">Data-Driven Insights</h4>
+                <h4 className="font-semibold text-primary mb-2">Deep Data Analysis</h4>
                 <p className="text-sm text-muted-foreground">
-                  Advanced machine learning analysis of your conversation patterns, learning progression, 
-                  and cognitive style. Privacy-focused with automatic data deletion.
+                  Advanced machine learning analysis of your conversation patterns, cognitive styles, 
+                  and learning progressions. Privacy-focused with automatic data deletion.
                 </p>
               </div>
               
@@ -267,7 +276,7 @@ const PricingPage: React.FC = () => {
         <h2 className="text-3xl font-bold text-center mb-4">Advanced Analytics Features</h2>
         <p className="text-xl text-muted-foreground text-center mb-12 max-w-3xl mx-auto">
           Professional-grade analysis tools designed for developers who want comprehensive insights 
-          into their learning patterns and communication data.
+          into their communication patterns and cognitive approaches.
         </p>
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -288,19 +297,59 @@ const PricingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* What You'll Discover Section */}
       <section className="bg-muted/30 py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-4">What Developers Say</h2>
+          <h2 className="text-3xl font-bold text-center mb-4">What You'll Discover</h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Real feedback from developers who use our advanced analytics
+            Advanced analytics reveal insights about your digital communication that you never knew existed
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            <div className="text-center">
+              <Search className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h4 className="font-semibold mb-2">Problem-Solving Patterns</h4>
+              <p className="text-sm text-muted-foreground">
+                How you approach technical challenges and break down complex problems
+              </p>
+            </div>
+            <div className="text-center">
+              <TrendingUp className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h4 className="font-semibold mb-2">Learning Velocity</h4>
+              <p className="text-sm text-muted-foreground">
+                Your skill acquisition rate and knowledge progression over time
+              </p>
+            </div>
+            <div className="text-center">
+              <Network className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h4 className="font-semibold mb-2">Cognitive Connections</h4>
+              <p className="text-sm text-muted-foreground">
+                How you link concepts and build understanding across topics
+              </p>
+            </div>
+            <div className="text-center">
+              <Eye className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h4 className="font-semibold mb-2">Communication Style</h4>
+              <p className="text-sm text-muted-foreground">
+                Your unique approach to technical discussions and knowledge sharing
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-center mb-4">Developer Insights</h2>
+          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
+            Real feedback from developers who've discovered their data story
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {testimonials.map((testimonial, index) => (
-              <Card key={index}>
+              <Card key={index} className="border-l-4 border-l-primary">
                 <CardContent className="pt-6">
                   <div className="flex items-center mb-4">
-                    <Crown className="h-4 w-4 text-yellow-500 mr-2" />
+                    <Target className="h-4 w-4 text-primary mr-2" />
                     <Badge variant="secondary">{testimonial.plan}</Badge>
                   </div>
                   <p className="text-muted-foreground mb-4 italic">
@@ -324,22 +373,22 @@ const PricingPage: React.FC = () => {
           <h2 className="text-3xl font-bold mb-4">Privacy-First Analytics</h2>
           <p className="text-xl text-muted-foreground mb-8">
             Your conversation data is processed securely and automatically deleted after analysis. 
-            We only retain the insights, never your raw conversations.
+            We retain only the insights—never your raw conversations.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-            <div className="p-4 bg-muted/50 rounded-lg">
-              <h4 className="font-semibold mb-2">Automatic Deletion</h4>
+            <div className="p-4 bg-muted/50 rounded-lg border border-muted">
+              <h4 className="font-semibold mb-2">Automatic Data Deletion</h4>
               <p className="text-sm text-muted-foreground">
                 Raw conversation files are permanently deleted within hours of processing
               </p>
             </div>
-            <div className="p-4 bg-muted/50 rounded-lg">
+            <div className="p-4 bg-muted/50 rounded-lg border border-muted">
               <h4 className="font-semibold mb-2">Encrypted Processing</h4>
               <p className="text-sm text-muted-foreground">
                 All data is encrypted in transit and at rest during analysis
               </p>
             </div>
-            <div className="p-4 bg-muted/50 rounded-lg">
+            <div className="p-4 bg-muted/50 rounded-lg border border-muted">
               <h4 className="font-semibold mb-2">No Data Sharing</h4>
               <p className="text-sm text-muted-foreground">
                 Your data is never shared, sold, or used for training other models
@@ -354,8 +403,8 @@ const PricingPage: React.FC = () => {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Ready for Advanced Analytics?</h2>
           <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-            Join developers who use data-driven insights to understand their learning patterns 
-            and optimize their professional growth.
+            Join developers who use data-driven insights to understand their communication patterns 
+            and optimize their learning approach.
           </p>
           <Button 
             size="lg" 
@@ -371,14 +420,14 @@ const PricingPage: React.FC = () => {
               </>
             ) : isPremiumUser ? (
               <>
-                <Crown className="mr-2 h-5 w-5" />
-                You Have Premium!
+                <Target className="mr-2 h-5 w-5" />
+                You Have Advanced Analytics!
               </>
             ) : !user ? (
               'Sign In to Purchase'
             ) : (
               <>
-                <Crown className="mr-2 h-5 w-5" />
+                <Target className="mr-2 h-5 w-5" />
                 Unlock Advanced Analytics - $10
               </>
             )}

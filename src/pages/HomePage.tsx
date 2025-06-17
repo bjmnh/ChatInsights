@@ -18,7 +18,12 @@ import {
   Star,
   Database,
   Code,
-  Network
+  Network,
+  Lock,
+  Eye,
+  Search,
+  Layers,
+  Target
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -28,24 +33,24 @@ const HomePage: React.FC = () => {
 
   const features = [
     {
-      icon: <MessageSquare className="h-6 w-6" />,
-      title: "Conversation Analytics",
-      description: "Comprehensive analysis of communication patterns, engagement levels, and topic distribution"
-    },
-    {
-      icon: <Database className="h-6 w-6" />,
-      title: "Behavioral Profiling",
-      description: "Advanced ML analysis of cognitive patterns, learning styles, and problem-solving approaches"
-    },
-    {
       icon: <BarChart3 className="h-6 w-6" />,
+      title: "Conversation Analytics",
+      description: "Quantitative analysis of your communication patterns, engagement metrics, and interaction data"
+    },
+    {
+      icon: <Search className="h-6 w-6" />,
+      title: "Behavioral Pattern Recognition",
+      description: "Advanced algorithms identify learning styles, problem-solving approaches, and cognitive patterns"
+    },
+    {
+      icon: <TrendingUp className="h-6 w-6" />,
       title: "Data Visualization",
-      description: "Professional charts and graphs to visualize your conversation patterns and insights"
+      description: "Professional-grade charts and insights that reveal the story hidden in your conversation data"
     },
     {
       icon: <Shield className="h-6 w-6" />,
-      title: "Privacy-First",
-      description: "Your data is processed securely and automatically deleted after analysis"
+      title: "Privacy-First Processing",
+      description: "Your raw data is automatically deleted after analysis. We keep only the insights, never your conversations"
     }
   ];
 
@@ -53,17 +58,17 @@ const HomePage: React.FC = () => {
     {
       icon: <Upload className="h-8 w-8" />,
       title: "Upload Your Data",
-      description: "Export and upload your ChatGPT conversations.json file"
+      description: "Securely upload your ChatGPT conversations.json export file"
     },
     {
       icon: <Brain className="h-8 w-8" />,
-      title: "AI Analysis",
-      description: "Advanced machine learning analyzes your conversation patterns"
+      title: "Advanced Analysis",
+      description: "Our algorithms analyze patterns, extract insights, then delete your raw data"
     },
     {
-      icon: <BarChart3 className="h-8 w-8" />,
-      title: "Get Insights",
-      description: "Receive detailed reports about your communication and learning patterns"
+      icon: <Eye className="h-8 w-8" />,
+      title: "Discover Your Story",
+      description: "Receive detailed reports revealing your unique communication and learning patterns"
     }
   ];
 
@@ -71,19 +76,19 @@ const HomePage: React.FC = () => {
     {
       name: "Alex Chen",
       role: "Senior Software Engineer",
-      content: "The behavioral analysis was incredibly accurate. It identified my learning patterns and problem-solving approach better than I could have described myself.",
+      content: "The analysis revealed patterns in my problem-solving approach that I never consciously recognized. It's like having a data scientist analyze your thinking process.",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
     },
     {
       name: "Sarah Kim",
       role: "Data Scientist", 
-      content: "The pattern detection found clear progression in my technical skills over months. It's like having a data-driven career coach.",
+      content: "Finally, a tool that respects privacy while delivering genuine insights. The skill progression analysis helped me understand my learning velocity.",
       avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
     },
     {
       name: "Marcus Rodriguez",
       role: "Tech Lead",
-      content: "As someone who values privacy, I appreciate the transparent data handling. The insights into my cognitive style were surprisingly detailed.",
+      content: "The depth of analysis is impressive. It identified cognitive patterns I use in technical discussions that I wasn't even aware of.",
       avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face"
     }
   ];
@@ -100,17 +105,16 @@ const HomePage: React.FC = () => {
             className="text-center max-w-4xl mx-auto"
           >
             <Badge variant="secondary" className="mb-6">
-              <Zap className="h-3 w-3 mr-1" />
-              Advanced Analytics Platform
+              <Database className="h-3 w-3 mr-1" />
+              Advanced Conversation Analytics
             </Badge>
             <h1 className="text-4xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-              Professional
-              <span className="text-primary"> ChatGPT </span>
-              Analytics
+              Understand Your
+              <span className="text-primary"> Digital Mind</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-              Advanced conversation analytics for developers. Understand your learning patterns, 
-              communication style, and cognitive approach through data-driven insights.
+              Professional conversation analytics that reveal your unique communication patterns, 
+              learning style, and cognitive approach. Your data, your insights, your story.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
@@ -118,22 +122,30 @@ const HomePage: React.FC = () => {
                 onClick={() => navigate(user ? '/dashboard' : '/auth')}
                 className="text-lg px-8 py-6"
               >
-                {user ? 'Go to Dashboard' : 'Start Analysis'}
+                {user ? 'Analyze Your Data' : 'Start Analysis'}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button variant="outline" size="lg" className="text-lg px-8 py-6">
                 View Sample Report
               </Button>
             </div>
+            
+            {/* Privacy Assurance */}
+            <div className="mt-8 p-4 bg-muted/30 rounded-lg border border-muted max-w-md mx-auto">
+              <div className="flex items-center justify-center text-sm text-muted-foreground">
+                <Lock className="h-4 w-4 mr-2" />
+                Your raw data is automatically deleted after analysis
+              </div>
+            </div>
           </motion.div>
         </div>
         
         {/* Floating Elements */}
         <div className="absolute top-20 left-10 opacity-20">
-          <Brain className="h-16 w-16 text-primary animate-pulse" />
+          <BarChart3 className="h-16 w-16 text-primary animate-pulse" />
         </div>
         <div className="absolute bottom-20 right-10 opacity-20">
-          <Database className="h-12 w-12 text-primary animate-bounce" />
+          <Network className="h-12 w-12 text-primary animate-bounce" />
         </div>
       </section>
 
@@ -148,10 +160,10 @@ const HomePage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Professional-Grade Analytics
+              Data-Driven Self-Discovery
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Advanced machine learning tools designed for developers who want comprehensive insights
+              Advanced analytics designed for developers who value both insights and privacy
             </p>
           </motion.div>
 
@@ -164,7 +176,7 @@ const HomePage: React.FC = () => {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 viewport={{ once: true }}
               >
-                <Card className="h-full hover:shadow-lg transition-shadow duration-300">
+                <Card className="h-full hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary/20 hover:border-l-primary">
                   <CardHeader>
                     <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
                       {feature.icon}
@@ -194,10 +206,10 @@ const HomePage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              How It Works
+              Your Data Journey
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Get professional insights in three simple steps
+              Three steps to understanding your digital communication patterns
             </p>
           </motion.div>
 
@@ -211,7 +223,7 @@ const HomePage: React.FC = () => {
                 viewport={{ once: true }}
                 className="text-center"
               >
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6 border-2 border-primary/20">
                   {step.icon}
                 </div>
                 <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
@@ -222,6 +234,60 @@ const HomePage: React.FC = () => {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Premium Preview Section */}
+      <section className="py-20 bg-gradient-to-r from-primary/5 to-primary/10">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            viewport={{ once: true }}
+            className="text-center max-w-4xl mx-auto"
+          >
+            <Badge variant="secondary" className="mb-6">
+              <Layers className="h-3 w-3 mr-1" />
+              Advanced Analytics
+            </Badge>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
+              Deeper Insights Await
+            </h2>
+            <p className="text-xl text-muted-foreground mb-8">
+              Premium analysis reveals the hidden patterns in your data—cognitive styles, 
+              learning progressions, and behavioral insights that standard analytics miss.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left mb-8">
+              <div className="p-6 bg-background/50 rounded-lg border border-primary/20">
+                <Target className="h-8 w-8 text-primary mb-3" />
+                <h4 className="font-semibold mb-2">Cognitive Pattern Analysis</h4>
+                <p className="text-sm text-muted-foreground">
+                  Advanced algorithms identify your unique problem-solving approaches and thinking patterns
+                </p>
+              </div>
+              <div className="p-6 bg-background/50 rounded-lg border border-primary/20">
+                <TrendingUp className="h-8 w-8 text-primary mb-3" />
+                <h4 className="font-semibold mb-2">Learning Progression Mapping</h4>
+                <p className="text-sm text-muted-foreground">
+                  Track skill development and knowledge acquisition patterns over time
+                </p>
+              </div>
+              <div className="p-6 bg-background/50 rounded-lg border border-primary/20">
+                <Network className="h-8 w-8 text-primary mb-3" />
+                <h4 className="font-semibold mb-2">Cross-Conversation Insights</h4>
+                <p className="text-sm text-muted-foreground">
+                  Discover connections and themes that span across your entire conversation history
+                </p>
+              </div>
+            </div>
+            
+            <Button size="lg" onClick={() => navigate('/pricing')} className="text-lg px-8 py-6">
+              Explore Advanced Analytics
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </motion.div>
         </div>
       </section>
 
@@ -236,10 +302,10 @@ const HomePage: React.FC = () => {
             className="text-center mb-16"
           >
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              What Developers Say
+              Developer Insights
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Real feedback from developers using our analytics platform
+              Real feedback from developers who've discovered their data story
             </p>
           </motion.div>
 
@@ -252,7 +318,7 @@ const HomePage: React.FC = () => {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
                 viewport={{ once: true }}
               >
-                <Card className="h-full">
+                <Card className="h-full border-l-4 border-l-primary/20">
                   <CardContent className="pt-6">
                     <div className="flex mb-4">
                       {[...Array(5)].map((_, i) => (
@@ -297,22 +363,25 @@ const HomePage: React.FC = () => {
             </h2>
             <p className="text-xl text-muted-foreground mb-8">
               Your conversation data is processed securely and automatically deleted after analysis. 
-              We only retain the insights, never your raw conversations.
+              We retain only the insights—never your raw conversations.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-              <div className="p-6 bg-muted/50 rounded-lg">
-                <h4 className="font-semibold mb-2">Automatic Deletion</h4>
+              <div className="p-6 bg-muted/50 rounded-lg border border-muted">
+                <Lock className="h-8 w-8 text-primary mb-3" />
+                <h4 className="font-semibold mb-2">Automatic Data Deletion</h4>
                 <p className="text-sm text-muted-foreground">
                   Raw conversation files are permanently deleted within hours of processing
                 </p>
               </div>
-              <div className="p-6 bg-muted/50 rounded-lg">
+              <div className="p-6 bg-muted/50 rounded-lg border border-muted">
+                <Shield className="h-8 w-8 text-primary mb-3" />
                 <h4 className="font-semibold mb-2">Encrypted Processing</h4>
                 <p className="text-sm text-muted-foreground">
                   All data is encrypted in transit and at rest during analysis
                 </p>
               </div>
-              <div className="p-6 bg-muted/50 rounded-lg">
+              <div className="p-6 bg-muted/50 rounded-lg border border-muted">
+                <Eye className="h-8 w-8 text-primary mb-3" />
                 <h4 className="font-semibold mb-2">No Data Sharing</h4>
                 <p className="text-sm text-muted-foreground">
                   Your data is never shared, sold, or used for training other models
@@ -333,11 +402,11 @@ const HomePage: React.FC = () => {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Ready for Professional Analytics?
+              Ready to Discover Your Data Story?
             </h2>
             <p className="text-xl mb-8 opacity-90 max-w-2xl mx-auto">
-              Join developers who use data-driven insights to understand their learning patterns 
-              and optimize their professional growth.
+              Join developers who use data-driven insights to understand their communication patterns 
+              and optimize their learning approach.
             </p>
             <Button 
               size="lg" 
@@ -345,7 +414,7 @@ const HomePage: React.FC = () => {
               onClick={() => navigate(user ? '/dashboard' : '/auth')}
               className="text-lg px-8 py-6"
             >
-              {user ? 'Start New Analysis' : 'Get Started Free'}
+              {user ? 'Start New Analysis' : 'Begin Your Analysis'}
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </motion.div>

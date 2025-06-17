@@ -21,14 +21,26 @@ import {
   Lightbulb,
   Target,
   ArrowRight,
-  Database as DatabaseIcon,
   Code,
   Network,
   Loader2,
   RefreshCw,
-  Zap
+  Zap,
+  Search,
+  Eye,
+  Layers,
+  X,
+  ArrowLeft,
+  Activity,
+  PieChart as PieChartIcon,
+  LineChart as LineChartIcon,
+  BarChart as BarChartIcon,
+  Maximize2,
+  Settings,
+  Download,
+  Share2
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
 import { JobService } from '../services/jobService';
 import { ReportService } from '../services/reportService';
 import { StripeService } from '../services/stripeService';
@@ -47,6 +59,8 @@ const AnalysisPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]);
   const [reprocessing, setReprocessing] = useState(false);
+  const [fullScreen, setFullScreen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     if (!user) {
@@ -157,70 +171,76 @@ const AnalysisPage: React.FC = () => {
         { hour: '18:00', messageCount: 56 },
         { hour: '21:00', messageCount: 78 }
       ],
-      activityByDayOfWeek: [
-        { day: 'Monday', messageCount: 120 },
-        { day: 'Tuesday', messageCount: 145 },
-        { day: 'Wednesday', messageCount: 132 },
-        { day: 'Thursday', messageCount: 156 },
-        { day: 'Friday', messageCount: 98 },
-        { day: 'Saturday', messageCount: 45 },
-        { day: 'Sunday', messageCount: 32 }
-      ],
-      mostActiveHour: '15:00',
-      mostActiveDay: 'Thursday',
-      conversationTitles: [
-        'Python Data Analysis Project',
-        'Web Development Help',
-        'Algorithm Optimization',
-        'Debugging Assistance',
-        'Learning New Framework',
-        'Code Review Feedback',
-        'Quick Question',
-        'System Design Discussion',
-        'Performance Tuning',
-        'API Integration Help'
-      ],
-      questionMarksUsedByUser: 245,
-      exclamationMarksUsedByUser: 87
+      topicDistribution: [
+        { name: 'Programming', value: 35, color: '#8884d8' },
+        { name: 'Data Science', value: 25, color: '#82ca9d' },
+        { name: 'Career', value: 20, color: '#ffc658' },
+        { name: 'Technical', value: 12, color: '#ff7300' },
+        { name: 'Other', value: 8, color: '#00ff88' }
+      ]
     };
   };
 
   // Generate mock premium insights
   const generateMockPremiumInsights = () => {
     return {
-      behavioralProfile: {
-        personalityAnalysis: 'Highly analytical individual with systematic thinking patterns and strong problem-solving orientation',
-        cognitiveStyle: 'Detail-oriented with preference for structured information and logical reasoning',
-        confidence: 94
+      cognitiveProfile: {
+        problemSolvingApproach: 'Systematic decomposition with iterative refinement',
+        learningStyle: 'Analytical learner with preference for structured information and logical progression',
+        communicationPattern: 'Detail-oriented with clear articulation of technical concepts',
+        confidence: 92
       },
-      dataPatterns: [
+      learningProgression: [
         {
-          pattern: 'Technical Skill Progression',
-          frequency: 'Tracked across 8 months',
-          description: 'Clear progression from basic concepts to advanced implementations, with consistent learning velocity',
+          skill: 'Algorithm Design',
+          progression: 'Beginner → Intermediate → Advanced',
+          timeframe: '6 months',
+          keyMilestones: ['Basic sorting algorithms', 'Dynamic programming', 'Graph algorithms'],
+          proficiencyGrowth: 85
+        },
+        {
+          skill: 'System Architecture',
+          progression: 'Novice → Competent → Proficient',
+          timeframe: '8 months',
+          keyMilestones: ['Monolithic design', 'Microservices', 'Distributed systems'],
+          proficiencyGrowth: 78
+        },
+        {
+          skill: 'Data Structures',
+          progression: 'Basic → Advanced → Expert',
+          timeframe: '4 months',
+          keyMilestones: ['Arrays and lists', 'Trees and graphs', 'Advanced data structures'],
+          proficiencyGrowth: 94
+        }
+      ],
+      behavioralPatterns: [
+        {
+          pattern: 'Technical Problem Decomposition',
+          frequency: 'Consistent across 89% of technical discussions',
+          description: 'Systematic approach: problem analysis → solution design → implementation strategy → optimization',
           significance: 'High'
         },
         {
-          pattern: 'Problem-Solving Methodology',
-          frequency: 'Consistent pattern in 85% of technical queries',
-          description: 'Systematic approach: problem decomposition → research → implementation → optimization',
+          pattern: 'Knowledge Gap Identification',
+          frequency: 'Identified in 76% of learning conversations',
+          description: 'Proactive identification of knowledge gaps followed by targeted learning strategies',
           significance: 'High'
         },
         {
-          pattern: 'Knowledge Gaps and Learning',
-          frequency: 'Identified 23 distinct learning cycles',
-          description: 'Regular pattern of identifying knowledge gaps and systematically addressing them',
+          pattern: 'Iterative Refinement Process',
+          frequency: 'Present in 82% of project discussions',
+          description: 'Consistent pattern of initial implementation followed by iterative improvements',
           significance: 'Medium'
         }
       ],
-      insightMap: {
-        overarchingNarrative: 'Your conversation data reveals a systematic learner with strong analytical capabilities, progressing from foundational concepts to advanced technical implementations',
-        connectionPoints: [
+      crossConversationInsights: {
+        overarchingTheme: 'Your conversation data reveals a systematic learner with strong analytical capabilities, progressing from foundational concepts to advanced technical implementations',
+        connectionPatterns: [
           'Technical questions → Implementation challenges → Optimization strategies',
           'Learning queries → Skill development → Career advancement',
           'Problem identification → Research methodology → Solution implementation'
         ],
-        cognitiveThemes: ['Systematic thinking', 'Continuous learning', 'Problem-solving orientation']
+        cognitiveEvolution: 'Clear progression from reactive problem-solving to proactive system design thinking'
       }
     };
   };
@@ -231,14 +251,14 @@ const AnalysisPage: React.FC = () => {
 
   const handleReprocessWithPremium = async () => {
     if (!job || !isPremiumUser) {
-      toast.error('Premium access required');
+      toast.error('Advanced analytics access required');
       return;
     }
 
     setReprocessing(true);
     try {
       await JobService.reprocessWithPremium(job.id);
-      toast.success('Starting premium analysis...');
+      toast.success('Starting advanced analysis...');
       
       // Refresh the page after a short delay to show the updated job
       setTimeout(() => {
@@ -246,10 +266,18 @@ const AnalysisPage: React.FC = () => {
       }, 2000);
     } catch (error) {
       console.error('Error reprocessing with premium:', error);
-      toast.error('Failed to start premium analysis');
+      toast.error('Failed to start advanced analysis');
     } finally {
       setReprocessing(false);
     }
+  };
+
+  const handleBackToDashboard = () => {
+    navigate('/dashboard');
+  };
+
+  const toggleFullScreen = () => {
+    setFullScreen(!fullScreen);
   };
 
   // Check if user has premium access
@@ -263,9 +291,11 @@ const AnalysisPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
+          <h2 className="text-2xl font-semibold">Loading Analysis</h2>
+          <p className="text-muted-foreground">Preparing your insights...</p>
         </div>
       </div>
     );
@@ -273,9 +303,9 @@ const AnalysisPage: React.FC = () => {
 
   if (!job) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Analysis Not Found</h1>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">Analysis Not Found</h1>
           <Button onClick={() => navigate('/dashboard')}>
             Return to Dashboard
           </Button>
@@ -286,14 +316,15 @@ const AnalysisPage: React.FC = () => {
 
   if (job.status !== 'completed') {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Analysis In Progress</h1>
-          <p className="text-muted-foreground mb-4">
-            Your analysis is still being processed. Please check back later.
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Activity className="h-16 w-16 mx-auto text-primary animate-pulse" />
+          <h1 className="text-2xl font-bold">Analysis In Progress</h1>
+          <p className="text-muted-foreground">
+            Your analysis is being processed. This may take a few minutes.
           </p>
-          <Progress value={job.progress} className="w-64 mx-auto mb-4" />
-          <p className="text-sm text-muted-foreground mb-4">{job.progress}% complete</p>
+          <Progress value={job.progress} className="w-64 mx-auto" />
+          <p className="text-sm text-muted-foreground">{job.progress}% complete</p>
           <Button onClick={() => navigate('/dashboard')}>
             Return to Dashboard
           </Button>
@@ -304,10 +335,10 @@ const AnalysisPage: React.FC = () => {
 
   if (!report) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Report Not Available</h1>
-          <p className="text-muted-foreground mb-4">
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h1 className="text-2xl font-bold">Report Not Available</h1>
+          <p className="text-muted-foreground">
             The analysis report is not available. Please try again later.
           </p>
           <Button onClick={() => navigate('/dashboard')}>
@@ -337,31 +368,78 @@ const AnalysisPage: React.FC = () => {
     item.word.charAt(0).toUpperCase() + item.word.slice(1)
   ) || [];
 
+  const containerClass = fullScreen 
+    ? "fixed inset-0 z-50 bg-background overflow-auto" 
+    : "container mx-auto px-4 py-8";
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className={containerClass}>
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleBackToDashboard}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+            {fullScreen && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={toggleFullScreen}
+                className="flex items-center"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Exit Full View
+              </Button>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {!fullScreen && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={toggleFullScreen}
+                className="flex items-center"
+              >
+                <Maximize2 className="h-4 w-4 mr-2" />
+                Full Screen
+              </Button>
+            )}
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <Button variant="outline" size="sm">
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Analysis Results</h1>
+            <h1 className="text-3xl font-bold">Analysis Dashboard</h1>
             <p className="text-muted-foreground">
-              Insights from {job.filename} • {job.total_conversations || 'Unknown'} conversations
+              {job.filename} • {job.total_conversations || 'Unknown'} conversations • {new Date(job.created_at).toLocaleDateString()}
             </p>
           </div>
           <div className="flex items-center space-x-2">
-            <Badge variant="outline" className="px-3 py-1">
-              <Calendar className="h-4 w-4 mr-1" />
-              {new Date(job.created_at).toLocaleDateString()}
-            </Badge>
             {job.analysis_type === 'premium' && (
               <Badge variant="secondary" className="px-3 py-1">
-                <Zap className="h-4 w-4 mr-1" />
-                Premium Analysis
+                <Target className="h-4 w-4 mr-1" />
+                Advanced Analysis
               </Badge>
             )}
             {isPremiumUser && (
               <Badge variant="secondary" className="px-3 py-1">
-                <Crown className="h-4 w-4 mr-1" />
+                <Zap className="h-4 w-4 mr-1" />
                 Premium User
               </Badge>
             )}
@@ -370,12 +448,12 @@ const AnalysisPage: React.FC = () => {
 
         {/* Premium Upgrade Alert */}
         {canUpgradeToPremium && (
-          <Alert className="mb-6 border-primary/20 bg-primary/5">
-            <Zap className="h-4 w-4" />
+          <Alert className="mt-6 border-primary/20 bg-primary/5">
+            <Target className="h-4 w-4" />
             <AlertDescription>
               <div className="flex items-center justify-between">
                 <div>
-                  <strong>Upgrade Available:</strong> Run advanced analysis on this dataset with your premium access.
+                  <strong>Advanced Analysis Available:</strong> Run deeper analysis on this dataset with your premium access.
                 </div>
                 <Button 
                   onClick={handleReprocessWithPremium}
@@ -391,7 +469,7 @@ const AnalysisPage: React.FC = () => {
                   ) : (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Run Premium Analysis
+                      Run Advanced Analysis
                     </>
                   )}
                 </Button>
@@ -400,8 +478,20 @@ const AnalysisPage: React.FC = () => {
           </Alert>
         )}
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Messages</p>
+                  <p className="text-2xl font-bold">{freeInsights.totalMessages.toLocaleString()}</p>
+                </div>
+                <MessageSquare className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
@@ -410,34 +500,19 @@ const AnalysisPage: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{freeInsights.totalMessages.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                Avg {freeInsights.averageUserMessageLength} chars per user message
+                Avg {freeInsights.averageMessageLength} chars per message
               </p>
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">User Messages</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Engagement Level</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.userMessagesCount.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                Avg {freeInsights.averageUserMessageLength} chars per user message
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">AI Messages</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.aiMessagesCount.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                Avg {freeInsights.averageAiMessageLength} chars per AI message
-              </p>
+              <div className="text-2xl font-bold">{freeInsights.engagementLevel}/10</div>
+              <Progress value={freeInsights.engagementLevel * 10} className="mt-2" />
             </CardContent>
           </Card>
           
@@ -447,26 +522,57 @@ const AnalysisPage: React.FC = () => {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{freeInsights.mostActiveHour}</div>
+              <div className="text-2xl font-bold">{freeInsights.mostActiveHour}:00</div>
               <p className="text-xs text-muted-foreground">
                 Peak conversation time
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Analysis Type</CardTitle>
+              <Brain className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{job.analysis_type === 'premium' ? 'Premium' : 'Basic'}</div>
+              <p className="text-xs text-muted-foreground">
+                {job.analysis_type === 'premium' ? 'Advanced insights' : 'Standard analysis'}
               </p>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="patterns">Patterns</TabsTrigger>
-          <TabsTrigger value="behavioral" className="relative">
-            Behavioral Profile
-            {!paidInsights && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="overview" className="flex items-center">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Overview
           </TabsTrigger>
-          <TabsTrigger value="insights" className="relative">
-            Data Insights
-            {!paidInsights && <Crown className="h-3 w-3 ml-1 text-yellow-500" />}
+          <TabsTrigger value="patterns" className="flex items-center">
+            <Activity className="h-4 w-4 mr-2" />
+            Patterns
+          </TabsTrigger>
+          <TabsTrigger value="cognitive" className="flex items-center relative">
+            <Search className="h-4 w-4 mr-2" />
+            Cognitive Analysis
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
+          </TabsTrigger>
+          <TabsTrigger value="progression" className="flex items-center relative">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Learning Insights
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
+          </TabsTrigger>
+          <TabsTrigger value="behavioral" className="flex items-center relative">
+            <Eye className="h-4 w-4 mr-2" />
+            Behavioral Patterns
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
+          </TabsTrigger>
+          <TabsTrigger value="insights" className="flex items-center relative">
+            <Network className="h-4 w-4 mr-2" />
+            Cross-Conversation
+            {!paidInsights && <Lock className="h-3 w-3 ml-1 text-muted-foreground" />}
           </TabsTrigger>
         </TabsList>
 
@@ -474,7 +580,10 @@ const AnalysisPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Activity by Hour</CardTitle>
+                <CardTitle className="flex items-center">
+                  <BarChartIcon className="h-5 w-5 mr-2" />
+                  Activity by Hour
+                </CardTitle>
                 <CardDescription>Your conversation patterns throughout the day</CardDescription>
               </CardHeader>
               <CardContent>
@@ -492,7 +601,10 @@ const AnalysisPage: React.FC = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Topic Distribution</CardTitle>
+                <CardTitle className="flex items-center">
+                  <PieChartIcon className="h-5 w-5 mr-2" />
+                  Topic Distribution
+                </CardTitle>
                 <CardDescription>What you discuss most frequently</CardDescription>
               </CardHeader>
               <CardContent>
@@ -519,6 +631,28 @@ const AnalysisPage: React.FC = () => {
             </Card>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <LineChartIcon className="h-5 w-5 mr-2" />
+                  Weekly Engagement Trends
+                </CardTitle>
+                <CardDescription>Your engagement patterns over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={freeInsights.weeklyActivity}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="week" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="engagement" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Communication Analysis</CardTitle>
@@ -528,12 +662,12 @@ const AnalysisPage: React.FC = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="font-medium">Primary Style:</span>
-                  <Badge variant="secondary">Analytical and Systematic</Badge>
+                  <Badge variant="secondary">{freeInsights.communicationStyle}</Badge>
                 </div>
                 <div>
                   <span className="font-medium">Top Topics:</span>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {topTopics.map((topic: string, index: number) => (
+                    {(freeInsights.topTopics || []).map((topic: string, index: number) => (
                       <Badge key={index} variant="outline">{topic}</Badge>
                     ))}
                   </div>
@@ -544,31 +678,23 @@ const AnalysisPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="patterns" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Conversation Patterns</CardTitle>
-              <CardDescription>Detailed analysis of your interaction patterns</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Message Characteristics</CardTitle>
+                <CardDescription>Analysis of your message patterns</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
                   <h4 className="font-semibold">Message Characteristics</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span>Average User Message Length</span>
-                      <span className="font-medium">{freeInsights.averageUserMessageLength} characters</span>
+                      <span>Average Length</span>
+                      <span className="font-medium">{freeInsights.averageMessageLength} characters</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Questions Asked</span>
-                      <span className="font-medium">{freeInsights.questionMarksUsedByUser || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>AI Responses</span>
-                      <span className="font-medium">{freeInsights.aiMessagesCount || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>User Messages</span>
-                      <span className="font-medium">{freeInsights.userMessagesCount || 0}</span>
+                      <span>Question Rate</span>
+                      <span className="font-medium">23%</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Follow-up Rate</span>
@@ -576,46 +702,64 @@ const AnalysisPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Engagement Metrics</CardTitle>
+                <CardDescription>How you interact with conversations</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  <h4 className="font-semibold">Engagement Metrics</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Response Depth</span>
-                      <span className="font-medium">High</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Topic Persistence</span>
-                      <span className="font-medium">Medium</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Technical Focus</span>
-                      <span className="font-medium">9.2/10</span>
-                    </div>
+                  <div className="flex justify-between">
+                    <span>Response Depth</span>
+                    <span className="font-medium">High</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Topic Persistence</span>
+                    <span className="font-medium">Medium</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Learning Velocity</span>
+                    <span className="font-medium">8.7/10</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Problem-Solving Style</span>
+                    <span className="font-medium">Systematic</span>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="behavioral" className="space-y-6">
+        <TabsContent value="cognitive" className="space-y-6">
           {!paidInsights ? (
-            <Card>
+            <Card className="border-2 border-dashed border-primary/20">
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <DatabaseIcon className="h-8 w-8 text-primary" />
+                    <Search className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">Behavioral Profile Analysis</h3>
+                  <h3 className="text-xl font-semibold">Cognitive Pattern Analysis</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Advanced behavioral analysis using machine learning to identify cognitive patterns, 
-                    learning styles, and problem-solving approaches from your conversation data.
+                    Advanced analysis of your problem-solving approaches, learning styles, and cognitive patterns 
+                    extracted from your conversation data.
                   </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Your unique problem-solving methodology</li>
+                      <li>• Learning style and information processing patterns</li>
+                      <li>• Communication approach in technical discussions</li>
+                      <li>• Cognitive strengths and thinking preferences</li>
+                    </ul>
+                  </div>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Button onClick={handleUpgrade} size="lg">
-                      Unlock Advanced Analysis - $10
-                      <Crown className="ml-2 h-4 w-4" />
+                      Unlock Advanced Analytics - $10
+                      <Target className="ml-2 h-4 w-4" />
                     </Button>
                     <Button variant="outline" onClick={() => navigate('/pricing')}>
                       View Pricing
@@ -628,24 +772,157 @@ const AnalysisPage: React.FC = () => {
             <div className="space-y-6">
               <Card className="border-primary/20">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center">
-                      <DatabaseIcon className="h-5 w-5 mr-2 text-primary" />
-                      Behavioral Profile Analysis
-                    </CardTitle>
-                    <Badge variant="secondary">{paidInsights?.behavioralProfile?.confidence}% confidence</Badge>
+                  <CardTitle className="flex items-center">
+                    <Search className="h-5 w-5 mr-2 text-primary" />
+                    Cognitive Profile Analysis
+                  </CardTitle>
+                  <CardDescription>
+                    Advanced analysis of your thinking patterns and cognitive approach
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                      <h4 className="font-semibold mb-2">Problem-Solving Approach</h4>
+                      <p className="text-sm text-muted-foreground">{paidInsights?.cognitiveProfile?.problemSolvingApproach}</p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <h4 className="font-semibold mb-2">Learning Style</h4>
+                      <p className="text-sm text-muted-foreground">{paidInsights?.cognitiveProfile?.learningStyle}</p>
+                    </div>
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <h4 className="font-semibold mb-2">Communication Pattern</h4>
+                      <p className="text-sm text-muted-foreground">{paidInsights?.cognitiveProfile?.communicationPattern}</p>
+                    </div>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="progression" className="space-y-6">
+          {!paidInsights ? (
+            <Card className="border-2 border-dashed border-primary/20">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <TrendingUp className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Learning Progression Analysis</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Track your skill development, learning velocity, and knowledge acquisition patterns 
+                    using advanced data analysis techniques.
+                  </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Skill development trajectories over time</li>
+                      <li>• Learning velocity and knowledge acquisition rate</li>
+                      <li>• Key milestones and breakthrough moments</li>
+                      <li>• Areas of rapid growth vs. steady progression</li>
+                    </ul>
+                  </div>
+                  <Button onClick={handleUpgrade} size="lg">
+                    Unlock Learning Insights - $10
+                    <Target className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2 text-primary" />
+                    Skill Development Progression
+                  </CardTitle>
+                  <CardDescription>Your learning journey across different technical areas</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {(paidInsights?.learningProgression || []).map((skill: any, index: number) => (
+                      <div key={index} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-semibold">{skill.skill}</h4>
+                          <Badge variant="outline">{skill.timeframe}</Badge>
+                        </div>
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span>Progression</span>
+                            <span>{skill.proficiencyGrowth}% growth</span>
+                          </div>
+                          <Progress value={skill.proficiencyGrowth} className="h-2" />
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{skill.progression}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {skill.keyMilestones.map((milestone: string, i: number) => (
+                            <Badge key={i} variant="secondary" className="text-xs">{milestone}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="behavioral" className="space-y-6">
+          {!paidInsights ? (
+            <Card className="border-2 border-dashed border-primary/20">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <Eye className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold">Behavioral Pattern Analysis</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Identify consistent behavioral patterns and approaches in your technical conversations 
+                    and problem-solving methodology.
+                  </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Consistent behavioral patterns across conversations</li>
+                      <li>• Problem-solving methodology and approach</li>
+                      <li>• Decision-making patterns and preferences</li>
+                      <li>• Communication style in different contexts</li>
+                    </ul>
+                  </div>
+                  <Button onClick={handleUpgrade} size="lg">
+                    Unlock Behavioral Analysis - $10
+                    <Target className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Eye className="h-5 w-5 mr-2 text-primary" />
+                    Behavioral Patterns
+                  </CardTitle>
+                  <CardDescription>Consistent patterns identified across your conversations</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
-                      <h4 className="font-semibold mb-2">Personality Analysis</h4>
-                      <p className="text-muted-foreground">{paidInsights?.behavioralProfile?.personalityAnalysis}</p>
-                    </div>
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                      <h4 className="font-semibold mb-2">Cognitive Style</h4>
-                      <p className="text-muted-foreground">{paidInsights?.behavioralProfile?.cognitiveStyle}</p>
-                    </div>
+                    {(paidInsights?.behavioralPatterns || []).map((pattern: any, index: number) => (
+                      <div key={index} className="p-4 border-l-4 border-l-primary rounded-lg bg-primary/5">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold">{pattern.pattern}</h4>
+                          <Badge variant={pattern.significance === 'High' ? 'destructive' : 'secondary'}>
+                            {pattern.significance} Impact
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">{pattern.frequency}</p>
+                        <p className="text-sm">{pattern.description}</p>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -655,78 +932,63 @@ const AnalysisPage: React.FC = () => {
 
         <TabsContent value="insights" className="space-y-6">
           {!paidInsights ? (
-            <Card>
+            <Card className="border-2 border-dashed border-primary/20">
               <CardContent className="pt-6">
                 <div className="text-center space-y-4">
                   <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Code className="h-8 w-8 text-primary" />
+                    <Network className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="text-xl font-semibold">Advanced Data Insights</h3>
+                  <h3 className="text-xl font-semibold">Cross-Conversation Insights</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Deep data analysis revealing learning patterns, skill progression, and knowledge acquisition 
-                    strategies extracted from your conversation history.
+                    Discover connections and themes that span across your entire conversation history 
+                    to reveal long-term patterns and evolution.
                   </p>
+                  <div className="bg-muted/30 p-4 rounded-lg">
+                    <h4 className="font-medium mb-2">What You'll Discover:</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Connections between different conversation topics</li>
+                      <li>• Evolution of your thinking over time</li>
+                      <li>• Recurring themes and interests</li>
+                      <li>• Long-term learning and development patterns</li>
+                    </ul>
+                  </div>
                   <Button onClick={handleUpgrade} size="lg">
-                    Unlock Data Insights - $10
-                    <Crown className="ml-2 h-4 w-4" />
+                    Unlock Cross-Conversation Analysis - $10
+                    <Target className="ml-2 h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-6">
-              {(paidInsights?.dataPatterns || []).map((pattern: any, index: number) => (
-                <Card key={index} className="border-l-4 border-l-primary">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center">
-                        <Code className="h-5 w-5 mr-2 text-primary" />
-                        {pattern.pattern}
-                      </CardTitle>
-                      <Badge variant={pattern.significance === 'High' ? 'destructive' : pattern.significance === 'Medium' ? 'default' : 'secondary'}>
-                        {pattern.significance} Significance
-                      </Badge>
-                    </div>
-                    <CardDescription>{pattern.frequency}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{pattern.description}</p>
-                  </CardContent>
-                </Card>
-              ))}
-
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <Network className="h-5 w-5 mr-2 text-primary" />
-                    Insight Mapping
+                    Cross-Conversation Insights
                   </CardTitle>
-                  <CardDescription>Connecting patterns across your conversation data</CardDescription>
+                  <CardDescription>Connections and themes across your entire conversation history</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div>
-                      <h4 className="font-semibold mb-2">Learning Narrative</h4>
-                      <p className="text-muted-foreground">{paidInsights?.insightMap?.overarchingNarrative}</p>
+                      <h4 className="font-semibold mb-2">Overarching Theme</h4>
+                      <p className="text-muted-foreground">{paidInsights?.crossConversationInsights?.overarchingTheme}</p>
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Connection Points</h4>
+                      <h4 className="font-semibold mb-2">Connection Patterns</h4>
                       <ul className="space-y-1">
-                        {(paidInsights?.insightMap?.connectionPoints || []).map((point: string, index: number) => (
+                        {(paidInsights?.crossConversationInsights?.connectionPatterns || []).map((pattern: string, index: number) => (
                           <li key={index} className="text-muted-foreground flex items-center">
                             <ArrowRight className="h-4 w-4 mr-2 text-primary" />
-                            {point}
+                            {pattern}
                           </li>
                         ))}
                       </ul>
                     </div>
                     <div>
-                      <h4 className="font-semibold mb-2">Cognitive Themes</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {(paidInsights?.insightMap?.cognitiveThemes || []).map((theme: string, index: number) => (
-                          <Badge key={index} variant="outline">{theme}</Badge>
-                        ))}
-                      </div>
+                      <h4 className="font-semibold mb-2">Cognitive Evolution</h4>
+                      <p className="text-muted-foreground">{paidInsights?.crossConversationInsights?.cognitiveEvolution}</p>
                     </div>
                   </div>
                 </CardContent>

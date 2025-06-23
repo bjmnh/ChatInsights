@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // --- Shared Imports ---
-import { corsHeaders } from './_shared/utils.ts';
+import { corsHeaders, handleError } from './_shared/utils.ts';
 import {
   Job,
   UserReport,
@@ -18,11 +18,27 @@ import { performBasicAnalysis } from './analysis/basicAnalyzer.ts';
 import { processConversationWithFastLlm } from './analysis/premium/stage1_processors.ts';
 import { generateAllPremiumInsights } from './analysis/premium/stage2_generators.ts';
 
+// Helper function to create consistent responses with CORS headers
+const jsonResponse = (data: any, status = 200) => {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+    },
+  });
+};
 
 // --- Main Server Logic ---
 serve(async (req: Request) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      } 
+    });
   }
 
   // Initialize Supabase client for this request
@@ -38,12 +54,12 @@ serve(async (req: Request) => {
     // --- Authentication ---
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Missing or invalid authorization header' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return jsonResponse({ error: 'Missing or invalid authorization header' }, 401);
     }
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(); // Uses header from client init
     if (authError || !user) {
       console.error("Auth error:", authError);
-      return new Response(JSON.stringify({ error: 'Invalid token or user not found' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return jsonResponse({ error: 'Invalid token or user not found' }, 401);
     }
 
     // --- Request Body & Job Validation ---
@@ -52,7 +68,7 @@ serve(async (req: Request) => {
     const analysisType = requestBody.analysisType || 'basic';
 
     if (!jobId) {
-      return new Response(JSON.stringify({ error: 'Job ID is required' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return jsonResponse({ error: 'Job ID is required' }, 400);
     }
 
     const { data: jobData, error: jobError } = await supabaseClient
@@ -73,7 +89,7 @@ serve(async (req: Request) => {
         .eq('job_id', jobId)
         .single();
       if (existingReport) {
-          return new Response(JSON.stringify({
+          return jsonResponse({
             success: true,
             message: 'Analysis previously completed.',
             report: {
@@ -81,10 +97,10 @@ serve(async (req: Request) => {
                 paid_insights: existingReport.paid_insights,
                 analysis_type: existingReport.analysis_type
             }
-          }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          });
       }
       // If report not found but job is completed, it's an odd state, but we can just say completed.
-      return new Response(JSON.stringify({ success: true, message: 'Analysis already completed for this job.' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return jsonResponse({ success: true, message: 'Analysis already completed for this job.' });
     }
     if (!jobData.file_path) throw new Error('Job record missing file_path');
 
@@ -100,7 +116,7 @@ serve(async (req: Request) => {
 
       if (!userOrders || userOrders.length === 0) {
         await supabaseClient.from('jobs').update({ status: 'failed', progress: 0, error_message: 'Premium access required' }).eq('id', jobId);
-        return new Response(JSON.stringify({ error: 'Premium access required for advanced analysis' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return jsonResponse({ error: 'Premium access required for advanced analysis' }, 403);
       }
       effectivePremiumEnabled = true; // User has premium, ensure job reflects this
       if (!jobData.premium_features_enabled) {
@@ -245,20 +261,17 @@ serve(async (req: Request) => {
 
 
     console.log(`${analysisType} analysis completed successfully for job ${jobId}.`);
-    return new Response(JSON.stringify({
+    return jsonResponse({
       success: true,
       message: `${analysisType} analysis completed successfully`,
       report: { free_insights: basicInsights, paid_insights: advancedInsights }
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+    });
 
   } catch (error) {
     console.error(`Processing error for job ${jobId || 'UNKNOWN'}:`, error);
     if (jobId) { // Check if jobId was set before attempting to update
         await supabaseClient.from('jobs').update({ status: 'failed', progress: 0, error_message: error.message }).eq('id', jobId).catch(e => console.error("Fatal: Failed to update job to failed status:", e));
     }
-    return new Response(JSON.stringify({ error: error.message || 'Processing failed' }), {
-      status: error.message?.includes('Premium access required') ? 403 : (error.message?.includes('Job not found') ? 404 : 500),
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ error: error.message || 'An unknown error occurred' }, 500);
   }
 });

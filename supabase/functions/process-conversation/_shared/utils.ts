@@ -1,13 +1,27 @@
-// Get the frontend URL from environment variable or default to localhost with HTTPS
-const FRONTEND_URL = Deno.env.get('FRONTEND_URL') || 'https://localhost:5173';
-
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS, PUT, DELETE',
-  'Access-Control-Allow-Credentials': 'true',
+// Helper function to safely get environment variables
+export const getEnv = (key: string, defaultValue: string): string => {
+  try {
+    // @ts-expect-error - Deno.env.get is valid in Deno
+    return Deno.env.get(key) ?? defaultValue;
+  } catch (e) {
+    console.warn(`Failed to access environment variable ${key}:`, e);
+    return defaultValue;
+  }
 };
 
+// Get the frontend URL from environment variable or default to production URL
+const FRONTEND_URL = getEnv('FRONTEND_URL', 'https://chatinsights.online');
+
+// Configure CORS headers
+export const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Credentials': 'true',
+  'Access-Control-Max-Age': '86400', // 24 hours
+};
+
+// Handle errors consistently with CORS headers
 export const handleError = (error: Error, context: string) => {
   console.error(`${context}:`, error);
   return new Response(

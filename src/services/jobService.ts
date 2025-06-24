@@ -139,13 +139,18 @@ export class JobService {
   // Process a job (trigger the edge function)
   static async processJob(jobId: string, analysisType: 'basic' | 'premium' = 'basic'): Promise<void> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get the current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (!session) {
-        throw new Error('No active session');
+      if (sessionError || !session) {
+        console.error('Session error:', sessionError);
+        throw new Error('No active session. Please log in again.');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-conversation`, {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-conversation`;
+      console.log(`Calling process-conversation API: ${apiUrl} for job ${jobId}`);
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
@@ -158,15 +163,25 @@ export class JobService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Processing failed');
+        let errorMessage = `Processing failed with status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.details || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        console.error('API Error:', { status: response.status, message: errorMessage });
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
       console.log('Processing result:', result);
+      return result;
     } catch (error) {
-      console.error('Error processing job:', error);
-      throw error;
+      console.error('Error in processJob:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      await this.updateJobStatus(jobId, 'failed', errorMessage);
+      throw new Error(`Failed to process job: ${errorMessage}`);
     }
   }
 

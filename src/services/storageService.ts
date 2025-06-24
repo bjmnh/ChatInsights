@@ -7,6 +7,7 @@ export class StorageService {
   static async uploadFile(file: File, userId: string, jobId: string): Promise<string> {
     try {
       const fileExt = file.name.split('.').pop();
+      // Use a consistent naming pattern: userId/jobId/conversations.json
       const fileName = `${userId}/${jobId}/conversations.${fileExt}`;
 
       const { data, error } = await supabase.storage

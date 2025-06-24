@@ -294,18 +294,61 @@ async function searchForFileInPath(
 }
 
 async function locateConversationsFile(jobData: JobData, appConfig: AppConfig = config): Promise<FileInfo> {
-  const { user_id } = jobData;
-  const userFolderPath = `${user_id}/`; // Ensure trailing slash for folder path
-
-  // 1. Try preferred bucket, user folder
-  let fileInfo = await searchForFileInPath(PRIMARY_BUCKET_NAME, userFolderPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
+  const { user_id, id: jobId } = jobData;
+  
+  // First, try the expected path: userId/jobId/conversations.json
+  const expectedPath = `${user_id}/${jobId}`;
+  console.log(`Looking for conversations file in expected path: ${expectedPath}`);
+  
+  let fileInfo = await searchForFileInPath(PRIMARY_BUCKET_NAME, expectedPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
   if (fileInfo) return fileInfo;
 
-  // 2. Try preferred bucket, root folder
+  // If not found in expected path, try the user folder directly
+  const userFolderPath = `${user_id}`;
+  console.log(`Looking for conversations file in user folder: ${userFolderPath}`);
+  
+  fileInfo = await searchForFileInPath(PRIMARY_BUCKET_NAME, userFolderPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
+  if (fileInfo) return fileInfo;
+
+  // If still not found, look for any JSON file in the job-specific folder
+  console.log(`Looking for any JSON file in job folder: ${expectedPath}`);
+  const { data: jobFiles, error: jobFilesError } = await appConfig.supabaseClient.storage
+    .from(PRIMARY_BUCKET_NAME)
+    .list(expectedPath);
+
+  if (!jobFilesError && jobFiles && jobFiles.length > 0) {
+    // Look for any .json file
+    const jsonFile = jobFiles.find(file => file.name.toLowerCase().endsWith('.json'));
+    if (jsonFile) {
+      const filePath = `${expectedPath}/${jsonFile.name}`;
+      const fullStoragePath = `${PRIMARY_BUCKET_NAME}/${filePath}`;
+      console.log(`Found JSON file at: ${fullStoragePath}`);
+      return { bucketName: PRIMARY_BUCKET_NAME, filePath, fullStoragePath };
+    }
+  }
+
+  // If still not found, look for any JSON file in the user folder
+  console.log(`Looking for any JSON file in user folder: ${userFolderPath}`);
+  const { data: userFiles, error: userFilesError } = await appConfig.supabaseClient.storage
+    .from(PRIMARY_BUCKET_NAME)
+    .list(userFolderPath);
+
+  if (!userFilesError && userFiles && userFiles.length > 0) {
+    // Look for any .json file
+    const jsonFile = userFiles.find(file => file.name.toLowerCase().endsWith('.json'));
+    if (jsonFile) {
+      const filePath = `${userFolderPath}/${jsonFile.name}`;
+      const fullStoragePath = `${PRIMARY_BUCKET_NAME}/${filePath}`;
+      console.log(`Found JSON file at: ${fullStoragePath}`);
+      return { bucketName: PRIMARY_BUCKET_NAME, filePath, fullStoragePath };
+    }
+  }
+
+  // Try root folder as last resort
   fileInfo = await searchForFileInPath(PRIMARY_BUCKET_NAME, '', CONVERSATIONS_FILENAME, appConfig.supabaseClient);
   if (fileInfo) return fileInfo;
   
-  // 3. (Optional) If you need to search all buckets (can be slow and resource-intensive)
+  // If we still haven't found it, search all buckets
   console.log(`File not found in primary bucket '${PRIMARY_BUCKET_NAME}'. Searching other buckets...`);
   const { data: buckets, error: bucketsError } = await appConfig.supabaseClient.storage.listBuckets();
   if (bucketsError) {
@@ -320,6 +363,9 @@ async function locateConversationsFile(jobData: JobData, appConfig: AppConfig = 
     if (bucket.name === PRIMARY_BUCKET_NAME) continue; // Already checked
 
     console.log(`\nChecking bucket: ${bucket.name}`);
+    fileInfo = await searchForFileInPath(bucket.name, expectedPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
+    if (fileInfo) return fileInfo;
+
     fileInfo = await searchForFileInPath(bucket.name, userFolderPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
     if (fileInfo) return fileInfo;
 

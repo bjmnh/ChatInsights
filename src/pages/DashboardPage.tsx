@@ -113,7 +113,7 @@ const DashboardPage: React.FC = () => {
     setUploading(true);
 
     try {
-      // Create job record
+      // Create job record first
       const newJob = await JobService.createJob({
         user_id: user.id,
         filename: file.name,
@@ -124,11 +124,11 @@ const DashboardPage: React.FC = () => {
       // Add to local state immediately
       setJobs(prev => [newJob, ...prev]);
 
-      // Upload file to storage
-      await StorageService.uploadFile(file, user.id, newJob.id);
-
-      // Update job status to processing
-      await JobService.updateJobStatus(newJob.id, 'processing');
+      // Upload file to storage with proper path structure
+      const filePath = await StorageService.uploadFile(file, user.id, newJob.id);
+      
+      // Update job with file path
+      await JobService.updateJobStatus(newJob.id, 'processing', null, null, null);
 
       toast.success('File uploaded successfully! Starting analysis...');
 

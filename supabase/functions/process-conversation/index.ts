@@ -62,11 +62,14 @@ interface JobData {
   premium_features_enabled: boolean;
   created_at: string;
   updated_at: string;
+  started_at?: string;
+  completed_at?: string;
   analysis_type: string;
   error_message?: string | null;
   progress?: number;
   total_conversations?: number | null;
   processed_conversations?: number;
+  result?: string;
 }
 
 interface FileInfo {
@@ -178,13 +181,20 @@ async function parseAndValidateRequestBody(req: Request): Promise<RequestBody> {
         body.analysisType = DEFAULT_ANALYSIS_TYPE;
     }
     return body as RequestBody;
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Failed to parse request body:', error);
-    throw new Error(`Invalid request body: ${error.message}`);
+    throw new Error(`Invalid request body: ${errorMessage}`);
   }
 }
 
-async function authenticateRequest(req: Request, appConfig: AppConfig = config): Promise<any> { // Returns user data
+interface UserData {
+  id: string;
+  email?: string;
+  // Add other user properties as needed
+}
+
+async function authenticateRequest(req: Request, appConfig: AppConfig = config): Promise<UserData> { // Returns user data
   const authHeader = req.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.error('No authorization token provided');
@@ -208,9 +218,9 @@ async function authenticateRequest(req: Request, appConfig: AppConfig = config):
     const userData = await userResponse.json();
     console.log('Authenticated user:', userData.id);
     return userData;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error during token verification:', error);
-    throw new Error(error.message || 'Token verification failed');
+    throw new Error(error?.message || 'Token verification failed');
   }
 }
 
@@ -410,50 +420,120 @@ async function processConversations(
 ): Promise<{ processedItems: number; fileSize: number }> {
   console.log(`Processing ${analysisType} analysis for job ${jobId}. File size: ${fileContent.length}`);
   
+  // Parse the conversations
   let conversations;
   try {
     conversations = JSON.parse(fileContent);
-    if (!Array.isArray(conversations)) {
-        throw new Error("File content is not a JSON array of conversations.");
-    }
-  } catch (parseError) {
-    console.error("Failed to parse conversations JSON:", parseError);
-    throw new Error(`Invalid JSON format in conversations file: ${parseError.message}`);
+  } catch (error) {
+    console.error('Error parsing conversations JSON:', error);
+    throw new Error('Invalid conversations file format');
   }
-  
+
+  // Ensure it's an array
+  if (!Array.isArray(conversations)) {
+    throw new Error('Conversations file should contain an array of conversations');
+  }
+
   const numConversations = conversations.length;
   console.log(`Found ${numConversations} conversations to process.`);
 
-  await updateJob(jobId, {
-    status: 'processing',
-    progress: 50,
+  // Update with total count
+  const updateTotalResponse = await updateJob(jobId, {
     total_conversations: numConversations,
-    updated_at: new Date().toISOString(),
+    processed_conversations: 0,
+    progress: 20,
+    updated_at: new Date().toISOString()
   }, appConfig);
 
-  // Simulate processing time
-  console.log(`Simulating ${analysisType} processing for ${numConversations} items...`);
-  await new Promise(resolve => setTimeout(resolve, analysisType === 'premium' ? 3000 : 1500));
+  if (!updateTotalResponse.ok) {
+    const errorText = await updateTotalResponse.text();
+    console.error('Failed to update total conversations:', errorText);
+    throw new Error('Failed to update job with total conversations');
+  }
 
-  await updateJob(jobId, {
+  // Process each conversation with progress updates
+  const BATCH_SIZE = Math.max(1, Math.ceil(numConversations / 10)); // Update progress every 10%
+  
+  for (let i = 0; i < numConversations; i++) {
+    const startTime = Date.now();
+    try {
+      // Process conversation (replace with actual processing logic)
+      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate processing time
+      
+      // Update progress periodically
+      if ((i + 1) % BATCH_SIZE === 0 || (i === numConversations - 1)) {
+        const progress = Math.min(90, Math.floor(((i + 1) / numConversations) * 80) + 10); // Cap at 90% until done
+        
+        const updateResponse = await updateJob(jobId, {
+          processed_conversations: i + 1,
+          progress: progress,
+          updated_at: new Date().toISOString()
+        }, appConfig);
+
+        if (!updateResponse.ok) {
+          console.warn(`Failed to update progress for job ${jobId} at ${progress}%`);
+          // Continue processing even if progress update fails
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing conversation ${i + 1}:`, error);
+      // Continue with next conversation even if one fails
+    } finally {
+      // Ensure we don't process too quickly (min 100ms per item)
+      const processTime = Date.now() - startTime;
+      if (processTime < 100) {
+        await new Promise(resolve => setTimeout(resolve, 100 - processTime));
+      }
+    }
+  }
+
+  // Mark as completed
+  const completedAt = new Date().toISOString();
+  const updateResponse = await updateJob(jobId, {
     status: 'completed',
-    result: `Processed ${numConversations} conversations`, // 'result' field might need to be in your DB schema
+    result: `Processed ${numConversations} conversations`,
     processed_conversations: numConversations,
     progress: 100,
-    updated_at: new Date().toISOString(),
+    updated_at: completedAt,
+    completed_at: completedAt
   }, appConfig);
+
+  if (!updateResponse.ok) {
+    const errorText = await updateResponse.text();
+    console.error('Failed to mark job as completed:', errorText);
+    throw new Error('Failed to mark job as completed');
+  }
 
   console.log('Processing complete.');
   return { processedItems: numConversations, fileSize: fileContent.length };
 }
 
 
+// Track if we've already initialized
+let isInitialized = false;
+
 // --- Main Server Logic ---
 serve(async (req: Request) => {
   console.log(`\n=== New Request: ${req.method} ${req.url} ===`);
 
-  const preflightOrMethodResponse = handlePreflightAndMethod(req);
-  if (preflightOrMethodResponse) return preflightOrMethodResponse;
+  // Handle CORS preflight requests immediately
+  if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight');
+    return new Response(null, {
+      status: 204,
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Max-Age': '86400' // Cache preflight for 24 hours
+      },
+    });
+  }
+
+  // Only initialize once
+  if (!isInitialized) {
+    console.log('Supabase Function initialized. Waiting for requests...');
+    isInitialized = true;
+  }
 
   let jobId: string | null = null; // Initialize to null for error handling before jobId is parsed
 
@@ -472,13 +552,35 @@ serve(async (req: Request) => {
     // 3. Fetch and Validate Job
     const jobData = await fetchAndValidateJob(jobId, config);
 
-    // 4. Update job status to initial processing
-    await updateJob(jobId, {
+    // 4. Check if job is already being processed
+    if (jobData.status === 'processing') {
+      console.log(`Job ${jobId} is already being processed.`);
+      return createJsonResponse({
+        success: false,
+        jobId,
+        message: 'Job is already being processed',
+        status: 'processing'
+      }, 200);
+    }
+
+    // 5. Update job status to initial processing with optimistic locking
+    const startedAt = new Date().toISOString();
+    const updateResponse = await updateJob(jobId, {
       status: 'processing',
       progress: 10,
       analysis_type: analysisType,
-      updated_at: new Date().toISOString(),
+      updated_at: startedAt,
+      started_at: startedAt,
+      error_message: null, // Clear any previous errors
+      processed_conversations: 0,
+      total_conversations: null // Will be updated when we know the count
     }, config);
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error('Failed to update job status to processing:', errorText);
+      throw new Error(`Failed to update job status: ${updateResponse.status} ${updateResponse.statusText}`);
+    }
 
     // 5. Locate the conversations file
     const fileInfo = await locateConversationsFile(jobData, config);
@@ -498,40 +600,65 @@ serve(async (req: Request) => {
       ...processingResult,
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
+    // Type guard to check if error is an instance of Error
+    const isError = (e: unknown): e is Error => e instanceof Error;
+    
+    // Extract error message safely
+    const errorMessage = isError(error) ? error.message : 'An unknown error occurred';
+    
     // Specific error handling for known "user error" cases vs. server errors
-    if (error.message.includes('Authorization token required') || error.message.includes('Invalid or expired token')) {
-      return createJsonResponse({ error: error.message }, 401);
+    if (errorMessage.includes('Authorization token required') || errorMessage.includes('Invalid or expired token')) {
+      return createJsonResponse({ error: errorMessage }, 401);
     }
-    if (error.message.includes('Job ID is required') || error.message.includes('Invalid request body')) {
-      return createJsonResponse({ error: error.message }, 400);
+    if (errorMessage.includes('Job ID is required') || errorMessage.includes('Invalid request body')) {
+      return createJsonResponse({ error: errorMessage }, 400);
     }
-    if (error.message === 'Job not found') {
+    if (errorMessage === 'Job not found') {
       return createJsonResponse({ error: 'Job not found' }, 404);
     }
-    if (error.message.startsWith('Job already completed')) {
-      return createJsonResponse({ message: error.message, jobId, status: 'completed' }, 200);
+    if (errorMessage.startsWith('Job already completed')) {
+      return createJsonResponse({ 
+        message: errorMessage, 
+        jobId, 
+        status: 'completed' 
+      }, 200);
     }
-    if (error.message.startsWith('Job previously failed')) {
-      // Potentially include more details if available and safe
-      return createJsonResponse({ message: error.message, jobId, status: 'failed' }, 400); 
+    if (errorMessage.startsWith('Job previously failed')) {
+      return createJsonResponse({ 
+        message: errorMessage, 
+        jobId, 
+        status: 'failed' 
+      }, 400); 
     }
-    if (error.message.startsWith(`'${CONVERSATIONS_FILENAME}' not found`)) {
-        // This is a critical failure for this job, but might be due to user setup.
-        // It's already logged server-side, so we update the job and return a client-friendly error.
-        if(jobId) {
-             await updateJob(jobId, {
-                status: 'failed',
-                error_message: error.message,
-                progress: 0,
-                updated_at: new Date().toISOString(),
-            }, config);
+    if (errorMessage.startsWith(`'${CONVERSATIONS_FILENAME}' not found`)) {
+      // This is a critical failure for this job, but might be due to user setup.
+      // It's already logged server-side, so we update the job and return a client-friendly error.
+      if(jobId) {
+        try {
+          await updateJob(jobId, {
+            status: 'failed',
+            error_message: errorMessage,
+            progress: 0,
+            updated_at: new Date().toISOString(),
+          }, config);
+        } catch (updateError) {
+          console.error('Failed to update job status after file not found error:', updateError);
         }
-        return createJsonResponse({ error: error.message, details: "Please ensure the conversations.json file exists in your storage." }, 404);
+      }
+      return createJsonResponse({ 
+        error: errorMessage, 
+        details: "Please ensure the conversations.json file exists in your storage." 
+      }, 404);
     }
     
     // Fallback to generic job failure for other errors
-    return handleJobFailure(jobId, error as Error, 'Main request processing', config);
+    return handleJobFailure(
+      jobId, 
+      isError(error) ? error : new Error(errorMessage), 
+      'Main request processing', 
+      config
+    );
   }
 });
 

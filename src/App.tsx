@@ -7,7 +7,7 @@ import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
-import AnalysisPage from './pages/AnalysisPage';
+import ReportPage from './pages/ReportPage';
 import PricingPage from './pages/PricingPage';
 import AuthPage from './pages/AuthPage';
 import EmailConfirmationPage from './pages/EmailConfirmationPage';
@@ -27,7 +27,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/analysis/:jobId" element={<AnalysisPage />} />
+                <Route path="/report/:fileId/:reportType" element={<ReportPage />} />
                 <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/auth/confirm" element={<EmailConfirmationPage />} />

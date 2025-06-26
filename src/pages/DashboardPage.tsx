@@ -4,97 +4,49 @@ import { useAuth } from '../contexts/AuthContext';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { Progress } from '../components/ui/progress';
-import { Badge } from '../components/ui/badge';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { 
   Upload, 
   FileText, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  Crown,
+  Trash2,
   BarChart3,
-  MessageSquare,
-  TrendingUp,
-  Users,
+  Crown,
   Loader2,
-  Shield,
-  Lock,
-  Target,
-  Zap
+  MessageSquare,
+  Calendar,
+  HardDrive
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { JobService } from '../services/jobService';
-import { StorageService } from '../services/storageService';
-import { StripeService } from '../services/stripeService';
-import type { Database } from '../lib/database.types';
-
-type Job = Database['public']['Tables']['jobs']['Row'];
+import { FileService, type UploadedFile } from '../services/fileService';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
 
-  // Fetch user jobs and order data
   useEffect(() => {
     if (!user) {
       navigate('/auth');
       return;
     }
 
-    const fetchData = async () => {
-      try {
-        const [userJobs, ordersData] = await Promise.all([
-          JobService.getUserJobs(user.id),
-          StripeService.getUserOrders(),
-        ]);
-        
-        setJobs(userJobs);
-        setOrders(ordersData);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        toast.error('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    fetchFiles();
   }, [user, navigate]);
 
-  // Subscribe to job updates for real-time progress
-  useEffect(() => {
-    const subscriptions: (() => void)[] = [];
-
-    jobs.forEach(job => {
-      if (job.status === 'uploading' || job.status === 'processing') {
-        const unsubscribe = JobService.subscribeToJobUpdates(job.id, (updatedJob) => {
-          console.log('Received job update:', updatedJob);
-          
-          setJobs(prevJobs => 
-            prevJobs.map(j => j.id === updatedJob.id ? updatedJob : j)
-          );
-
-          // Show completion notification
-          if (updatedJob.status === 'completed' && job.status !== 'completed') {
-            toast.success('Analysis completed!');
-          } else if (updatedJob.status === 'failed' && job.status !== 'failed') {
-            toast.error('Analysis failed. Please try again.');
-          }
-        });
-        subscriptions.push(unsubscribe);
-      }
-    });
-
-    return () => {
-      subscriptions.forEach(unsubscribe => unsubscribe());
-    };
-  }, [jobs]);
+  const fetchFiles = async () => {
+    try {
+      const userFiles = await FileService.getUserFiles(user!.id);
+      setFiles(userFiles);
+    } catch (error) {
+      console.error('Error fetching files:', error);
+      toast.error('Failed to load files');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user) return;
@@ -107,45 +59,20 @@ const DashboardPage: React.FC = () => {
       return;
     }
 
-    if (file.size > 500 * 1024 * 1024) { // 500MB limit
-      toast.error('File size must be less than 500MB');
+    if (file.size > 100 * 1024 * 1024) { // 100MB limit
+      toast.error('File size must be less than 100MB');
       return;
     }
 
     setUploading(true);
 
     try {
-      // Create job record first
-      const newJob = await JobService.createJob({
-        user_id: user.id,
-        filename: file.name,
-        status: 'uploading',
-        progress: 0
-      });
-
-      // Add to local state immediately
-      setJobs(prev => [newJob, ...prev]);
-
-      // Upload file to storage with proper path structure
-      const filePath = await StorageService.uploadFile(file, user.id, newJob.id);
-      console.log('File uploaded to:', filePath);
-      
-      // Update job status to processing and start processing
-      await JobService.updateJobStatus(newJob.id, 'processing', null, null, null);
-
-      toast.success('File uploaded successfully! Starting analysis...');
-
-      // Start processing the job
-      await JobService.processJob(newJob.id);
-
+      const uploadedFile = await FileService.uploadFile(file, user.id);
+      setFiles(prev => [uploadedFile, ...prev]);
+      toast.success('File uploaded successfully!');
     } catch (error) {
       console.error('Upload error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Don't show error if job is already being processed
-      if (!errorMessage.includes('already being processed')) {
-        toast.error(`Upload failed: ${errorMessage}`);
-      }
+      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
@@ -160,37 +87,53 @@ const DashboardPage: React.FC = () => {
     disabled: uploading
   });
 
-  const getStatusIcon = (status: Job['status']) => {
-    switch (status) {
-      case 'uploading':
-        return <Upload className="h-4 w-4 text-blue-500" />;
-      case 'processing':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
-    }
-  };
-
-  const handleViewInsights = (jobId: string) => {
-    navigate(`/analysis/${jobId}`);
-  };
-
-  const handleRetryJob = async (jobId: string) => {
+  const handleDeleteFile = async (fileId: string) => {
     try {
-      await JobService.updateJobStatus(jobId, 'processing', null);
-      toast.success('Retrying analysis...');
-      await JobService.processJob(jobId);
+      await FileService.deleteFile(fileId);
+      setFiles(prev => prev.filter(f => f.id !== fileId));
+      toast.success('File deleted successfully');
     } catch (error) {
-      console.error('Error retrying job:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      // Don't show error if job is already being processed
-      if (!errorMessage.includes('already being processed')) {
-        toast.error('Failed to retry analysis');
-      }
+      console.error('Delete error:', error);
+      toast.error('Failed to delete file');
     }
+  };
+
+  const handleGenerateReport = async (fileId: string, reportType: 'basic' | 'premium') => {
+    setProcessingFiles(prev => new Set(prev).add(fileId));
+    
+    try {
+      if (reportType === 'basic') {
+        await FileService.generateBasicReport(fileId);
+        toast.success('Basic report generated!');
+      } else {
+        await FileService.generatePremiumReport(fileId);
+        toast.success('Premium report generated!');
+      }
+      
+      // Refresh files to update button states
+      await fetchFiles();
+    } catch (error) {
+      console.error('Report generation error:', error);
+      toast.error(`Failed to generate ${reportType} report`);
+    } finally {
+      setProcessingFiles(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(fileId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleViewReport = async (fileId: string, reportType: 'basic' | 'premium') => {
+    navigate(`/report/${fileId}/${reportType}`);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   if (!user) {
@@ -207,111 +150,24 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  const completedJobs = jobs.filter(j => j.status === 'completed');
-  const totalConversations = completedJobs.reduce((acc, job) => acc + (job.total_conversations || 0), 0);
-  
-  // Check if user has premium access
-  const isPremiumUser = StripeService.isPremiumUser(orders);
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome back! Upload your ChatGPT conversations to discover your data story.
-            </p>
-          </div>
-          {isPremiumUser && (
-            <Badge variant="secondary" className="px-3 py-1">
-              <Target className="h-4 w-4 mr-1" />
-              Advanced Analytics
-            </Badge>
-          )}
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Analyses</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{completedJobs.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Completed successfully
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Conversations Analyzed</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalConversations.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all uploads
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Insights Generated</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{completedJobs.length * 12}</div>
-              <p className="text-xs text-muted-foreground">
-                Unique data patterns
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Account Status</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{isPremiumUser ? 'Advanced' : 'Basic'}</div>
-              <p className="text-xs text-muted-foreground">
-                {isPremiumUser 
-                  ? 'All features unlocked' 
-                  : `${Math.max(0, 3 - jobs.length)} free analyses remaining`
-                }
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        <h1 className="text-3xl font-bold mb-4">Conversation Analysis Dashboard</h1>
+        <p className="text-muted-foreground">
+          Upload your ChatGPT conversations.json file to generate insights about your communication patterns.
+        </p>
       </div>
 
       {/* Upload Section */}
       <Card className="mb-8">
         <CardHeader>
-          <CardTitle>Upload New Analysis</CardTitle>
+          <CardTitle>Upload Conversations</CardTitle>
           <CardDescription>
-            Upload your ChatGPT conversations.json file to discover insights about your communication patterns.
+            Upload your ChatGPT conversations.json file to get started with analysis.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Alert className="mb-6">
-            <Shield className="h-4 w-4" />
-            <AlertDescription>
-              <strong>Privacy-First Processing:</strong>
-              <ol className="list-decimal list-inside mt-2 space-y-1">
-                <li>Export your ChatGPT data from Settings → Data Controls → Export</li>
-                <li>Upload the conversations.json file securely</li>
-                <li>We analyze your patterns and automatically delete your raw data</li>
-                <li>Only insights are retained—never your actual conversations</li>
-              </ol>
-            </AlertDescription>
-          </Alert>
-
           <div
             {...getRootProps()}
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
@@ -329,7 +185,7 @@ const DashboardPage: React.FC = () => {
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             )}
             {uploading ? (
-              <p className="text-lg">Uploading and processing your file...</p>
+              <p className="text-lg">Uploading your file...</p>
             ) : isDragActive ? (
               <p className="text-lg">Drop your conversations.json file here...</p>
             ) : (
@@ -343,88 +199,108 @@ const DashboardPage: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Privacy Reminder */}
-          <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-muted">
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Lock className="h-4 w-4 mr-2" />
-              Your raw conversation data is automatically deleted after analysis. We keep only the insights.
-            </div>
-          </div>
         </CardContent>
       </Card>
 
-      {/* Analysis History */}
+      {/* Uploaded Files Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Analysis History</CardTitle>
+          <CardTitle>Uploaded Conversations</CardTitle>
           <CardDescription>
-            View and manage your conversation analyses
+            Manage your uploaded files and generate analysis reports.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {jobs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No analyses yet. Upload your first conversation file to get started!</p>
-              </div>
-            ) : (
-              jobs.map((job) => (
-                <div key={job.id} className="flex items-center justify-between p-4 border rounded-lg">
+          {files.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No files uploaded yet. Upload your first conversation file to get started!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {files.map((file) => (
+                <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center space-x-4">
-                    {getStatusIcon(job.status)}
+                    <FileText className="h-8 w-8 text-primary" />
                     <div>
-                      <p className="font-medium">{job.filename}</p>
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        {job.status === 'completed' && job.total_conversations && (
-                          <span>{job.total_conversations} conversations analyzed</span>
-                        )}
-                        {job.analysis_type === 'premium' && (
-                          <Badge variant="secondary" className="text-xs">
-                            <Target className="h-3 w-3 mr-1" />
-                            Advanced
-                          </Badge>
-                        )}
-                        <span>•</span>
-                        <span>{new Date(job.created_at).toLocaleDateString()}</span>
+                      <p className="font-medium">{file.filename}</p>
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <span className="flex items-center">
+                          <HardDrive className="h-3 w-3 mr-1" />
+                          {formatFileSize(file.file_size)}
+                        </span>
+                        <span className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          {new Date(file.uploaded_at).toLocaleDateString()}
+                        </span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-4">
-                    {(job.status === 'processing' || job.status === 'uploading') && (
-                      <div className="w-32">
-                        <Progress value={job.progress || 0} className="h-2" />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {job.progress || 0}% complete
-                        </p>
-                      </div>
-                    )}
-                    
-                    {job.status === 'completed' && (
+                  <div className="flex items-center space-x-2">
+                    {/* Basic Report Button */}
+                    {file.has_basic_report ? (
                       <Button 
-                        onClick={() => handleViewInsights(job.id)}
+                        variant="outline"
                         size="sm"
+                        onClick={() => handleViewReport(file.id, 'basic')}
                       >
-                        View Insights
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        View Basic Report
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleGenerateReport(file.id, 'basic')}
+                        disabled={processingFiles.has(file.id)}
+                      >
+                        {processingFiles.has(file.id) ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <BarChart3 className="h-4 w-4 mr-2" />
+                        )}
+                        Run Basic Report
                       </Button>
                     )}
-                    
-                    {job.status === 'failed' && (
+
+                    {/* Premium Report Button */}
+                    {file.has_premium_report ? (
                       <Button 
-                        variant="outline" 
                         size="sm"
-                        onClick={() => handleRetryJob(job.id)}
+                        onClick={() => handleViewReport(file.id, 'premium')}
                       >
-                        Retry
+                        <Crown className="h-4 w-4 mr-2" />
+                        View Premium Report
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm"
+                        onClick={() => handleGenerateReport(file.id, 'premium')}
+                        disabled={processingFiles.has(file.id)}
+                      >
+                        {processingFiles.has(file.id) ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Crown className="h-4 w-4 mr-2" />
+                        )}
+                        Run Premium Report
                       </Button>
                     )}
+
+                    {/* Delete Button */}
+                    <Button 
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteFile(file.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

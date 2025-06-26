@@ -17,7 +17,7 @@ await import('node:crypto').then(m => m.webcrypto);
 // --- Constants ---
 const CONVERSATIONS_FILENAME = 'conversations.json';
 const DEFAULT_ANALYSIS_TYPE = 'basic';
-const PRIMARY_BUCKET_NAME = 'conversation-files'; // Or make this an env var if it can change
+const PRIMARY_BUCKET_NAME = 'conversation-files';
 
 // --- Configuration and Initialization ---
 interface AppConfig {
@@ -56,7 +56,7 @@ interface RequestBody {
 interface JobData {
   id: string;
   user_id: string;
-  filename?: string; // Original had filename, might be useful if file name isn't always conversations.json
+  filename?: string;
   file_path?: string;
   status: string;
   premium_features_enabled: boolean;
@@ -74,14 +74,13 @@ interface JobData {
 
 interface FileInfo {
   bucketName: string;
-  filePath: string; // Path within the bucket
-  fullStoragePath: string; // For clarity, e.g., "bucketName/filePath"
+  filePath: string;
+  fullStoragePath: string;
 }
 
 interface StorageFile {
   name: string;
   id?: string;
-  // ... other metadata fields if needed
 }
 
 // --- Generic Helper Functions ---
@@ -100,7 +99,7 @@ const createJsonResponse = (data: unknown, status = 200, additionalHeaders = {})
 async function supabaseRestApiRequest(
   endpoint: string,
   options: RequestInit = {},
-  appConfig: AppConfig = config // Allow passing config for testability
+  appConfig: AppConfig = config
 ): Promise<Response> {
   const url = new URL(endpoint, appConfig.supabaseUrl);
   const headers = new Headers(options.headers);
@@ -118,11 +117,54 @@ async function updateJob(
   updateData: Partial<JobData> & { updated_at: string },
   appConfig: AppConfig = config
 ): Promise<Response> {
-  console.log(`Updating job ${jobId} with status: ${updateData.status}, progress: ${updateData.progress}`);
-  return supabaseRestApiRequest(`/rest/v1/jobs?id=eq.${jobId}`, {
+  console.log(`Updating job ${jobId} with:`, JSON.stringify(updateData, null, 2));
+  
+  const response = await supabaseRestApiRequest(`/rest/v1/jobs?id=eq.${jobId}`, {
     method: 'PATCH',
     body: JSON.stringify(updateData),
   }, appConfig);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Failed to update job ${jobId}:`, errorText);
+    throw new Error(`Failed to update job: ${response.status} ${errorText}`);
+  }
+  
+  console.log(`Successfully updated job ${jobId}`);
+  return response;
+}
+
+async function createUserReport(
+  userId: string,
+  jobId: string,
+  freeInsights: any,
+  paidInsights: any = null,
+  analysisType: string = 'basic',
+  appConfig: AppConfig = config
+): Promise<void> {
+  console.log(`Creating user report for job ${jobId}`);
+  
+  const reportData = {
+    user_id: userId,
+    job_id: jobId,
+    free_insights: freeInsights,
+    paid_insights: paidInsights,
+    analysis_type: analysisType,
+    generated_at: new Date().toISOString()
+  };
+  
+  const response = await supabaseRestApiRequest('/rest/v1/user_reports', {
+    method: 'POST',
+    body: JSON.stringify(reportData),
+  }, appConfig);
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Failed to create user report:`, errorText);
+    throw new Error(`Failed to create user report: ${response.status} ${errorText}`);
+  }
+  
+  console.log(`Successfully created user report for job ${jobId}`);
 }
 
 async function handleJobFailure(
@@ -138,7 +180,7 @@ async function handleJobFailure(
     try {
       await updateJob(jobId, {
         status: 'failed',
-        error_message: errorMessage.substring(0, 2000), // Cap error message length
+        error_message: errorMessage.substring(0, 2000),
         progress: 0,
         updated_at: new Date().toISOString(),
       }, appConfig);
@@ -148,7 +190,6 @@ async function handleJobFailure(
   }
   return createJsonResponse({ error: 'Processing failed', details: error.message }, 500);
 }
-
 
 // --- Request Handling Logic ---
 function handlePreflightAndMethod(req: Request): Response | null {
@@ -173,7 +214,6 @@ async function parseAndValidateRequestBody(req: Request): Promise<RequestBody> {
     if (!body || typeof body.jobId !== 'string' || !body.jobId) {
       throw new Error('Job ID is required and must be a string.');
     }
-    // Ensure analysisType is one of the allowed values or default
     if (body.analysisType && !['basic', 'premium'].includes(body.analysisType)) {
         console.warn(`Invalid analysisType: ${body.analysisType}, defaulting to ${DEFAULT_ANALYSIS_TYPE}.`);
         body.analysisType = DEFAULT_ANALYSIS_TYPE;
@@ -191,14 +231,13 @@ async function parseAndValidateRequestBody(req: Request): Promise<RequestBody> {
 interface UserData {
   id: string;
   email?: string;
-  // Add other user properties as needed
 }
 
-async function authenticateRequest(req: Request, appConfig: AppConfig = config): Promise<UserData> { // Returns user data
+async function authenticateRequest(req: Request, appConfig: AppConfig = config): Promise<UserData> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.error('No authorization token provided');
-    throw new Error('Authorization token required'); // This will be caught and turned into a 401
+    throw new Error('Authorization token required');
   }
   const token = authHeader.split(' ')[1];
 
@@ -213,7 +252,7 @@ async function authenticateRequest(req: Request, appConfig: AppConfig = config):
     if (!userResponse.ok) {
       const errorText = await userResponse.text();
       console.error('Token verification failed:', userResponse.status, errorText);
-      throw new Error('Invalid or expired token'); // This will be caught and turned into a 401
+      throw new Error('Invalid or expired token');
     }
     const userData = await userResponse.json();
     console.log('Authenticated user:', userData.id);
@@ -242,7 +281,7 @@ async function fetchAndValidateJob(jobId: string, appConfig: AppConfig = config)
   const jobDataArray = await jobResponse.json();
   if (!Array.isArray(jobDataArray) || jobDataArray.length === 0) {
     console.error('Job not found:', jobId);
-    throw new Error('Job not found'); // Will be 404
+    throw new Error('Job not found');
   }
 
   const jobData = jobDataArray[0] as JobData;
@@ -250,22 +289,20 @@ async function fetchAndValidateJob(jobId: string, appConfig: AppConfig = config)
 
   if (jobData.status === 'completed') {
     console.log('Job already completed');
-    throw new Error('Job already completed'); // Special case, not really a server error
+    throw new Error('Job already completed');
   }
   if (jobData.status === 'failed') {
     console.log('Job previously failed');
-    throw new Error(`Job previously failed: ${jobData.error_message || 'Unknown reason'}`); // Special case
+    throw new Error(`Job previously failed: ${jobData.error_message || 'Unknown reason'}`);
   }
   return jobData;
 }
-
 
 // --- File System Logic ---
 function findTargetFileInList(files: StorageFile[], targetFilename: string): StorageFile | null {
   if (!files || files.length === 0) return null;
   
   const targetLower = targetFilename.toLowerCase();
-  // Prioritize exact match, then case-insensitive match, then includes (if necessary)
   return files.find(f => f.name.toLowerCase() === targetLower) ||
          files.find(f => f.name.toLowerCase().includes(targetLower) && f.name.toLowerCase().endsWith('.json')) || 
          null;
@@ -280,11 +317,11 @@ async function searchForFileInPath(
   console.log(`Searching for '${targetFilename}' in bucket '${bucketName}', path: '${path || "root"}'`);
   const { data: files, error } = await supabaseClient.storage
     .from(bucketName)
-    .list(path || null, { limit: 100, offset: 0 }); // Added limit/offset defaults
+    .list(path || null, { limit: 100, offset: 0 });
 
   if (error) {
     console.error(`Error listing files in '${bucketName}/${path}':`, error.message);
-    return null; // Don't throw, just indicate not found here
+    return null;
   }
   if (!files || files.length === 0) {
     console.log(`No files found in '${bucketName}/${path}'.`);
@@ -306,28 +343,24 @@ async function searchForFileInPath(
 async function locateConversationsFile(jobData: JobData, appConfig: AppConfig = config): Promise<FileInfo> {
   const { user_id, id: jobId } = jobData;
   
-  // First, try the expected path: userId/jobId/conversations.json
   const expectedPath = `${user_id}/${jobId}`;
   console.log(`Looking for conversations file in expected path: ${expectedPath}`);
   
   let fileInfo = await searchForFileInPath(PRIMARY_BUCKET_NAME, expectedPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
   if (fileInfo) return fileInfo;
 
-  // If not found in expected path, try the user folder directly
   const userFolderPath = `${user_id}`;
   console.log(`Looking for conversations file in user folder: ${userFolderPath}`);
   
   fileInfo = await searchForFileInPath(PRIMARY_BUCKET_NAME, userFolderPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
   if (fileInfo) return fileInfo;
 
-  // If still not found, look for any JSON file in the job-specific folder
   console.log(`Looking for any JSON file in job folder: ${expectedPath}`);
   const { data: jobFiles, error: jobFilesError } = await appConfig.supabaseClient.storage
     .from(PRIMARY_BUCKET_NAME)
     .list(expectedPath);
 
   if (!jobFilesError && jobFiles && jobFiles.length > 0) {
-    // Look for any .json file
     const jsonFile = jobFiles.find(file => file.name.toLowerCase().endsWith('.json'));
     if (jsonFile) {
       const filePath = `${expectedPath}/${jsonFile.name}`;
@@ -337,14 +370,12 @@ async function locateConversationsFile(jobData: JobData, appConfig: AppConfig = 
     }
   }
 
-  // If still not found, look for any JSON file in the user folder
   console.log(`Looking for any JSON file in user folder: ${userFolderPath}`);
   const { data: userFiles, error: userFilesError } = await appConfig.supabaseClient.storage
     .from(PRIMARY_BUCKET_NAME)
     .list(userFolderPath);
 
   if (!userFilesError && userFiles && userFiles.length > 0) {
-    // Look for any .json file
     const jsonFile = userFiles.find(file => file.name.toLowerCase().endsWith('.json'));
     if (jsonFile) {
       const filePath = `${userFolderPath}/${jsonFile.name}`;
@@ -354,11 +385,9 @@ async function locateConversationsFile(jobData: JobData, appConfig: AppConfig = 
     }
   }
 
-  // Try root folder as last resort
   fileInfo = await searchForFileInPath(PRIMARY_BUCKET_NAME, '', CONVERSATIONS_FILENAME, appConfig.supabaseClient);
   if (fileInfo) return fileInfo;
   
-  // If we still haven't found it, search all buckets
   console.log(`File not found in primary bucket '${PRIMARY_BUCKET_NAME}'. Searching other buckets...`);
   const { data: buckets, error: bucketsError } = await appConfig.supabaseClient.storage.listBuckets();
   if (bucketsError) {
@@ -370,7 +399,7 @@ async function locateConversationsFile(jobData: JobData, appConfig: AppConfig = 
   }
 
   for (const bucket of buckets) {
-    if (bucket.name === PRIMARY_BUCKET_NAME) continue; // Already checked
+    if (bucket.name === PRIMARY_BUCKET_NAME) continue;
 
     console.log(`\nChecking bucket: ${bucket.name}`);
     fileInfo = await searchForFileInPath(bucket.name, expectedPath, CONVERSATIONS_FILENAME, appConfig.supabaseClient);
@@ -387,13 +416,10 @@ async function locateConversationsFile(jobData: JobData, appConfig: AppConfig = 
   throw new Error(`'${CONVERSATIONS_FILENAME}' not found. Searched in user folder and root of all buckets.`);
 }
 
-
 async function downloadFileContent(fileInfo: FileInfo, appConfig: AppConfig = config): Promise<string> {
   const { bucketName, filePath } = fileInfo;
   console.log(`Attempting to download: ${bucketName}/${filePath}`);
 
-  // Using Supabase client for download which handles auth correctly for RLS if set,
-  // or falls back to service_role if RLS doesn't grant access (which it should for service role).
   const { data, error } = await appConfig.supabaseClient.storage
     .from(bucketName)
     .download(filePath);
@@ -411,9 +437,65 @@ async function downloadFileContent(fileInfo: FileInfo, appConfig: AppConfig = co
   return content;
 }
 
+// --- Mock Analysis Functions ---
+function generateMockFreeInsights(conversations: any[]): any {
+  const totalConversations = conversations.length;
+  const totalMessages = totalConversations * 15; // Estimate
+  
+  return {
+    totalMessages,
+    userMessagesCount: Math.floor(totalMessages * 0.6),
+    aiMessagesCount: Math.ceil(totalMessages * 0.4),
+    totalUserCharacters: totalConversations * 2000,
+    totalAiCharacters: totalConversations * 3000,
+    averageUserMessageLength: 127,
+    averageAiMessageLength: 198,
+    firstMessageDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    lastMessageDate: new Date().toISOString(),
+    conversationDaysSpan: 30,
+    mostUsedUserWords: [
+      { word: 'code', count: 45 },
+      { word: 'problem', count: 32 },
+      { word: 'error', count: 28 },
+      { word: 'how', count: 25 },
+      { word: 'python', count: 22 }
+    ],
+    userVocabularySizeEstimate: 1250,
+    averageWordsPerUserSentence: 12.5,
+    userToAiMessageRatio: 1.5,
+    averageMessagesPerConversation: 8.3,
+    longestConversationByMessages: {
+      count: 42,
+      title: 'Python Data Analysis Project'
+    },
+    shortestConversationByMessages: {
+      count: 1,
+      title: 'Quick Question'
+    },
+    activityByHourOfDay: [
+      { hour: '00:00', messageCount: 12 },
+      { hour: '03:00', messageCount: 5 },
+      { hour: '06:00', messageCount: 8 },
+      { hour: '09:00', messageCount: 45 },
+      { hour: '12:00', messageCount: 67 },
+      { hour: '15:00', messageCount: 89 },
+      { hour: '18:00', messageCount: 56 },
+      { hour: '21:00', messageCount: 78 }
+    ],
+    topicDistribution: [
+      { name: 'Programming', value: 35, color: '#8884d8' },
+      { name: 'Data Science', value: 25, color: '#82ca9d' },
+      { name: 'Career', value: 20, color: '#ffc658' },
+      { name: 'Technical', value: 12, color: '#ff7300' },
+      { name: 'Other', value: 8, color: '#00ff88' }
+    ]
+  };
+}
+
 // --- Core Processing ---
 async function processConversations(
   jobId: string,
+  userId: string,
   analysisType: 'basic' | 'premium',
   fileContent: string,
   appConfig: AppConfig = config
@@ -429,7 +511,6 @@ async function processConversations(
     throw new Error('Invalid conversations file format');
   }
 
-  // Ensure it's an array
   if (!Array.isArray(conversations)) {
     throw new Error('Conversations file should contain an array of conversations');
   }
@@ -438,76 +519,57 @@ async function processConversations(
   console.log(`Found ${numConversations} conversations to process.`);
 
   // Update with total count
-  const updateTotalResponse = await updateJob(jobId, {
+  await updateJob(jobId, {
     total_conversations: numConversations,
     processed_conversations: 0,
     progress: 20,
     updated_at: new Date().toISOString()
   }, appConfig);
 
-  if (!updateTotalResponse.ok) {
-    const errorText = await updateTotalResponse.text();
-    console.error('Failed to update total conversations:', errorText);
-    throw new Error('Failed to update job with total conversations');
-  }
-
-  // Process each conversation with progress updates
-  const BATCH_SIZE = Math.max(1, Math.ceil(numConversations / 10)); // Update progress every 10%
+  // Simulate processing with progress updates
+  console.log(`Simulating ${analysisType} processing for ${numConversations} items...`);
+  
+  const BATCH_SIZE = Math.max(1, Math.ceil(numConversations / 4)); // Update every 25%
   
   for (let i = 0; i < numConversations; i++) {
-    const startTime = Date.now();
-    try {
-      // Process conversation (replace with actual processing logic)
-      await new Promise(resolve => setTimeout(resolve, 100)); // Simulate processing time
+    // Simulate processing time
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Update progress periodically
+    if ((i + 1) % BATCH_SIZE === 0 || (i === numConversations - 1)) {
+      const progress = Math.min(80, Math.floor(((i + 1) / numConversations) * 60) + 20); // 20-80%
       
-      // Update progress periodically
-      if ((i + 1) % BATCH_SIZE === 0 || (i === numConversations - 1)) {
-        const progress = Math.min(90, Math.floor(((i + 1) / numConversations) * 80) + 10); // Cap at 90% until done
-        
-        const updateResponse = await updateJob(jobId, {
-          processed_conversations: i + 1,
-          progress: progress,
-          updated_at: new Date().toISOString()
-        }, appConfig);
-
-        if (!updateResponse.ok) {
-          console.warn(`Failed to update progress for job ${jobId} at ${progress}%`);
-          // Continue processing even if progress update fails
-        }
-      }
-    } catch (error) {
-      console.error(`Error processing conversation ${i + 1}:`, error);
-      // Continue with next conversation even if one fails
-    } finally {
-      // Ensure we don't process too quickly (min 100ms per item)
-      const processTime = Date.now() - startTime;
-      if (processTime < 100) {
-        await new Promise(resolve => setTimeout(resolve, 100 - processTime));
-      }
+      await updateJob(jobId, {
+        processed_conversations: i + 1,
+        progress: progress,
+        updated_at: new Date().toISOString()
+      }, appConfig);
+      
+      console.log(`Progress: ${progress}% (${i + 1}/${numConversations})`);
     }
   }
 
+  // Generate mock insights
+  console.log('Generating analysis insights...');
+  const freeInsights = generateMockFreeInsights(conversations);
+  
+  // Create user report
+  console.log('Creating user report...');
+  await createUserReport(userId, jobId, freeInsights, null, analysisType, appConfig);
+
   // Mark as completed
   const completedAt = new Date().toISOString();
-  const updateResponse = await updateJob(jobId, {
+  await updateJob(jobId, {
     status: 'completed',
-    result: `Processed ${numConversations} conversations`,
     processed_conversations: numConversations,
     progress: 100,
     updated_at: completedAt,
     completed_at: completedAt
   }, appConfig);
 
-  if (!updateResponse.ok) {
-    const errorText = await updateResponse.text();
-    console.error('Failed to mark job as completed:', errorText);
-    throw new Error('Failed to mark job as completed');
-  }
-
   console.log('Processing complete.');
   return { processedItems: numConversations, fileSize: fileContent.length };
 }
-
 
 // Track if we've already initialized
 let isInitialized = false;
@@ -524,7 +586,7 @@ serve(async (req: Request) => {
       headers: {
         ...corsHeaders,
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Max-Age': '86400' // Cache preflight for 24 hours
+        'Access-Control-Max-Age': '86400'
       },
     });
   }
@@ -535,19 +597,17 @@ serve(async (req: Request) => {
     isInitialized = true;
   }
 
-  let jobId: string | null = null; // Initialize to null for error handling before jobId is parsed
+  let jobId: string | null = null;
 
   try {
     // 1. Parse and Validate Request Body
     const requestBody = await parseAndValidateRequestBody(req);
-    jobId = requestBody.jobId; // Now jobId is set
+    jobId = requestBody.jobId;
     const analysisType = requestBody.analysisType || DEFAULT_ANALYSIS_TYPE;
     console.log(`Processing job ${jobId} with analysis type: ${analysisType}`);
 
     // 2. Authenticate Request
-    //    We pass `config` explicitly here, but it's the global one.
-    //    This is more for showing how dependencies could be injected for testing.
-    await authenticateRequest(req, config); 
+    const userData = await authenticateRequest(req, config); 
     
     // 3. Fetch and Validate Job
     const jobData = await fetchAndValidateJob(jobId, config);
@@ -563,35 +623,29 @@ serve(async (req: Request) => {
       }, 200);
     }
 
-    // 5. Update job status to initial processing with optimistic locking
+    // 5. Update job status to processing
     const startedAt = new Date().toISOString();
-    const updateResponse = await updateJob(jobId, {
+    await updateJob(jobId, {
       status: 'processing',
       progress: 10,
       analysis_type: analysisType,
       updated_at: startedAt,
       started_at: startedAt,
-      error_message: null, // Clear any previous errors
+      error_message: null,
       processed_conversations: 0,
-      total_conversations: null // Will be updated when we know the count
+      total_conversations: null
     }, config);
 
-    if (!updateResponse.ok) {
-      const errorText = await updateResponse.text();
-      console.error('Failed to update job status to processing:', errorText);
-      throw new Error(`Failed to update job status: ${updateResponse.status} ${updateResponse.statusText}`);
-    }
-
-    // 5. Locate the conversations file
+    // 6. Locate the conversations file
     const fileInfo = await locateConversationsFile(jobData, config);
 
-    // 6. Download file content
+    // 7. Download file content
     const fileContent = await downloadFileContent(fileInfo, config);
 
-    // 7. Process the file
-    const processingResult = await processConversations(jobId, analysisType, fileContent, config);
+    // 8. Process the file
+    const processingResult = await processConversations(jobId, userData.id, analysisType, fileContent, config);
 
-    // 8. Return success response
+    // 9. Return success response
     return createJsonResponse({
       success: true,
       jobId,
@@ -601,13 +655,10 @@ serve(async (req: Request) => {
     });
 
   } catch (error: unknown) {
-    // Type guard to check if error is an instance of Error
     const isError = (e: unknown): e is Error => e instanceof Error;
-    
-    // Extract error message safely
     const errorMessage = isError(error) ? error.message : 'An unknown error occurred';
     
-    // Specific error handling for known "user error" cases vs. server errors
+    // Specific error handling
     if (errorMessage.includes('Authorization token required') || errorMessage.includes('Invalid or expired token')) {
       return createJsonResponse({ error: errorMessage }, 401);
     }
@@ -632,8 +683,6 @@ serve(async (req: Request) => {
       }, 400); 
     }
     if (errorMessage.startsWith(`'${CONVERSATIONS_FILENAME}' not found`)) {
-      // This is a critical failure for this job, but might be due to user setup.
-      // It's already logged server-side, so we update the job and return a client-friendly error.
       if(jobId) {
         try {
           await updateJob(jobId, {
@@ -652,7 +701,7 @@ serve(async (req: Request) => {
       }, 404);
     }
     
-    // Fallback to generic job failure for other errors
+    // Fallback to generic job failure
     return handleJobFailure(
       jobId, 
       isError(error) ? error : new Error(errorMessage), 

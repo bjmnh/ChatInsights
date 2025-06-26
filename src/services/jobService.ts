@@ -176,11 +176,31 @@ export class JobService {
 
       const result = await response.json();
       console.log('Processing result:', result);
+      
+      // Check if the job is already being processed
+      if (result.success === false && result.status === 'processing') {
+        console.log('Job is already being processed, this is expected');
+        return;
+      }
+      
+      if (!result.success) {
+        throw new Error(result.message || 'Processing failed');
+      }
+      
       return result;
     } catch (error) {
       console.error('Error in processJob:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      await this.updateJobStatus(jobId, 'failed', errorMessage);
+      
+      // Only update job status to failed if it's not already being processed
+      if (!errorMessage.includes('already being processed')) {
+        try {
+          await this.updateJobStatus(jobId, 'failed', errorMessage);
+        } catch (updateError) {
+          console.error('Failed to update job status to failed:', updateError);
+        }
+      }
+      
       throw new Error(`Failed to process job: ${errorMessage}`);
     }
   }
@@ -242,12 +262,16 @@ export class JobService {
           filter: `id=eq.${jobId}`
         },
         (payload) => {
+          console.log('Job update received:', payload.new);
           callback(payload.new as Job);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`Subscription status for job ${jobId}:`, status);
+      });
 
     return () => {
+      console.log(`Unsubscribing from job ${jobId} updates`);
       subscription.unsubscribe();
     };
   }

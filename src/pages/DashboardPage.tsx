@@ -74,6 +74,8 @@ const DashboardPage: React.FC = () => {
     jobs.forEach(job => {
       if (job.status === 'uploading' || job.status === 'processing') {
         const unsubscribe = JobService.subscribeToJobUpdates(job.id, (updatedJob) => {
+          console.log('Received job update:', updatedJob);
+          
           setJobs(prevJobs => 
             prevJobs.map(j => j.id === updatedJob.id ? updatedJob : j)
           );
@@ -126,8 +128,9 @@ const DashboardPage: React.FC = () => {
 
       // Upload file to storage with proper path structure
       const filePath = await StorageService.uploadFile(file, user.id, newJob.id);
+      console.log('File uploaded to:', filePath);
       
-      // Update job with file path
+      // Update job status to processing and start processing
       await JobService.updateJobStatus(newJob.id, 'processing', null, null, null);
 
       toast.success('File uploaded successfully! Starting analysis...');
@@ -137,7 +140,12 @@ const DashboardPage: React.FC = () => {
 
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Don't show error if job is already being processed
+      if (!errorMessage.includes('already being processed')) {
+        toast.error(`Upload failed: ${errorMessage}`);
+      }
     } finally {
       setUploading(false);
     }
@@ -176,7 +184,12 @@ const DashboardPage: React.FC = () => {
       await JobService.processJob(jobId);
     } catch (error) {
       console.error('Error retrying job:', error);
-      toast.error('Failed to retry analysis');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Don't show error if job is already being processed
+      if (!errorMessage.includes('already being processed')) {
+        toast.error('Failed to retry analysis');
+      }
     }
   };
 
@@ -382,9 +395,9 @@ const DashboardPage: React.FC = () => {
                   <div className="flex items-center space-x-4">
                     {(job.status === 'processing' || job.status === 'uploading') && (
                       <div className="w-32">
-                        <Progress value={job.progress} className="h-2" />
+                        <Progress value={job.progress || 0} className="h-2" />
                         <p className="text-xs text-muted-foreground mt-1">
-                          {job.progress}% complete
+                          {job.progress || 0}% complete
                         </p>
                       </div>
                     )}

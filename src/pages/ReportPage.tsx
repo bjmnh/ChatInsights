@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
+import { Progress } from '../components/ui/progress';
 import { 
   ArrowLeft,
   BarChart3,
@@ -14,8 +15,29 @@ import {
   Brain,
   Users,
   Lightbulb,
-  Target
+  Target,
+  Clock,
+  Calendar,
+  Hash,
+  Activity,
+  Zap,
+  Eye,
+  Shield,
+  FileText,
+  AlertTriangle,
+  Star,
+  Award,
+  Fingerprint,
+  Search,
+  Timer,
+  Globe,
+  BookOpen,
+  Cpu,
+  Database,
+  Code,
+  Sparkles
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FileService, type Report } from '../services/fileService';
 import { toast } from 'sonner';
 
@@ -129,7 +151,7 @@ const ReportPage: React.FC = () => {
 
         <div>
           <h1 className="text-3xl font-bold mb-2">
-            {isBasicReport ? 'Basic Analysis Report' : 'Premium Analysis Report'}
+            {isBasicReport ? 'Conversation Analytics Report' : 'Advanced Behavioral Analysis'}
           </h1>
           <p className="text-muted-foreground">
             Generated on {new Date(report.generated_at).toLocaleDateString()}
@@ -148,83 +170,243 @@ const ReportPage: React.FC = () => {
 };
 
 const BasicReportContent: React.FC<{ data: any }> = ({ data }) => {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat().format(num);
+  };
+
+  // Prepare chart data
+  const hourlyData = data.activityByHourOfDay?.map((item: any) => ({
+    hour: item.hour,
+    messages: item.messageCount
+  })) || [];
+
+  const dailyData = data.activityByDayOfWeek?.map((item: any) => ({
+    day: item.day.substring(0, 3),
+    messages: item.messageCount
+  })) || [];
+
+  const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0', '#ffb347'];
+
   return (
-    <div className="space-y-6">
-      {/* Summary Card */}
+    <div className="space-y-8">
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-600">Total Conversations</p>
+                <p className="text-3xl font-bold text-blue-900">{formatNumber(data.totalConversations || 0)}</p>
+              </div>
+              <MessageSquare className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-600">Your Messages</p>
+                <p className="text-3xl font-bold text-green-900">{formatNumber(data.userMessagesCount || 0)}</p>
+              </div>
+              <Users className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-purple-600">Avg Message Length</p>
+                <p className="text-3xl font-bold text-purple-900">{data.averageUserMessageLength || 0}</p>
+                <p className="text-xs text-purple-600">characters</p>
+              </div>
+              <FileText className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-600">Vocabulary Size</p>
+                <p className="text-3xl font-bold text-orange-900">{formatNumber(data.userVocabularySizeEstimate || 0)}</p>
+                <p className="text-xs text-orange-600">unique words</p>
+              </div>
+              <BookOpen className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Timeline and Activity */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="h-5 w-5 mr-2" />
+              Conversation Timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">First Message</p>
+                <p className="font-semibold">{data.firstMessageDate ? formatDate(data.firstMessageDate) : 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Last Message</p>
+                <p className="font-semibold">{data.lastMessageDate ? formatDate(data.lastMessageDate) : 'N/A'}</p>
+              </div>
+            </div>
+            <div className="text-center p-4 bg-primary/5 rounded-lg">
+              <p className="text-2xl font-bold text-primary">{data.conversationDaysSpan || 0}</p>
+              <p className="text-sm text-muted-foreground">days of conversations</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Activity className="h-5 w-5 mr-2" />
+              Activity Highlights
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <Clock className="h-6 w-6 mx-auto mb-2 text-blue-500" />
+                <p className="text-sm text-blue-600">Most Active Hour</p>
+                <p className="font-bold text-blue-900">{data.mostActiveHour || 'N/A'}</p>
+              </div>
+              <div className="text-center p-3 bg-green-50 rounded-lg">
+                <Calendar className="h-6 w-6 mx-auto mb-2 text-green-500" />
+                <p className="text-sm text-green-600">Most Active Day</p>
+                <p className="font-bold text-green-900">{data.mostActiveDay || 'N/A'}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-yellow-50 rounded-lg">
+                <p className="text-2xl font-bold text-yellow-900">{data.questionMarksUsedByUser || 0}</p>
+                <p className="text-sm text-yellow-600">Questions Asked</p>
+              </div>
+              <div className="text-center p-3 bg-red-50 rounded-lg">
+                <p className="text-2xl font-bold text-red-900">{data.exclamationMarksUsedByUser || 0}</p>
+                <p className="text-sm text-red-600">Exclamations Used</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Activity Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Clock className="h-5 w-5 mr-2" />
+              Activity by Hour
+            </CardTitle>
+            <CardDescription>Your messaging patterns throughout the day</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={hourlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="hour" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="messages" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="h-5 w-5 mr-2" />
+              Activity by Day
+            </CardTitle>
+            <CardDescription>Your weekly conversation patterns</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dailyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="messages" fill="#82ca9d" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Most Used Words */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
-            <MessageSquare className="h-5 w-5 mr-2" />
-            Analysis Summary
+            <Hash className="h-5 w-5 mr-2" />
+            Most Frequently Used Words
           </CardTitle>
+          <CardDescription>Your top vocabulary in conversations</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-lg mb-4">{data.summary}</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">{data.totalConversations}</div>
-              <div className="text-sm text-muted-foreground">Total Conversations</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">{data.totalMessages}</div>
-              <div className="text-sm text-muted-foreground">Total Messages</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">{data.averageMessageLength}</div>
-              <div className="text-sm text-muted-foreground">Avg Message Length</div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {data.mostUsedUserWords?.slice(0, 15).map((word: any, index: number) => (
+              <div key={index} className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+                <p className="font-bold text-primary text-lg">{word.word}</p>
+                <p className="text-sm text-muted-foreground">{word.count} times</p>
+              </div>
+            )) || []}
           </div>
         </CardContent>
       </Card>
 
-      {/* Communication Style */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Users className="h-5 w-5 mr-2" />
-            Communication Style
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-lg mb-4">{data.communicationStyle}</p>
-          <p className="text-muted-foreground">{data.activityPattern}</p>
-        </CardContent>
-      </Card>
-
-      {/* Top Topics */}
+      {/* Additional Stats */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <TrendingUp className="h-5 w-5 mr-2" />
-            Top Discussion Topics
+            Communication Insights
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {data.topTopics.map((topic: string, index: number) => (
-              <Badge key={index} variant="outline">{topic}</Badge>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold text-primary">{data.averageWordsPerUserSentence?.toFixed(1) || 0}</p>
+              <p className="text-sm text-muted-foreground">Average words per sentence</p>
+            </div>
+            <div className="text-center p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold text-primary">{data.userToAiMessageRatio?.toFixed(2) || 0}</p>
+              <p className="text-sm text-muted-foreground">User to AI message ratio</p>
+            </div>
+            <div className="text-center p-4 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold text-primary">{data.averageMessagesPerConversation?.toFixed(1) || 0}</p>
+              <p className="text-sm text-muted-foreground">Average messages per conversation</p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Key Insights */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Lightbulb className="h-5 w-5 mr-2" />
-            Key Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
-            {data.insights.map((insight: string, index: number) => (
-              <li key={index} className="flex items-start">
-                <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0" />
-                <span>{insight}</span>
-              </li>
-            ))}
-          </ul>
+          {data.longestConversationByMessages && (
+            <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-900 mb-2">Longest Conversation</h4>
+              <p className="text-blue-700">"{data.longestConversationByMessages.title}"</p>
+              <p className="text-sm text-blue-600">{data.longestConversationByMessages.count} messages</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -232,124 +414,234 @@ const BasicReportContent: React.FC<{ data: any }> = ({ data }) => {
 };
 
 const PremiumReportContent: React.FC<{ data: any }> = ({ data }) => {
+  // Handle processing errors
+  if (data.processingErrors && data.processingErrors.length > 0) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardHeader>
+          <CardTitle className="flex items-center text-red-700">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            Report Generation Error
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-red-600 mb-4">Some premium insights could not be generated:</p>
+          <ul className="list-disc list-inside space-y-1">
+            {data.processingErrors.map((error: string, index: number) => (
+              <li key={index} className="text-red-600">{error}</li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Summary Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Brain className="h-5 w-5 mr-2" />
-            Premium Analysis Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-lg">{data.summary}</p>
-        </CardContent>
-      </Card>
-
-      {/* Cognitive Profile */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Target className="h-5 w-5 mr-2" />
-            Cognitive Profile
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-semibold mb-2">Problem Solving Style</h4>
-              <p className="text-muted-foreground">{data.cognitiveProfile.problemSolvingStyle}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Learning Preference</h4>
-              <p className="text-muted-foreground">{data.cognitiveProfile.learningPreference}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Communication Pattern</h4>
-              <p className="text-muted-foreground">{data.cognitiveProfile.communicationPattern}</p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Thinking Style</h4>
-              <p className="text-muted-foreground">{data.cognitiveProfile.thinkingStyle}</p>
+    <div className="space-y-8">
+      {/* FBI Report Section */}
+      {data.fbiReport && (
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-lg overflow-hidden">
+          {/* Header */}
+          <div className="bg-red-600 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Shield className="h-6 w-6" />
+                <span className="font-bold text-lg">CONFIDENTIAL</span>
+              </div>
+              <Badge variant="destructive" className="bg-red-700">
+                CLASSIFIED
+              </Badge>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Personality Insights */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Users className="h-5 w-5 mr-2" />
-            Personality Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+          {/* Content */}
+          <div className="p-8 space-y-6">
+            <div className="text-center border-b border-slate-700 pb-6">
+              <h2 className="text-3xl font-bold mb-2">{data.fbiReport.reportTitle}</h2>
+              <p className="text-slate-300">Digital Behavioral Analysis Division</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center">
+                    <Target className="h-5 w-5 mr-2 text-red-400" />
+                    Subject Profile Summary
+                  </h3>
+                  <p className="text-slate-300 leading-relaxed bg-slate-800/50 p-4 rounded-lg">
+                    {data.fbiReport.subjectProfileSummary}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center">
+                    <Brain className="h-5 w-5 mr-2 text-blue-400" />
+                    Dominant Interests
+                  </h3>
+                  <div className="grid grid-cols-1 gap-2">
+                    {data.fbiReport.dominantInterests?.map((interest: string, index: number) => (
+                      <div key={index} className="bg-blue-900/30 border border-blue-700 px-3 py-2 rounded">
+                        <span className="text-blue-200">• {interest}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center">
+                    <MessageSquare className="h-5 w-5 mr-2 text-green-400" />
+                    Communication Modalities
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {data.fbiReport.communicationModalities?.map((modality: string, index: number) => (
+                      <Badge key={index} variant="outline" className="bg-green-900/30 border-green-700 text-green-200">
+                        {modality}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center">
+                    <Activity className="h-5 w-5 mr-2 text-yellow-400" />
+                    Emotional Tone & Engagement
+                  </h3>
+                  <p className="text-slate-300 leading-relaxed bg-slate-800/50 p-4 rounded-lg">
+                    {data.fbiReport.emotionalToneAndEngagement}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center">
+                    <Eye className="h-5 w-5 mr-2 text-purple-400" />
+                    Information Sharing Tendencies
+                  </h3>
+                  <p className="text-slate-300 leading-relaxed bg-slate-800/50 p-4 rounded-lg">
+                    {data.fbiReport.informationSharingTendencies}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center">
+                    <Users className="h-5 w-5 mr-2 text-orange-400" />
+                    Overall Interaction Style
+                  </h3>
+                  <p className="text-slate-300 leading-relaxed bg-slate-800/50 p-4 rounded-lg">
+                    {data.fbiReport.overallInteractionStyle}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-700 pt-4">
+              <p className="text-xs text-slate-400 italic">
+                {data.fbiReport.disclaimer}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Linguistic Fingerprint Section */}
+      {data.linguisticFingerprint && (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-lg overflow-hidden border border-amber-200">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-4 text-white">
+            <div className="flex items-center space-x-3">
+              <Fingerprint className="h-6 w-6" />
+              <h2 className="text-2xl font-bold">{data.linguisticFingerprint.reportTitle}</h2>
+            </div>
+            <p className="text-amber-100 mt-1">Computational Linguistics Analysis</p>
+          </div>
+
+          {/* Content */}
+          <div className="p-8 space-y-8">
             <div>
-              <h4 className="font-semibold mb-2">Key Traits</h4>
-              <div className="flex flex-wrap gap-2">
-                {data.personalityInsights.traits.map((trait: string, index: number) => (
-                  <Badge key={index} variant="secondary">{trait}</Badge>
+              <h3 className="text-2xl font-semibold mb-4 flex items-center text-amber-800">
+                <BookOpen className="h-6 w-6 mr-2" />
+                Overall Style Description
+              </h3>
+              <p className="text-amber-900 leading-relaxed text-lg bg-white/70 p-6 rounded-lg border border-amber-200">
+                {data.linguisticFingerprint.overallStyleDescription}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div>
+                <h3 className="text-xl font-semibold mb-4 flex items-center text-amber-800">
+                  <Database className="h-5 w-5 mr-2" />
+                  Vocabulary Profile
+                </h3>
+                <div className="bg-white/70 p-6 rounded-lg border border-amber-200 space-y-4">
+                  <div>
+                    <h4 className="font-semibold text-amber-700 mb-2">Qualitative Assessment</h4>
+                    <p className="text-amber-900 leading-relaxed">
+                      {data.linguisticFingerprint.vocabularyProfile?.qualitativeAssessment}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-amber-700 mb-3">Notable Words</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {data.linguisticFingerprint.vocabularyProfile?.notableWords?.map((word: string, index: number) => (
+                        <Badge key={index} className="bg-amber-600 hover:bg-amber-700 text-white">
+                          <Code className="h-3 w-3 mr-1" />
+                          {word}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center text-amber-800">
+                    <FileText className="h-5 w-5 mr-2" />
+                    Sentence Structure
+                  </h3>
+                  <p className="text-amber-900 leading-relaxed bg-white/70 p-4 rounded-lg border border-amber-200">
+                    {data.linguisticFingerprint.sentenceStructure}
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-semibold mb-3 flex items-center text-amber-800">
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Expressiveness
+                  </h3>
+                  <p className="text-amber-900 leading-relaxed bg-white/70 p-4 rounded-lg border border-amber-200">
+                    {data.linguisticFingerprint.expressiveness}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold mb-4 flex items-center text-amber-800">
+                <Lightbulb className="h-5 w-5 mr-2" />
+                Potential Interests Indicated by Language
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {data.linguisticFingerprint.potentialInterestsIndicatedByLanguage?.map((interest: string, index: number) => (
+                  <div key={index} className="bg-gradient-to-br from-orange-100 to-amber-100 border border-orange-300 p-4 rounded-lg text-center">
+                    <Cpu className="h-6 w-6 mx-auto mb-2 text-orange-600" />
+                    <p className="font-semibold text-orange-800">{interest}</p>
+                  </div>
                 ))}
               </div>
             </div>
-            <div>
-              <h4 className="font-semibold mb-2">Strengths</h4>
-              <div className="flex flex-wrap gap-2">
-                {data.personalityInsights.strengths.map((strength: string, index: number) => (
-                  <Badge key={index} variant="outline">{strength}</Badge>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Working Style</h4>
-              <p className="text-muted-foreground">{data.personalityInsights.workingStyle}</p>
+
+            <div className="border-t border-amber-300 pt-6">
+              <p className="text-sm text-amber-700 italic bg-amber-100/50 p-4 rounded-lg">
+                <AlertTriangle className="h-4 w-4 inline mr-2" />
+                {data.linguisticFingerprint.disclaimer}
+              </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Deep Patterns */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <TrendingUp className="h-5 w-5 mr-2" />
-            Deep Behavioral Patterns
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-3">
-            {data.deepPatterns.map((pattern: string, index: number) => (
-              <li key={index} className="flex items-start">
-                <div className="w-2 h-2 bg-primary rounded-full mt-2 mr-3 flex-shrink-0" />
-                <span>{pattern}</span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
-
-      {/* Recommendations */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Lightbulb className="h-5 w-5 mr-2" />
-            Recommendations
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2">
-            {data.recommendations.map((recommendation: string, index: number) => (
-              <li key={index} className="flex items-start">
-                <div className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0" />
-                <span>{recommendation}</span>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 };

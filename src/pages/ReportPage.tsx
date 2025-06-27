@@ -35,7 +35,29 @@ import {
   Cpu,
   Database,
   Code,
-  Sparkles
+  Sparkles,
+  User,
+  AtSign,
+  Gauge,
+  Mirror,
+  TrendingDown,
+  TrendingUp as TrendingUpIcon,
+  Minus,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Lock,
+  Mail,
+  MapPin,
+  CreditCard,
+  Phone,
+  IdCard,
+  Heart,
+  Building,
+  Camera,
+  Tv,
+  Trophy,
+  Compass
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FileService, type Report } from '../services/fileService';
@@ -461,6 +483,20 @@ const PremiumReportContent: React.FC<{ data: any }> = ({ data }) => {
               <p className="text-slate-300">Digital Behavioral Analysis Division</p>
             </div>
 
+            {/* Subject Codename */}
+            {data.fbiReport.subjectCodename && (
+              <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-600">
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold text-yellow-400 mb-2">
+                    SUBJECT CODENAME: "{data.fbiReport.subjectCodename.name}"
+                  </h3>
+                  <p className="text-slate-300 italic">
+                    {data.fbiReport.subjectCodename.justification}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div>
@@ -522,6 +558,27 @@ const PremiumReportContent: React.FC<{ data: any }> = ({ data }) => {
                     {data.fbiReport.informationSharingTendencies}
                   </p>
                 </div>
+
+                {/* PII Examples */}
+                {data.fbiReport.piiExamples && data.fbiReport.piiExamples.length > 0 && (
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3 flex items-center">
+                      <Lock className="h-5 w-5 mr-2 text-orange-400" />
+                      PII Examples
+                    </h3>
+                    <div className="space-y-2">
+                      {data.fbiReport.piiExamples.map((pii: any, index: number) => (
+                        <div key={index} className="bg-orange-900/30 border border-orange-700 p-3 rounded">
+                          <div className="flex items-center mb-1">
+                            <AlertTriangle className="h-4 w-4 mr-2 text-orange-400" />
+                            <span className="text-orange-200 font-semibold">{pii.category}</span>
+                          </div>
+                          <p className="text-orange-100 text-sm">{pii.context}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="text-xl font-semibold mb-3 flex items-center">
@@ -641,6 +698,228 @@ const PremiumReportContent: React.FC<{ data: any }> = ({ data }) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Top 5 Most Interesting Conversations */}
+      {data.topInterestingConversations && (
+        <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200">
+          <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+            <CardTitle className="flex items-center text-xl">
+              <Trophy className="h-6 w-6 mr-2" />
+              Top 5 Most Interesting Conversations
+            </CardTitle>
+            <CardDescription className="text-purple-100">
+              Your most unique and thought-provoking interactions
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="space-y-6">
+              {data.topInterestingConversations.map((conversation: any, index: number) => (
+                <div key={index} className="flex items-start space-x-4 p-6 bg-white/70 rounded-lg border border-purple-200">
+                  <div className="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-purple-900 text-lg mb-2">
+                      {conversation.title || 'Untitled Conversation'}
+                    </h4>
+                    <p className="text-purple-700 leading-relaxed">
+                      {conversation.justification}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reality TV Persona */}
+      {data.realityTVPersona && (
+        <Card className="bg-gradient-to-br from-pink-50 to-rose-50 border-pink-200 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-pink-600 to-rose-600 text-white">
+            <CardTitle className="flex items-center text-xl">
+              <Tv className="h-6 w-6 mr-2" />
+              {data.realityTVPersona.reportTitle}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="text-center mb-6">
+              <h3 className="text-3xl font-bold text-pink-900 mb-4">
+                "{data.realityTVPersona.personaArchetype}"
+              </h3>
+              <p className="text-pink-800 text-lg leading-relaxed bg-white/70 p-6 rounded-lg border border-pink-200">
+                {data.realityTVPersona.description}
+              </p>
+            </div>
+            
+            {data.realityTVPersona.popCultureComparisons && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-pink-800 mb-3 text-center">Also seen as...</h4>
+                <div className="flex flex-wrap justify-center gap-3">
+                  {data.realityTVPersona.popCultureComparisons.map((comparison: string, index: number) => (
+                    <Badge key={index} variant="outline" className="bg-pink-100 border-pink-300 text-pink-800 px-4 py-2">
+                      <Star className="h-3 w-3 mr-1" />
+                      {comparison}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="text-center">
+              <p className="text-sm text-pink-600 italic bg-pink-100/50 p-3 rounded-lg">
+                {data.realityTVPersona.disclaimer}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* PII Safety Compass */}
+      {data.piiSafetyCompass && (
+        <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200">
+          <CardHeader className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+            <CardTitle className="flex items-center text-xl">
+              <Compass className="h-6 w-6 mr-2" />
+              {data.piiSafetyCompass.reportTitle}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="text-center mb-8">
+              <div className="relative w-32 h-32 mx-auto mb-4">
+                <div className={`w-32 h-32 rounded-full border-8 flex items-center justify-center ${
+                  data.piiSafetyCompass.awarenessScore === 'Low Risk' 
+                    ? 'border-green-500 bg-green-100' 
+                    : data.piiSafetyCompass.awarenessScore === 'Medium Risk'
+                    ? 'border-yellow-500 bg-yellow-100'
+                    : 'border-red-500 bg-red-100'
+                }`}>
+                  <div className="text-center">
+                    <Gauge className={`h-8 w-8 mx-auto mb-1 ${
+                      data.piiSafetyCompass.awarenessScore === 'Low Risk' 
+                        ? 'text-green-600' 
+                        : data.piiSafetyCompass.awarenessScore === 'Medium Risk'
+                        ? 'text-yellow-600'
+                        : 'text-red-600'
+                    }`} />
+                    <p className={`font-bold text-sm ${
+                      data.piiSafetyCompass.awarenessScore === 'Low Risk' 
+                        ? 'text-green-800' 
+                        : data.piiSafetyCompass.awarenessScore === 'Medium Risk'
+                        ? 'text-yellow-800'
+                        : 'text-red-800'
+                    }`}>
+                      {data.piiSafetyCompass.awarenessScore}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-emerald-800 text-lg leading-relaxed bg-white/70 p-4 rounded-lg border border-emerald-200">
+                {data.piiSafetyCompass.summary}
+              </p>
+            </div>
+
+            {data.piiSafetyCompass.detailedBreakdown && (
+              <div className="space-y-4">
+                <h4 className="font-semibold text-emerald-800 text-center mb-4">Actionable Privacy Tips</h4>
+                {data.piiSafetyCompass.detailedBreakdown.map((item: any, index: number) => (
+                  <div key={index} className="flex items-start space-x-3 p-4 bg-white/70 rounded-lg border border-emerald-200">
+                    <div className="flex-shrink-0">
+                      {item.category.includes('Email') && <Mail className="h-5 w-5 text-emerald-600" />}
+                      {item.category.includes('Phone') && <Phone className="h-5 w-5 text-emerald-600" />}
+                      {item.category.includes('Location') && <MapPin className="h-5 w-5 text-emerald-600" />}
+                      {item.category.includes('Financial') && <CreditCard className="h-5 w-5 text-emerald-600" />}
+                      {item.category.includes('Name') && <User className="h-5 w-5 text-emerald-600" />}
+                      {!item.category.includes('Email') && !item.category.includes('Phone') && !item.category.includes('Location') && !item.category.includes('Financial') && !item.category.includes('Name') && <Shield className="h-5 w-5 text-emerald-600" />}
+                    </div>
+                    <div>
+                      <h5 className="font-semibold text-emerald-800 mb-1">{item.category}</h5>
+                      <p className="text-emerald-700">{item.advice}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-emerald-600 italic bg-emerald-100/50 p-3 rounded-lg">
+                {data.piiSafetyCompass.disclaimer}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* The Unfiltered Mirror */}
+      {data.unfilteredMirror && (
+        <div className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-lg overflow-hidden min-h-[400px] flex items-center justify-center">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 to-blue-900/20"></div>
+          <div className="relative z-10 text-center px-8 py-12">
+            <Mirror className="h-16 w-16 text-white/80 mx-auto mb-8" />
+            <h2 className="text-2xl font-bold text-white/90 mb-8 tracking-wide">
+              {data.unfilteredMirror.reportTitle}
+            </h2>
+            <blockquote className="text-2xl md:text-3xl lg:text-4xl font-serif text-white leading-relaxed max-w-4xl mx-auto mb-8">
+              "{data.unfilteredMirror.observation}"
+            </blockquote>
+            <p className="text-white/60 text-sm italic max-w-2xl mx-auto">
+              {data.unfilteredMirror.disclaimer}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Digital Doppelgänger */}
+      {data.digitalDoppelganger && (
+        <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+          <CardHeader className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white">
+            <CardTitle className="flex items-center text-xl">
+              <User className="h-6 w-6 mr-2" />
+              {data.digitalDoppelganger.reportTitle}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="max-w-md mx-auto bg-white rounded-lg border border-blue-200 p-6 shadow-lg">
+              {/* Profile Picture Placeholder */}
+              <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full mx-auto mb-4 flex items-center justify-center">
+                <Camera className="h-8 w-8 text-white" />
+              </div>
+              
+              {/* Handle */}
+              <div className="text-center mb-4">
+                <h3 className="text-xl font-bold text-blue-900 flex items-center justify-center">
+                  <AtSign className="h-5 w-5 mr-1" />
+                  {data.digitalDoppelganger.handle?.replace('@', '') || 'username'}
+                </h3>
+              </div>
+
+              {/* Bio */}
+              <div className="mb-6">
+                <p className="text-blue-800 leading-relaxed text-center">
+                  {data.digitalDoppelganger.bio}
+                </p>
+              </div>
+
+              {/* Hashtags */}
+              {data.digitalDoppelganger.topHashtags && (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {data.digitalDoppelganger.topHashtags.map((hashtag: string, index: number) => (
+                    <Badge key={index} className="bg-blue-500 hover:bg-blue-600 text-white cursor-pointer">
+                      #{hashtag.replace('#', '')}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-blue-600 italic bg-blue-100/50 p-3 rounded-lg">
+                {data.digitalDoppelganger.disclaimer}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

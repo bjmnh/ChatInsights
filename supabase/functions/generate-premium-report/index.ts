@@ -284,6 +284,13 @@ async function processConversationWithFastLlm(conv: RawConversation): Promise<Pe
     try {
         const prompt = getStage1Prompt(userText);
         const result = await callLlmForJson<any>(prompt, "fast");
+        
+        // Add defensive check for result validity
+        if (!result || typeof result !== 'object') {
+            console.error(`Invalid result from LLM for conversation ${conv.id || 'N/A'}: result is not a valid object`);
+            return null;
+        }
+        
         return {
             conversationId: conv.id || `id-${Math.random()}`,
             title: conv.title,

@@ -59,9 +59,15 @@ interface AdvancedAnalysisResult {
 // --- SECTION 2: UTILITIES ---
 function extractUserConversationText(conversation: RawConversation): string {
   if (!conversation.mapping) return "";
-  const messages = Object.values(conversation.mapping).filter(m => m.message?.author.role === 'user');
+  const messages = Object.values(conversation.mapping)
+    .filter(m => m.message?.author?.role === 'user' && m.message?.content?.parts);
+  
   messages.sort((a, b) => (a.message?.create_time || 0) - (b.message?.create_time || 0));
-  return messages.map(m => m.message!.content.parts.join(" ")).join("\n\n---\n\n");
+  
+  return messages
+    .map(m => m.message?.content?.parts?.join(" ") || "")
+    .filter(Boolean)
+    .join("\n\n---\n\n");
 }
 
 
@@ -123,15 +129,18 @@ Instructions:
 
 Output JSON only:`;
 }
-function getFbiProfilePrompt(topics: string[], patterns: string[], piiData: ExtractedPii[]): string {
-  const piiSamplesString = piiData.length > 0
-    ? piiData.map(p => `- Category: ${p.category}, PII: "${p.pii}", Context: "${p.context}"`).join('\n')
+function getFbiProfilePrompt(topics: string[] = [], patterns: string[] = [], piiData: ExtractedPii[] = []): string {
+  const piiSamplesString = piiData && piiData.length > 0
+    ? piiData
+        .filter(p => p && p.category && p.pii && p.context) // Filter out any invalid PII entries
+        .map(p => `- Category: ${p.category}, PII: "${p.pii}", Context: "${p.context}"`)
+        .join('\n')
     : "No specific PII was extracted.";
 
   return `You are an FBI intelligence analyst compiling a behavioral report. Synthesize the provided data into a concise, objective profile in JSON format.
 Data:
-- Top Discussed Topics: ${topics.join(', ')}
-- Common Communication Patterns: ${patterns.join(', ')}
+- Top Discussed Topics: ${(topics || []).join(', ')}
+- Common Communication Patterns: ${(patterns || []).join(', ')}
 - Extracted PII Samples:
 ${piiSamplesString}
 
@@ -153,10 +162,10 @@ Instructions:
 - For 'piiExamples', select the 3 most significant or high-risk examples from the provided samples and list them. If fewer than 3 exist, list what is available. If none, return an empty array [].
 Output JSON only:`;
 }
-function getLinguisticFingerprintPrompt(vocab: string[], avgSentenceLength: number, vocabSize: number): string {
+function getLinguisticFingerprintPrompt(vocab: string[] = [], avgSentenceLength: number = 0, vocabSize: number = 0): string {
     return `You are an AI linguistic analyst. Create a "Linguistic Fingerprint" report in JSON format.
 Data:
-- Vocab Sample: ${vocab.slice(0, 30).join(', ')}
+- Vocab Sample: ${(vocab || []).slice(0, 30).join(', ')}
 - Avg Sentence Length: ${avgSentenceLength.toFixed(1)} words
 - Vocab Size Estimate: ${vocabSize} unique words
 JSON Output Format:
@@ -176,8 +185,10 @@ Instructions:
 - Populate all fields based on the data provided.
 Output JSON only:`;
 }
-function getTop5JustificationPrompt(conversations: {title?: string, topics: string[]}[]): string {
-    const convoStrings = conversations.map((c, i) => `Conversation ${i+1} (Title: "${c.title || 'Untitled'}"): Topics - ${c.topics.join(', ')}`).join('\n');
+function getTop5JustificationPrompt(conversations: PerConversationInsights[]): string {
+    const convoStrings = (conversations || []).map((c, i) => 
+        `Conversation ${i+1} (Title: "${c.title || 'Untitled'}"): Topics - ${(c.primaryTopics || []).join(', ')}`
+    ).join('\n');
     return `Below are the topics from 5 conversations identified as highly unique. For each, provide a brief, one-sentence justification explaining WHY it's interesting or revealing.
 ${convoStrings}
 JSON Output Format:
@@ -234,10 +245,10 @@ Instructions:
 - For example, if topics include 'startups' and 'programming' and pattern is 'ProblemSolving', a good codename could be 'The Architect' because they are building things.
 Output JSON only:`;
 }
-function getDoppelgangerPrompt(topics: string[], vocab: string[]): string {
+function getDoppelgangerPrompt(topics: string[] = [], vocab: string[] = []): string {
     return `Analyze the user's interests and vocabulary to create a fictional, concise "Digital Doppelgänger" online profile.
-- Dominant Topics: ${topics.join(', ')}
-- Vocabulary Sample: ${vocab.join(', ')}
+- Dominant Topics: ${(topics || []).join(', ')}
+- Vocabulary Sample: ${(vocab || []).join(', ')}
 JSON Output Format:
 {
   "reportTitle": "Your Digital Doppelgänger",

@@ -4,13 +4,23 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "npm:@google/generative-ai";
 
 // --- SECTION 1: TYPES ---
+// All types for this function are defined here.
+
+// Basic analysis types (for supplemental data)
 interface BasicAnalysisResult { averageWordsPerUserSentence: number; userVocabularySizeEstimate: number; }
+// Raw data parsing types
 interface RawConversation { id?: string; title?: string; create_time?: number; mapping?: { [id: string]: RawMessageContainer }; }
 interface RawMessageContainer { message?: RawMessage; }
 interface RawMessage { author: { role: 'user' | 'assistant' }; content: { parts: string[] }; create_time?: number; }
 
-interface ExtractedPii { pii: string; context: string; category: string; }
+// Type for storing extracted PII details
+interface ExtractedPii {
+  pii: string;       // The actual extracted information (e.g., "john.doe@email.com")
+  context: string;   // The context in which it was shared (e.g., "User provided email for a newsletter signup.")
+  category: string;  // The category of PII (e.g., "ContactInfo_Email")
+}
 
+// Stage 1: Per-conversation insights from fast LLM
 interface PerConversationInsights {
   conversationId: string;
   title?: string;
@@ -23,7 +33,7 @@ interface PerConversationInsights {
 }
 
 // --- REPORT TYPES ---
-// NEW FEATURE: Added subjectCodename to FBI report
+// FBI report now includes a subject codename
 interface FBIReportData { reportTitle: string; subjectCodename: { name: string; justification: string; }; subjectProfileSummary: string; dominantInterests: string[]; communicationModalities: string[]; emotionalToneAndEngagement: string; informationSharingTendencies: string; piiExamples: ExtractedPii[]; overallInteractionStyle: string; disclaimer: string; }
 interface LinguisticFingerprintData { reportTitle: string; overallStyleDescription: string; vocabularyProfile: { qualitativeAssessment: string; notableWords: string[]; }; sentenceStructure: string; expressiveness: string; potentialInterestsIndicatedByLanguage: string[]; disclaimer: string; }
 interface TopConversation { conversationId: string; title?: string; justification: string; }
@@ -33,6 +43,7 @@ interface PIISafetyCompassData { reportTitle: string; awarenessScore: "Low Risk"
 // NEW REPORT: The Digital Doppelgänger
 interface DigitalDoppelgangerData { reportTitle: string; handle: string; bio: string; topHashtags: string[]; disclaimer: string; }
 
+// Container for all premium reports
 interface AdvancedAnalysisResult {
     fbiReport?: FBIReportData;
     linguisticFingerprint?: LinguisticFingerprintData;
@@ -40,8 +51,7 @@ interface AdvancedAnalysisResult {
     realityTVPersona?: RealityTVPersonaData;
     unfilteredMirror?: UnfilteredMirrorData;
     piiSafetyCompass?: PIISafetyCompassData;
-    // NEW REPORT
-    digitalDoppelganger?: DigitalDoppelgangerData;
+    digitalDoppelganger?: DigitalDoppelgangerData; // New report
     processingErrors?: string[];
 }
 
@@ -118,7 +128,7 @@ function getFbiProfilePrompt(topics: string[], patterns: string[], piiData: Extr
     ? piiData.map(p => `- Category: ${p.category}, PII: "${p.pii}", Context: "${p.context}"`).join('\n')
     : "No specific PII was extracted.";
 
-  return `You are an AI intelligence analyst compiling a behavioral report. Synthesize the provided data into a concise, objective profile in JSON format.
+  return `You are an FBI intelligence analyst compiling a behavioral report. Synthesize the provided data into a concise, objective profile in JSON format.
 Data:
 - Top Discussed Topics: ${topics.join(', ')}
 - Common Communication Patterns: ${patterns.join(', ')}
@@ -127,7 +137,7 @@ ${piiSamplesString}
 
 JSON Output Format:
 {
-  "reportTitle": "Digital Behavioral Analysis",
+  "reportTitle": "Digital Behavioral Analysis Dossier",
   "subjectProfileSummary": "string (A 2-3 sentence overarching summary of the user's digital persona)",
   "dominantInterests": ["string", "string"],
   "communicationModalities": ["string", "string"],
@@ -143,11 +153,75 @@ Instructions:
 - For 'piiExamples', select the 3 most significant or high-risk examples from the provided samples and list them. If fewer than 3 exist, list what is available. If none, return an empty array [].
 Output JSON only:`;
 }
-function getLinguisticFingerprintPrompt(vocab: string[], avgSentenceLength: number, vocabSize: number): string { return `...`; }
-function getTop5JustificationPrompt(conversations: {title?: string, topics: string[]}[]): string { return `...`; }
-function getRealityTvPersonaPrompt(topics: string[], patterns: string[]): string { return `...`; }
-function getUnfilteredMirrorPrompt(observation: string): string { return `...`; }
-function getPiiSafetyCompassPrompt(piiFrequencies: { category: string, count: number }[]): string { return `...`; }
+function getLinguisticFingerprintPrompt(vocab: string[], avgSentenceLength: number, vocabSize: number): string {
+    return `You are an AI linguistic analyst. Create a "Linguistic Fingerprint" report in JSON format.
+Data:
+- Vocab Sample: ${vocab.slice(0, 30).join(', ')}
+- Avg Sentence Length: ${avgSentenceLength.toFixed(1)} words
+- Vocab Size Estimate: ${vocabSize} unique words
+JSON Output Format:
+{
+  "reportTitle": "User Linguistic Fingerprint",
+  "overallStyleDescription": "string (e.g., 'The user's linguistic style is predominantly analytical...')",
+  "vocabularyProfile": {
+    "qualitativeAssessment": "string (e.g., 'Exhibits a rich and nuanced vocabulary')",
+    "notableWords": ["string"]
+  },
+  "sentenceStructure": "string (e.g., 'Often uses complex sentence structures')",
+  "expressiveness": "string (e.g., 'Language is generally formal')",
+  "potentialInterestsIndicatedByLanguage": ["string"],
+  "disclaimer": "This linguistic analysis is an AI-generated interpretation and not a formal psychometric assessment of verbal intelligence."
+}
+Instructions:
+- Populate all fields based on the data provided.
+Output JSON only:`;
+}
+function getTop5JustificationPrompt(conversations: {title?: string, topics: string[]}[]): string {
+    const convoStrings = conversations.map((c, i) => `Conversation ${i+1} (Title: "${c.title || 'Untitled'}"): Topics - ${c.topics.join(', ')}`).join('\n');
+    return `Below are the topics from 5 conversations identified as highly unique. For each, provide a brief, one-sentence justification explaining WHY it's interesting or revealing.
+${convoStrings}
+JSON Output Format:
+{ "justifications": ["string for convo 1", "string for convo 2", "string for convo 3", "string for convo 4", "string for convo 5"] }
+Output JSON only:`;
+}
+function getRealityTvPersonaPrompt(topics: string[], patterns: string[]): string {
+    return `Analyze the user's interaction data to determine their reality TV show persona archetype.
+Data:
+- Top Topics: ${topics.join(', ')}
+- Common Patterns: ${patterns.join(', ')}
+JSON Output Format:
+{ "reportTitle": "Your Reality TV Persona", "personaArchetype": "string (e.g., 'The Strategist', 'The Confidant', 'The Innovator')", "description": "string (Explain the persona)", "popCultureComparisons": ["string (Suggest 1-2 characters or archetypes from pop culture)"], "disclaimer": "string" }
+Instructions:
+- Be creative and fun, but base the persona on the data provided.
+- The disclaimer should state this is for entertainment purposes only.
+Output JSON only:`;
+}
+function getUnfilteredMirrorPrompt(observation: string): string {
+    return `Take the following observation about a user and rephrase it into a single, intriguing, and slightly "scary accurate" sentence for a report titled "The Unfiltered Mirror".
+Original Observation: "${observation}"
+JSON Output Format:
+{ "reportTitle": "The Unfiltered Mirror", "observation": "string (Your rephrased, intriguing sentence)", "disclaimer": "This is an AI-generated inference based on patterns in your conversations, intended for self-reflection." }
+Output JSON only:`;
+}
+function getPiiSafetyCompassPrompt(piiFrequencies: { category: string, count: number }[]): string {
+    const summary = piiFrequencies.map(p => `${p.category}: ${p.count} mentions`).join(', ');
+    return `Analyze the user's PII category disclosure frequency to create a "PII Safety Compass" report.
+Data:
+- PII Category Frequencies: ${summary || 'No significant PII categories mentioned.'}
+JSON Output Format:
+{
+  "reportTitle": "Your PII Safety Compass",
+  "awarenessScore": "'Low Risk' | 'Medium Risk' | 'High Risk'",
+  "summary": "string (A brief summary of their sharing habits)",
+  "detailedBreakdown": [{ "category": "string", "advice": "string" }],
+  "disclaimer": "This report analyzes PII *categories*, not your actual data. This advice is general and not a substitute for professional security guidance."
+}
+Instructions:
+- Based on the counts and types of categories, determine a risk score. High frequency of Financial/Health data is higher risk.
+- Write a summary.
+- For the top 2-3 most frequent categories, provide a piece of actionable, generic advice in the detailedBreakdown. If no data, provide general advice.
+Output JSON only:`;
+}
 function getCodenamePrompt(topics: string[], patterns: string[]): string {
     return `Based on the user's primary interests and communication style, create a cool, evocative "Subject Codename" for a spy dossier.
 - Primary Interests: ${topics.join(', ')}
@@ -178,9 +252,53 @@ Instructions:
 Output JSON only:`;
 }
 
+
 // --- SECTION 5: ANALYSIS PIPELINE FUNCTIONS ---
-function performSupplementalBasicAnalysis(conversations: RawConversation[]): BasicAnalysisResult { /* ... same as before ... */ }
-async function processConversationWithFastLlm(conv: RawConversation): Promise<PerConversationInsights | null> { /* ... same as before ... */ }
+function performSupplementalBasicAnalysis(conversations: RawConversation[]): BasicAnalysisResult {
+    let totalUserSentences = 0, totalUserWordsInSentences = 0;
+    const userWordFrequency: { [key: string]: number } = {};
+    const commonStopWords = new Set(['i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'what', 'which', 'who', 'this', 'that', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'of', 'at', 'by', 'for', 'with', 'about', 'to', 'from', 'in', 'out', 'on', 'so', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'chatgpt']);
+    const getWords = (text: string) => text ? text.toLowerCase().replace(/[^\w\s'-]/g, ' ').split(/\s+/).filter(w => w.length > 2 && !commonStopWords.has(w) && !/^\d+$/.test(w)) : [];
+    const getSentences = (text: string) => text ? text.split(/(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s+/).filter(s => s.trim().length > 0) : [];
+    conversations.forEach(conv => {
+        if (!conv.mapping) return;
+        Object.values(conv.mapping).forEach(mc => {
+            const msg = mc.message;
+            if (msg?.author.role === 'user' && msg.content.parts) {
+                const text = msg.content.parts.join(" ");
+                getWords(text).forEach(w => userWordFrequency[w] = 1);
+                const sentences = getSentences(text);
+                totalUserSentences += sentences.length;
+                sentences.forEach(s => totalUserWordsInSentences += getWords(s).length);
+            }
+        });
+    });
+    return {
+        averageWordsPerUserSentence: totalUserSentences > 0 ? parseFloat((totalUserWordsInSentences / totalUserSentences).toFixed(1)) : 0,
+        userVocabularySizeEstimate: Object.keys(userWordFrequency).length,
+    };
+}
+async function processConversationWithFastLlm(conv: RawConversation): Promise<PerConversationInsights | null> {
+    const userText = extractUserConversationText(conv);
+    if (!userText.trim()) return null;
+    try {
+        const prompt = getStage1Prompt(userText);
+        const result = await callLlmForJson<any>(prompt, "fast");
+        return {
+            conversationId: conv.id || `id-${Math.random()}`,
+            title: conv.title,
+            primaryTopics: result.primaryTopics || [],
+            communicationPatterns: result.communicationPatterns || [],
+            extractedPii: result.extractedPii || [],
+            standoutVocabulary: result.standoutVocabulary || [],
+            uniquenessScore: parseInt(String(result.uniquenessScore), 10) || 1,
+            intriguingObservation: result.intriguingObservation || ""
+        };
+    } catch (error) {
+        console.error(`Error processing conversation ${conv.id || 'N/A'} with fast LLM:`, error.message);
+        return null;
+    }
+}
 async function generateAllPremiumInsights(conversations: RawConversation[]): Promise<AdvancedAnalysisResult> {
     const basicInsights = performSupplementalBasicAnalysis(conversations);
     const stage1Results = (await Promise.all(conversations.map(conv => processConversationWithFastLlm(conv)))).filter(r => r !== null) as PerConversationInsights[];
@@ -200,7 +318,6 @@ async function generateAllPremiumInsights(conversations: RawConversation[]): Pro
     const piiCategoryList = allExtractedPii.map(p => p.category);
     const piiFrequencies = Object.entries(countFrequency(piiCategoryList)).map(([category, count]) => ({ category, count })).sort((a,b) => b.count-a.count);
     
-    // --- Generate All Reports in Parallel ---
     const reportPromises = [];
     
     // 1. FBI Report & Codename Generation
@@ -292,25 +409,11 @@ serve(async (req) => {
     const { fileId } = await req.json();
     if (!fileId) throw new Error('File ID required');
     
-    // COST OPTIMIZATION: Implement caching logic
-    const { data: existingReport, error: existingReportError } = await supabase
-        .from('reports')
-        .select('report_data')
-        .eq('file_id', fileId)
-        .eq('report_type', 'premium')
-        .single();
-    
-    if (existingReport && !existingReportError) {
-        console.log(`Returning cached report for fileId: ${fileId}`);
-        return new Response(JSON.stringify({ success: true, report: existingReport.report_data, fromCache: true }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-    }
+    // NOTE: Caching logic has been removed as per the request.
 
     const { data: fileData, error: fileError } = await supabase.from('uploaded_files').select('file_path').eq('id', fileId).eq('user_id', user.id).single();
     if (fileError || !fileData) throw new Error('File not found or access denied');
     
-    // Complete the file download and parsing logic
     const { data: fileBlob, error: downloadError } = await supabase.storage.from('conversation-files').download(fileData.file_path);
     if (downloadError) throw new Error(`Failed to download file: ${downloadError.message}`);
     
@@ -318,7 +421,6 @@ serve(async (req) => {
     try {
         let rawParsed: any = JSON.parse(await fileBlob.text());
         if (!Array.isArray(rawParsed)) {
-            // Check for common conversational export formats where the array is nested.
             const potentialArray = Object.values(rawParsed).find(Array.isArray);
             if (potentialArray && potentialArray.length > 0) { 
                 rawParsed = potentialArray; 
@@ -332,10 +434,9 @@ serve(async (req) => {
         throw new Error(`JSON Parsing Error: ${e.message}`); 
     }
 
-    // --- Generate REAL premium report ---
     const premiumReportData = await generateAllPremiumInsights(conversations);
 
-    // Save report to database for caching
+    // Save report to database (for historical record, not for caching).
     const { error: reportError } = await supabase.from('reports').insert({ 
         user_id: user.id, 
         file_id: fileId, 
@@ -343,15 +444,13 @@ serve(async (req) => {
         report_data: premiumReportData 
     });
     if (reportError) {
-        // Log the error but don't fail the request if the report was generated successfully
         console.error(`Failed to save report, but proceeding: ${reportError.message}`);
     }
 
-    // Update file flag
     await supabase.from('uploaded_files').update({ has_premium_report: true }).eq('id', fileId);
 
-    // Return the fresh report to the user
-    return new Response(JSON.stringify({ success: true, report: premiumReportData, fromCache: false }), { 
+    // Return the newly generated report.
+    return new Response(JSON.stringify({ success: true, report: premiumReportData }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }, 
     });
   } catch (error) {

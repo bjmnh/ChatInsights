@@ -9,7 +9,6 @@ import {
   Upload, 
   BarChart3, 
   Shield, 
-  Zap, 
   Users, 
   MessageSquare, 
   TrendingUp,
@@ -17,12 +16,8 @@ import {
   ArrowRight,
   Star,
   Database,
-  Code,
-  Network,
-  Lock,
   Eye,
   Search,
-  Layers,
   Target
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -129,23 +124,7 @@ const HomePage: React.FC = () => {
                 View Sample Report
               </Button>
             </div>
-            
-            {/* Privacy Assurance */}
-            <div className="mt-8 p-4 bg-muted/30 rounded-lg border border-muted max-w-md mx-auto">
-              <div className="flex items-center justify-center text-sm text-muted-foreground">
-                <Lock className="h-4 w-4 mr-2" />
-                Your raw data is automatically deleted after analysis
-              </div>
-            </div>
           </motion.div>
-        </div>
-        
-        {/* Floating Elements */}
-        <div className="absolute top-20 left-10 opacity-20">
-          <BarChart3 className="h-16 w-16 text-primary animate-pulse" />
-        </div>
-        <div className="absolute bottom-20 right-10 opacity-20">
-          <Network className="h-12 w-12 text-primary animate-bounce" />
         </div>
       </section>
 
@@ -237,60 +216,6 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* Premium Preview Section */}
-      <section className="py-20 bg-gradient-to-r from-primary/5 to-primary/10">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center max-w-4xl mx-auto"
-          >
-            <Badge variant="secondary" className="mb-6">
-              <Layers className="h-3 w-3 mr-1" />
-              Advanced Analytics
-            </Badge>
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Deeper Insights Await
-            </h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Premium analysis reveals the hidden patterns in your data—cognitive styles, 
-              learning progressions, and behavioral insights that standard analytics miss.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left mb-8">
-              <div className="p-6 bg-background/50 rounded-lg border border-primary/20">
-                <Target className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-semibold mb-2">Cognitive Pattern Analysis</h4>
-                <p className="text-sm text-muted-foreground">
-                  Advanced algorithms identify your unique problem-solving approaches and thinking patterns
-                </p>
-              </div>
-              <div className="p-6 bg-background/50 rounded-lg border border-primary/20">
-                <TrendingUp className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-semibold mb-2">Learning Progression Mapping</h4>
-                <p className="text-sm text-muted-foreground">
-                  Track skill development and knowledge acquisition patterns over time
-                </p>
-              </div>
-              <div className="p-6 bg-background/50 rounded-lg border border-primary/20">
-                <Network className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-semibold mb-2">Cross-Conversation Insights</h4>
-                <p className="text-sm text-muted-foreground">
-                  Discover connections and themes that span across your entire conversation history
-                </p>
-              </div>
-            </div>
-            
-            <Button size="lg" onClick={() => navigate('/pricing')} className="text-lg px-8 py-6">
-              Explore Advanced Analytics
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Testimonials Section */}
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-4">
@@ -344,51 +269,6 @@ const HomePage: React.FC = () => {
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Privacy Section */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
-            className="text-center max-w-4xl mx-auto"
-          >
-            <Shield className="h-16 w-16 text-primary mx-auto mb-6" />
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Privacy-First Analytics
-            </h2>
-            <p className="text-xl text-muted-foreground mb-8">
-              Your conversation data is processed securely and automatically deleted after analysis. 
-              We retain only the insights—never your raw conversations.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-              <div className="p-6 bg-muted/50 rounded-lg border border-muted">
-                <Lock className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-semibold mb-2">Automatic Data Deletion</h4>
-                <p className="text-sm text-muted-foreground">
-                  Raw conversation files are permanently deleted within hours of processing
-                </p>
-              </div>
-              <div className="p-6 bg-muted/50 rounded-lg border border-muted">
-                <Shield className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-semibold mb-2">Encrypted Processing</h4>
-                <p className="text-sm text-muted-foreground">
-                  All data is encrypted in transit and at rest during analysis
-                </p>
-              </div>
-              <div className="p-6 bg-muted/50 rounded-lg border border-muted">
-                <Eye className="h-8 w-8 text-primary mb-3" />
-                <h4 className="font-semibold mb-2">No Data Sharing</h4>
-                <p className="text-sm text-muted-foreground">
-                  Your data is never shared, sold, or used for training other models
-                </p>
-              </div>
-            </div>
-          </motion.div>
         </div>
       </section>
 

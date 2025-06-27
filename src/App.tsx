@@ -8,10 +8,8 @@ import Footer from './components/layout/Footer';
 import HomePage from './pages/HomePage';
 import DashboardPage from './pages/DashboardPage';
 import ReportPage from './pages/ReportPage';
-import PricingPage from './pages/PricingPage';
 import AuthPage from './pages/AuthPage';
 import EmailConfirmationPage from './pages/EmailConfirmationPage';
-import SuccessPage from './pages/SuccessPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import './App.css';
@@ -28,10 +26,8 @@ function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/report/:fileId/:reportType" element={<ReportPage />} />
-                <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/auth/confirm" element={<EmailConfirmationPage />} />
-                <Route path="/success" element={<SuccessPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/terms" element={<TermsPage />} />
               </Routes>

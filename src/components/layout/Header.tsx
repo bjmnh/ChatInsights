@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
@@ -11,37 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Brain, User, Settings, LogOut, Crown } from 'lucide-react';
-import { Badge } from '../ui/badge';
-import { StripeService } from '../../services/stripeService';
+import { Brain, User, Settings, LogOut } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (user) {
-      fetchUserData();
-    }
-  }, [user]);
-
-  const fetchUserData = async () => {
-    try {
-      const ordersData = await StripeService.getUserOrders();
-      setOrders(ordersData);
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-    }
-  };
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
-
-  // Check if user has premium access
-  const isPremiumUser = StripeService.isPremiumUser(orders);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -62,9 +41,6 @@ const Header: React.FC = () => {
               Dashboard
             </Link>
           )}
-          <Link to="/pricing" className="text-sm font-medium hover:text-primary transition-colors">
-            Pricing
-          </Link>
         </nav>
 
         <div className="flex items-center space-x-4">
@@ -78,9 +54,6 @@ const Header: React.FC = () => {
                       {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  {isPremiumUser && (
-                    <Crown className="absolute -top-1 -right-1 h-4 w-4 text-yellow-500" />
-                  )}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
@@ -88,12 +61,6 @@ const Header: React.FC = () => {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{user.user_metadata?.name || 'User'}</p>
                     <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    {isPremiumUser && (
-                      <Badge variant="secondary" className="w-fit">
-                        <Crown className="h-3 w-3 mr-1" />
-                        Premium
-                      </Badge>
-                    )}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

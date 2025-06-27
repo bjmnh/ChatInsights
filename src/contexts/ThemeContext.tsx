@@ -1,11 +1,8 @@
-import React, { createContext, useContext } from 'react';
-import { ThemeProvider as NextThemeProvider } from 'next-themes';
+import React from 'react';
+import { ThemeProvider as NextThemeProvider, useTheme as useNextTheme } from 'next-themes';
 
-const ThemeContext = createContext({});
-
-export const useTheme = () => {
-  return useContext(ThemeContext);
-};
+// Re-export the useTheme hook from next-themes
+export const useTheme = useNextTheme;
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (

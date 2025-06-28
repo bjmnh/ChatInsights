@@ -77,45 +77,7 @@ jspm_packages/
 # UI Components (shadcn/ui) - these are standard components that don't need to be shown
 src/components/ui/
 
-# Generated types and configs that rarely change
+# Additional large files that don't need to be shown
 src/lib/database.types.ts
-tailwind.config.js
-tsconfig.*.json
-vite.config.ts
-postcss.config.js
-components.json
-eslint.config.js
-
-# Static assets and build files
-public/
-*.svg
-*.ico
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-
-# Documentation files
-README.md
-CHANGELOG.md
-LICENSE
-*.md
-
-# Test files
-**/*.test.ts
-**/*.test.tsx
-**/*.spec.ts
-**/*.spec.tsx
-__tests__/
-test/
-tests/
-
-# Storybook
-.storybook/
-stories/
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
+supabase/migrations/
+.bolt/supabase_discarded_migrations/

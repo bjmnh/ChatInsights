@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { useAuth } from '@clerk/clerk-react';
 
 export interface UploadedFile {
   id: string;
@@ -128,16 +129,18 @@ export class FileService {
   // Generate basic report
   static async generateBasicReport(fileId: string): Promise<any> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get Clerk token for authentication
+      const { getToken } = useAuth();
+      const token = await getToken({ template: 'supabase' });
       
-      if (!session) {
-        throw new Error('No active session');
+      if (!token) {
+        throw new Error('No authentication token available');
       }
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-basic-report`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ fileId }),
@@ -159,16 +162,18 @@ export class FileService {
   // Generate premium report
   static async generatePremiumReport(fileId: string): Promise<any> {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Get Clerk token for authentication
+      const { getToken } = useAuth();
+      const token = await getToken({ template: 'supabase' });
       
-      if (!session) {
-        throw new Error('No active session');
+      if (!token) {
+        throw new Error('No authentication token available');
       }
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-premium-report`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ fileId }),

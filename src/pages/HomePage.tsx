@@ -255,7 +255,7 @@ const HomePage: React.FC = () => {
               initial={{ opacity: 0, x: -225 }}
               animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -225 }}
               transition={{ duration: 1.2, delay: 0.5 }}
-              className="absolute left-1/1 transform -translate-x-1/8 -translate-x-48 lg:-translate-x-64 flex items-center"
+              className="absolute left-1/8 transform -translate-x-1/8 -translate-x-48 lg:-translate-x-64 flex items-center"
             >
               <div className="text-right mr-6 lg:mr-8">
                 <div className="flex items-center justify-end mb-4">

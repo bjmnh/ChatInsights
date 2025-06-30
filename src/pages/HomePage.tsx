@@ -242,7 +242,7 @@ const HomePage: React.FC = () => {
                 <span className="block text-white">Say About You</span>
               </h1>
               <p className="text-lg lg:text-xl text-gray-300 mb-4 max-w-3xl mx-auto leading-relaxed">
-                Transform your ChatGPT conversation data into profound insights about your personality, 
+                Transform your ChatGPT conversation data into insights about your personality, 
                 communication style, and digital behavior through advanced AI analysis.
               </p>
             </motion.div>

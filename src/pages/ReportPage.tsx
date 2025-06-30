@@ -17,7 +17,13 @@ import {
   Eye,
   Shield,
   Globe,
-  ArrowRight
+  ArrowRight,
+  MessageSquare,
+  Calendar,
+  Hash,
+  TrendingUp,
+  Clock,
+  Target
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { FileService, type Report } from '../services/fileService';
@@ -313,12 +319,67 @@ const PremiumReportOverview: React.FC<{
   );
 };
 
-// Basic Report View (unchanged)
+// Enhanced Basic Report View
 const BasicReportView: React.FC<{ report: any; onBack: () => void }> = ({ report, onBack }) => {
+  const stats = [
+    {
+      icon: MessageSquare,
+      label: 'Total Conversations',
+      value: report.totalConversations,
+      color: 'from-blue-500 to-cyan-500',
+      iconBg: 'bg-blue-500/20',
+      iconColor: 'text-blue-400'
+    },
+    {
+      icon: BarChart3,
+      label: 'Total Messages',
+      value: report.totalMessages,
+      color: 'from-purple-500 to-pink-500',
+      iconBg: 'bg-purple-500/20',
+      iconColor: 'text-purple-400'
+    },
+    {
+      icon: Users,
+      label: 'Your Messages',
+      value: report.userMessagesCount,
+      color: 'from-green-500 to-emerald-500',
+      iconBg: 'bg-green-500/20',
+      iconColor: 'text-green-400'
+    },
+    {
+      icon: FileText,
+      label: 'Avg Message Length',
+      value: `${report.averageUserMessageLength} chars`,
+      color: 'from-orange-500 to-red-500',
+      iconBg: 'bg-orange-500/20',
+      iconColor: 'text-orange-400'
+    },
+    {
+      icon: Hash,
+      label: 'Vocabulary Size',
+      value: `${report.userVocabularySizeEstimate} words`,
+      color: 'from-teal-500 to-blue-500',
+      iconBg: 'bg-teal-500/20',
+      iconColor: 'text-teal-400'
+    },
+    {
+      icon: Calendar,
+      label: 'Conversation Span',
+      value: `${report.conversationDaysSpan || 0} days`,
+      color: 'from-indigo-500 to-purple-500',
+      iconBg: 'bg-indigo-500/20',
+      iconColor: 'text-indigo-400'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950">
       <div className="container mx-auto px-4 py-8">
-        <Button variant="ghost" onClick={onBack} className="mb-6">
+        <Button 
+          variant="ghost" 
+          onClick={onBack} 
+          className="mb-8 text-white hover:text-gray-300"
+        >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard
         </Button>
@@ -326,64 +387,171 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void }> = ({ report
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
+          className="text-center mb-12"
         >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <BarChart3 className="h-6 w-6 mr-2" />
-                Basic Analysis Report
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Conversations</h3>
-                  <p className="text-2xl font-bold text-primary">{report.totalConversations}</p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Total Messages</h3>
-                  <p className="text-2xl font-bold text-primary">{report.totalMessages}</p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Your Messages</h3>
-                  <p className="text-2xl font-bold text-primary">{report.userMessagesCount}</p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Avg Message Length</h3>
-                  <p className="text-2xl font-bold text-primary">{report.averageUserMessageLength} chars</p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Vocabulary Size</h3>
-                  <p className="text-2xl font-bold text-primary">{report.userVocabularySizeEstimate} words</p>
-                </div>
-                <div className="space-y-2">
-                  <h3 className="font-semibold">Conversation Span</h3>
-                  <p className="text-2xl font-bold text-primary">{report.conversationDaysSpan || 0} days</p>
-                </div>
-              </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            Your Conversation Analytics
+          </h1>
+          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+            Essential insights into your communication patterns and conversation data
+          </p>
+          <div className="w-32 h-1 bg-gradient-to-r from-blue-400 to-purple-600 mx-auto mt-6 rounded-full" />
+        </motion.div>
 
-              {report.mostUsedUserWords && report.mostUsedUserWords.length > 0 && (
-                <div className="mt-8">
-                  <h3 className="font-semibold mb-4">Most Used Words</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {report.mostUsedUserWords.slice(0, 10).map((word: any, index: number) => (
-                      <Badge key={index} variant="secondary">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {stats.map((stat, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1, duration: 0.6 }}
+              whileHover={{ scale: 1.02, y: -4 }}
+            >
+              <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 hover:border-slate-600/50 transition-all duration-300 backdrop-blur-sm hover:shadow-xl hover:shadow-white/5">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-xl ${stat.iconBg} flex items-center justify-center`}>
+                      <stat.icon className={`h-6 w-6 ${stat.iconColor}`} />
+                    </div>
+                    <div className={`text-2xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
+                      {stat.value}
+                    </div>
+                  </div>
+                  <h3 className="text-white font-medium text-lg">{stat.label}</h3>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Most Used Words */}
+        {report.mostUsedUserWords && report.mostUsedUserWords.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="mb-12"
+          >
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-white text-2xl flex items-center">
+                  <TrendingUp className="h-6 w-6 mr-3 text-blue-400" />
+                  Most Frequently Used Words
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-3">
+                  {report.mostUsedUserWords.slice(0, 15).map((word: any, index: number) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 1 + index * 0.05 }}
+                      whileHover={{ scale: 1.05 }}
+                    >
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30 hover:border-blue-400/50 transition-colors text-sm py-2 px-4"
+                      >
                         {word.word} ({word.count})
                       </Badge>
-                    ))}
-                  </div>
+                    </motion.div>
+                  ))}
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-              {report.activityByHourOfDay && (
-                <div className="mt-8">
-                  <h3 className="font-semibold mb-4">Activity by Hour</h3>
-                  <div className="text-sm text-muted-foreground">
-                    Most active hour: {report.mostActiveHour || 'N/A'}
+        {/* Activity Insights */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Activity Summary */}
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 1.2 }}
+          >
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 backdrop-blur-sm h-full">
+              <CardHeader>
+                <CardTitle className="text-white text-xl flex items-center">
+                  <Clock className="h-5 w-5 mr-3 text-green-400" />
+                  Activity Patterns
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {report.mostActiveHour && (
+                  <div className="flex items-center justify-between p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <span className="text-gray-300">Most Active Hour</span>
+                    <span className="text-green-400 font-semibold">{report.mostActiveHour}</span>
                   </div>
+                )}
+                {report.mostActiveDay && (
+                  <div className="flex items-center justify-between p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <span className="text-gray-300">Most Active Day</span>
+                    <span className="text-blue-400 font-semibold">{report.mostActiveDay}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between p-4 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                  <span className="text-gray-300">Avg Words per Sentence</span>
+                  <span className="text-purple-400 font-semibold">{report.averageWordsPerUserSentence}</span>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Communication Style */}
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 1.2 }}
+          >
+            <Card className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-slate-700/50 backdrop-blur-sm h-full">
+              <CardHeader>
+                <CardTitle className="text-white text-xl flex items-center">
+                  <Target className="h-5 w-5 mr-3 text-orange-400" />
+                  Communication Style
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                  <span className="text-gray-300">Question Marks Used</span>
+                  <span className="text-orange-400 font-semibold">{report.questionMarksUsedByUser || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+                  <span className="text-gray-300">Exclamation Marks Used</span>
+                  <span className="text-red-400 font-semibold">{report.exclamationMarksUsedByUser || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-4 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                  <span className="text-gray-300">User to AI Ratio</span>
+                  <span className="text-cyan-400 font-semibold">{report.userToAiMessageRatio?.toFixed(2) || 'N/A'}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Upgrade Prompt */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.6 }}
+          className="mt-12 text-center"
+        >
+          <Card className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 backdrop-blur-sm">
+            <CardContent className="p-8">
+              <h3 className="text-2xl font-bold text-white mb-4">Want Deeper Insights?</h3>
+              <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+                Upgrade to premium analysis for psychological profiling, personality insights, 
+                linguistic fingerprinting, and much more detailed behavioral analysis.
+              </p>
+              <Button 
+                size="lg" 
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-8 py-3"
+                onClick={() => navigate('/dashboard')}
+              >
+                Generate Premium Report
+              </Button>
             </CardContent>
           </Card>
         </motion.div>

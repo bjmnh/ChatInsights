@@ -248,7 +248,6 @@ const HomePage: React.FC = () => {
             </motion.div>
           </div>
 
-
 <div className="relative flex items-center justify-center w-full h-[400px] lg:h-[500px]">
   {/* 
     This is the new main container. 

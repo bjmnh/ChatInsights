@@ -248,14 +248,14 @@ const HomePage: React.FC = () => {
             </motion.div>
           </div>
 
-          {/* Enhanced Digital Prism Animation - Improved spacing and layout */}
+          {/* Enhanced Digital Prism Animation - Fixed positioning */}
           <div className="relative flex items-center justify-center mb-6 h-[400px] lg:h-[500px] w-full">
-            {/* Data Input Visualization - Positioned between center and edge */}
+            {/* Data Input Visualization - Fixed positioning relative to center */}
             <motion.div
               initial={{ opacity: 0, x: -225 }}
               animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -225 }}
               transition={{ duration: 1.2, delay: 0.5 }}
-              className="absolute left-1/5 lg:left-1/4 flex items-center"
+              className="absolute left-1/2 transform -translate-x-1/2 -translate-x-80 lg:-translate-x-96 flex items-center"
             >
               <div className="text-right mr-6 lg:mr-8">
                 <div className="flex items-center justify-end mb-4">
@@ -293,7 +293,7 @@ const HomePage: React.FC = () => {
               </motion.div>
             </motion.div>
 
-            {/* Enhanced 3D Prism - Larger and better centered */}
+            {/* Enhanced 3D Prism - Centered */}
             <motion.div
               initial={{ opacity: 0, scale: 0, rotateY: -180 }}
               animate={{ 
@@ -305,7 +305,7 @@ const HomePage: React.FC = () => {
                 duration: 2.5, 
                 delay: 1.8,
               }}
-              className="relative z-20 mx-8 lg:mx-16"
+              className="relative z-20"
             >
               <motion.div
                 animate={{ 
@@ -318,13 +318,13 @@ const HomePage: React.FC = () => {
                 }}
                 className="relative flex items-center justify-center"
               >
-                {/* Main Prism Body - Slightly smaller */}
+                {/* Main Prism Body */}
                 <div className="w-24 h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 relative shadow-2xl">
                   {/* Inner Glow */}
                   <div className="absolute inset-2 lg:inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
                   <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20 rounded-sm" />
                   
-                  {/* Prism Facets - Adjusted for smaller size */}
+                  {/* Prism Facets */}
                   <div className="absolute -top-1.5 -left-1.5 lg:-top-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-xl" />
                   <div className="absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-xl" />
                   <div className="absolute -bottom-1.5 -left-1.5 lg:-bottom-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-xl" />
@@ -342,8 +342,8 @@ const HomePage: React.FC = () => {
               </motion.div>
             </motion.div>
 
-            {/* Enhanced Refracted Beams - Moved closer and made longer */}
-            <div className="absolute left-1/2 ml-12 lg:ml-20 flex flex-col items-start space-y-3 lg:space-y-4">
+            {/* Enhanced Refracted Beams - Fixed positioning relative to center */}
+            <div className="absolute left-1/2 transform translate-x-12 lg:translate-x-20 flex flex-col items-start space-y-3 lg:space-y-4">
               {prismBeams.map((beam, index) => (
                 <motion.div
                   key={index}

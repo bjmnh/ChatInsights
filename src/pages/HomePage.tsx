@@ -248,157 +248,160 @@ const HomePage: React.FC = () => {
             </motion.div>
           </div>
 
-          {/* Enhanced Digital Prism Animation - Fixed positioning */}
-          <div className="relative flex items-center justify-center mb-6 h-[400px] lg:h-[500px] w-full">
-            {/* Data Input Visualization - Properly positioned to the left */}
-            <motion.div
-              initial={{ opacity: 0, x: -225 }}
-              animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -225 }}
-              transition={{ duration: 1.2, delay: 0.5 }}
-              className="absolute left-1/6 transform -translate-x-1/8 -translate-x-48 lg:-translate-x-64 flex items-center"
-            >
-              <div className="text-right mr-6 lg:mr-8">
-                <div className="flex items-center justify-end mb-4">
-                  <Bot className="h-6 w-6 lg:h-8 lg:w-8 text-green-400 mr-3" />
-                  <div>
-                    <div className="text-base lg:text-lg font-semibold text-white">OpenAI Conversations</div>
-                    <div className="text-xs lg:text-sm text-gray-400">Raw conversation data</div>
-                  </div>
-                </div>
-                <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg p-3 lg:p-4 max-w-xs">
-                  <div className="flex items-center mb-2">
-                    <Database className="h-3 w-3 lg:h-4 lg:w-4 text-blue-400 mr-2" />
-                    <span className="text-xs lg:text-sm text-gray-300">conversations.json</span>
-                  </div>
-                  <div className="text-xs text-gray-500 font-mono">
-                    {Math.floor(Math.random() * 500 + 100)} conversations<br/>
-                    {Math.floor(Math.random() * 10000 + 5000)} messages
-                  </div>
-                </div>
-              </div>
-              
-              {/* Enhanced Data Flow */}
-              <motion.div
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: animationStarted ? 1 : 0 }}
-                transition={{ duration: 2, delay: 1.2 }}
-                className="relative"
-              >
-                <div className="w-20 lg:w-24 h-2 bg-gradient-to-r from-blue-400 to-transparent origin-left rounded-full" />
-                <motion.div
-                  animate={{ x: animationStarted ? [0, 80, 0] : 0 }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute top-0 left-0 w-6 lg:w-8 h-2 bg-white rounded-full opacity-80"
-                />
-              </motion.div>
-            </motion.div>
+// --- ROOT COMPONENT (EXAMPLE) ---
+// You would place the following JSX inside your main component.
+// Make sure you have state for `animationStarted` and `hoveredBeam` as before.
+// const [animationStarted, setAnimationStarted] = useState(false);
+// const [hoveredBeam, setHoveredBeam] = useState(null);
+// useEffect(() => { setAnimationStarted(true); }, []);
 
-            {/* Enhanced 3D Prism - Centered */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0, rotateY: -180 }}
-              animate={{ 
-                opacity: animationStarted ? 1 : 0, 
-                scale: animationStarted ? 1.2 : 0, 
-                rotateY: animationStarted ? 0 : -180,
-              }}
-              transition={{ 
-                duration: 2.5, 
-                delay: 1.8,
-              }}
-              className="relative z-20"
-            >
-              <motion.div
-                animate={{ 
-                  rotateZ: animationStarted ? [0, 360] : 0,
-                  rotateY: animationStarted ? [0, 15, 0] : 0
-                }}
-                transition={{ 
-                  rotateZ: { duration: 20, repeat: Infinity, ease: "linear" },
-                  rotateY: { duration: 4, repeat: Infinity, ease: "easeInOut" }
-                }}
-                className="relative flex items-center justify-center"
-              >
-                {/* Main Prism Body */}
-                <div className="w-24 h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 relative shadow-2xl">
-                  {/* Inner Glow */}
-                  <div className="absolute inset-2 lg:inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20 rounded-sm" />
-                  
-                  {/* Prism Facets */}
-                  <div className="absolute -top-1.5 -left-1.5 lg:-top-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-xl" />
-                  <div className="absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-xl" />
-                  <div className="absolute -bottom-1.5 -left-1.5 lg:-bottom-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-xl" />
-                  <div className="absolute -bottom-1.5 -right-1.5 lg:-bottom-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tl from-cyan-300 to-cyan-500 transform -rotate-45 opacity-90 shadow-xl" />
-                  
-                  {/* Central Core with Brain Icon */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="absolute inset-4 lg:inset-6 bg-white rounded-full opacity-60 animate-pulse" />
-                    <Brain className="h-8 w-8 lg:h-12 lg:w-12 text-white relative z-10 transform -rotate-45" />
-                  </div>
-                </div>
-
-                {/* Prism Glow Effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 blur-xl opacity-30 scale-150" />
-              </motion.div>
-            </motion.div>
-
-            {/* Enhanced Refracted Beams - Fixed positioning relative to center */}
-            <div className="absolute left-1/2 transform translate-x-12 lg:translate-x-20 flex flex-col items-start space-y-3 lg:space-y-4">
-              {prismBeams.map((beam, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, scaleX: 0, x: -100 }}
-                  animate={{ 
-                    opacity: animationStarted ? 1 : 0, 
-                    scaleX: animationStarted ? 1 : 0,
-                    x: animationStarted ? 0 : -100
-                  }}
-                  transition={{ duration: 1, delay: beam.delay }}
-                  className="relative group cursor-pointer"
-                  onMouseEnter={() => setHoveredBeam(index)}
-                  onMouseLeave={() => setHoveredBeam(null)}
-                  style={{ 
-                    transform: `rotate(${beam.angle}deg)`,
-                    transformOrigin: 'left center'
-                  }}
-                >
-                  {/* Enhanced Beam - Made longer and responsive */}
-                  <div className={`w-56 lg:w-72 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
-                    <motion.div
-                      animate={{ x: [-150, 300] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent w-12"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-full" />
-                  </div>
-                  
-                  {/* Enhanced Label - More compact and responsive positioning */}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8, x: 20 }}
-                    animate={{ 
-                      opacity: hoveredBeam === index ? 1 : 0,
-                      scale: hoveredBeam === index ? 1 : 0.8,
-                      x: hoveredBeam === index ? 0 : 20
-                    }}
-                    className="absolute left-full top-1/2 transform -translate-y-1/2 ml-3 lg:ml-4 bg-black/90 backdrop-blur-sm border border-white/20 rounded-xl p-2 lg:p-3 shadow-2xl"
-                    style={{ 
-                      width: 'max-content',
-                      maxWidth: '180px',
-                      right: 'auto',
-                      zIndex: 1000
-                    }}
-                  >
-                    <div className="flex items-center mb-1 lg:mb-2">
-                      <beam.icon className="h-3 w-3 lg:h-4 lg:w-4 mr-2 text-white" />
-                      <span className="font-semibold text-white text-xs lg:text-sm">{beam.label}</span>
-                    </div>
-                    <p className="text-gray-300 text-xs leading-relaxed">{beam.description}</p>
-                    <div className={`w-full h-0.5 bg-gradient-to-r ${beam.color} rounded-full mt-1 lg:mt-2`} />
-                  </motion.div>
-                </motion.div>
-              ))}
-            </div>
+// --- THE ADJUSTED JSX ---
+<div className="relative flex items-center justify-center w-full h-[400px] lg:h-[500px]">
+  {/* 
+    This is the new main container. 
+    It's a flexbox row that gets centered by its parent.
+    It uses 'gap' for responsive spacing between the Input, Prism, and Beams.
+    'max-w-7xl' prevents it from becoming too wide on large screens.
+    'px-4' adds padding on mobile.
+  */}
+  <div className="flex items-center justify-center w-full max-w-7xl mx-auto px-4 gap-4 sm:gap-6 lg:gap-8">
+    
+    {/* 1. Data Input Visualization (Left Side) */}
+    {/* No longer needs 'absolute' or complex transforms for positioning. */}
+    <motion.div
+      initial={{ opacity: 0, x: -50 }}
+      animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -50 }}
+      transition={{ duration: 1.2, delay: 0.5 }}
+      className="flex items-center"
+    >
+      <div className="text-right mr-4 sm:mr-6 lg:mr-8">
+        <div className="flex items-center justify-end mb-4">
+          <Bot className="h-6 w-6 lg:h-8 lg:w-8 text-green-400 mr-3 flex-shrink-0" />
+          <div className="hidden sm:block"> {/* Hide text on very small screens to save space */}
+            <div className="text-base lg:text-lg font-semibold text-white">OpenAI Conversations</div>
+            <div className="text-xs lg:text-sm text-gray-400">Raw conversation data</div>
           </div>
+        </div>
+        <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg p-3 lg:p-4 max-w-xs">
+          <div className="flex items-center mb-2">
+            <Database className="h-3 w-3 lg:h-4 lg:w-4 text-blue-400 mr-2 flex-shrink-0" />
+            <span className="text-xs lg:text-sm text-gray-300 truncate">conversations.json</span>
+          </div>
+          <div className="text-xs text-gray-500 font-mono">
+            {Math.floor(Math.random() * 500 + 100)} conversations<br/>
+            {Math.floor(Math.random() * 10000 + 5000)} messages
+          </div>
+        </div>
+      </div>
+      
+      {/* Data Flow Line */}
+      <motion.div
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: animationStarted ? 1 : 0 }}
+        transition={{ duration: 1.5, delay: 1.2 }}
+        className="relative origin-left"
+      >
+        <div className="w-12 sm:w-20 lg:w-24 h-2 bg-gradient-to-r from-blue-400 to-transparent rounded-full" />
+        <motion.div
+          animate={{ x: animationStarted ? [0, '100%', 0] : 0 }}
+          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-0 left-0 w-4 lg:w-6 h-2 bg-white rounded-full opacity-80"
+        />
+      </motion.div>
+    </motion.div>
+
+    {/* 2. Enhanced 3D Prism (Center) */}
+    {/* This element will now stay perfectly in the middle, and others will space away from it. */}
+    {/* flex-shrink-0 prevents the prism from shrinking on small screens. */}
+    <motion.div
+      initial={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: animationStarted ? 1 : 0, scale: animationStarted ? 1 : 0.5 }}
+      transition={{ duration: 1.5, delay: 1.8 }}
+      className="relative z-20 flex-shrink-0"
+    >
+      <motion.div
+        animate={{ 
+          rotateZ: animationStarted ? [0, 360] : 0,
+          rotateY: animationStarted ? [0, 15, -15, 0] : 0
+        }}
+        transition={{ 
+          rotateZ: { duration: 20, repeat: Infinity, ease: "linear" },
+          rotateY: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+        }}
+        className="relative flex items-center justify-center"
+      >
+        {/* Main Prism Body */}
+        <div className="w-24 h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 relative shadow-2xl">
+          <div className="absolute inset-2 lg:inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20 rounded-sm" />
+          <div className="absolute -top-1.5 -left-1.5 lg:-top-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-xl" />
+          <div className="absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-xl" />
+          <div className="absolute -bottom-1.5 -left-1.5 lg:-bottom-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-xl" />
+          <div className="absolute -bottom-1.5 -right-1.5 lg:-bottom-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tl from-cyan-300 to-cyan-500 transform -rotate-45 opacity-90 shadow-xl" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-4 lg:inset-6 bg-white rounded-full opacity-60 animate-pulse" />
+            <Brain className="h-8 w-8 lg:h-12 lg:w-12 text-white relative z-10 transform -rotate-45" />
+          </div>
+        </div>
+        {/* Prism Glow Effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 blur-2xl opacity-40 scale-150" />
+      </motion.div>
+    </motion.div>
+
+    {/* 3. Refracted Beams (Right Side) */}
+    {/* No longer needs 'absolute' or complex transforms for positioning. */}
+    <div className="flex flex-col items-start space-y-3 lg:space-y-4">
+      {prismBeams.map((beam, index) => (
+        <motion.div
+          key={index}
+          initial={{ opacity: 0, scaleX: 0, x: -50 }}
+          animate={{ 
+            opacity: animationStarted ? 1 : 0, 
+            scaleX: animationStarted ? 1 : 0,
+            x: animationStarted ? 0 : -50
+          }}
+          transition={{ duration: 1, delay: beam.delay }}
+          className="relative group cursor-pointer origin-left"
+          style={{ 
+            transform: `rotate(${beam.angle}deg)`,
+            transformOrigin: 'left center'
+          }}
+          onMouseEnter={() => setHoveredBeam(index)}
+          onMouseLeave={() => setHoveredBeam(null)}
+        >
+          {/* Beam Line - now with responsive width */}
+          <div className={`w-32 sm:w-48 lg:w-64 h-2 lg:h-3 bg-gradient-to-r ${beam.color} relative overflow-hidden rounded-full shadow-lg`}>
+            <motion.div
+              animate={{ x: [-150, '200%'] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent w-12"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-full" />
+          </div>
+          
+          {/* Label Tooltip - remains absolutely positioned relative to its parent beam */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ 
+              opacity: hoveredBeam === index ? 1 : 0,
+              scale: hoveredBeam === index ? 1 : 0.8
+            }}
+            transition={{ duration: 0.2 }}
+            className="absolute left-full top-1/2 transform -translate-y-1/2 ml-3 lg:ml-4 bg-black/90 backdrop-blur-sm border border-white/20 rounded-xl p-2 lg:p-3 shadow-2xl w-max max-w-xs z-50"
+          >
+            <div className="flex items-center mb-1 lg:mb-2">
+              <beam.icon className="h-3 w-3 lg:h-4 lg:w-4 mr-2 text-white flex-shrink-0" />
+              <span className="font-semibold text-white text-xs lg:text-sm">{beam.label}</span>
+            </div>
+            <p className="text-gray-300 text-xs leading-relaxed">{beam.description}</p>
+            <div className={`w-full h-0.5 bg-gradient-to-r ${beam.color} rounded-full mt-1 lg:mt-2`} />
+          </motion.div>
+        </motion.div>
+      ))}
+    </div>
+
+  </div>
+</div>
 
           {/* Enhanced CTA Buttons - Better responsive sizing and viewport fitting */}
           <motion.div

@@ -39,7 +39,7 @@ const HomePage: React.FC = () => {
       label: 'Digital Dossier', 
       description: 'FBI-style behavioral analysis',
       icon: Brain,
-      angle: -30,
+      angle: -20,
       delay: 0.5
     },
     { 
@@ -47,7 +47,7 @@ const HomePage: React.FC = () => {
       label: 'Linguistic Fingerprint', 
       description: 'Language pattern analysis',
       icon: FileText,
-      angle: -15,
+      angle: -10,
       delay: 0.7
     },
     { 
@@ -63,7 +63,7 @@ const HomePage: React.FC = () => {
       label: 'Reality TV Persona', 
       description: 'Your entertainment archetype',
       icon: Tv,
-      angle: 15,
+      angle: 10,
       delay: 1.1
     },
     { 
@@ -71,7 +71,7 @@ const HomePage: React.FC = () => {
       label: 'Unfiltered Mirror', 
       description: 'Deep self-reflection',
       icon: Eye,
-      angle: 30,
+      angle: 20,
       delay: 1.3
     },
     { 
@@ -79,7 +79,7 @@ const HomePage: React.FC = () => {
       label: 'Safety Compass', 
       description: 'Privacy & security analysis',
       icon: Shield,
-      angle: 45,
+      angle: 30,
       delay: 1.5
     },
     { 
@@ -87,7 +87,7 @@ const HomePage: React.FC = () => {
       label: 'Digital Twin', 
       description: 'Your social media persona',
       icon: Globe,
-      angle: 60,
+      angle: 40,
       delay: 1.7
     }
   ];
@@ -158,7 +158,7 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Hero Section - The Digital Prism */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-8">
         {/* Professional Background Pattern */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-gray-950 to-black" />
@@ -198,20 +198,20 @@ const HomePage: React.FC = () => {
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-5xl lg:text-7xl font-bold mb-8 leading-tight">
+              <h1 className="text-5xl lg:text-7xl font-bold mb-6 leading-tight">
                 <span className="block text-white">See What Your</span>
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
                   Conversations
                 </span>
                 <span className="block text-white">Say About You</span>
               </h1>
-              <p className="text-lg lg:text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
+              <p className="text-lg lg:text-xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
                 Transform your ChatGPT conversation data into profound insights about your personality, 
                 communication style, and digital behavior through advanced AI analysis.
               </p>
@@ -219,7 +219,7 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Enhanced Digital Prism Animation */}
-          <div className="relative flex items-center justify-center mb-16 h-[400px] lg:h-[500px]">
+          <div className="relative flex items-center justify-center mb-12 h-[400px] lg:h-[500px]">
             {/* Data Input Visualization */}
             <motion.div
               initial={{ opacity: 0, x: -300 }}
@@ -254,9 +254,9 @@ const HomePage: React.FC = () => {
                 transition={{ duration: 2, delay: 1.2 }}
                 className="relative"
               >
-                <div className="w-32 lg:w-48 h-2 bg-gradient-to-r from-blue-400 to-transparent origin-left rounded-full" />
+                <div className="w-24 lg:w-32 h-2 bg-gradient-to-r from-blue-400 to-transparent origin-left rounded-full" />
                 <motion.div
-                  animate={{ x: animationStarted ? [0, 128, 0] : 0 }}
+                  animate={{ x: animationStarted ? [0, 96, 0] : 0 }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                   className="absolute top-0 left-0 w-6 lg:w-8 h-2 bg-white rounded-full opacity-80"
                 />
@@ -309,8 +309,8 @@ const HomePage: React.FC = () => {
               </motion.div>
             </motion.div>
 
-            {/* Enhanced Refracted Beams - Responsive positioning */}
-            <div className="absolute right-0 lg:right-8 flex flex-col items-start space-y-2 lg:space-y-3">
+            {/* Enhanced Refracted Beams - Moved closer to prism */}
+            <div className="absolute left-1/2 ml-16 lg:ml-20 flex flex-col items-start space-y-1 lg:space-y-2">
               {prismBeams.map((beam, index) => (
                 <motion.div
                   key={index}
@@ -330,7 +330,7 @@ const HomePage: React.FC = () => {
                   }}
                 >
                   {/* Enhanced Beam - Responsive width */}
-                  <div className={`w-32 lg:w-48 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
+                  <div className={`w-24 lg:w-32 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
                     <motion.div
                       animate={{ x: [-150, 300] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
@@ -348,6 +348,11 @@ const HomePage: React.FC = () => {
                       x: hoveredBeam === index ? 0 : 20
                     }}
                     className="absolute left-full top-1/2 transform -translate-y-1/2 ml-4 lg:ml-6 bg-black/90 backdrop-blur-sm border border-white/20 rounded-xl p-3 lg:p-4 min-w-48 lg:min-w-64 shadow-2xl"
+                    style={{ 
+                      right: 'auto',
+                      maxWidth: '280px',
+                      zIndex: 1000
+                    }}
                   >
                     <div className="flex items-center mb-2 lg:mb-3">
                       <beam.icon className="h-4 w-4 lg:h-5 lg:w-5 mr-2 lg:mr-3 text-white" />
@@ -368,19 +373,19 @@ const HomePage: React.FC = () => {
             transition={{ delay: 3, duration: 0.8 }}
             className="text-center"
           >
-            <div className="flex flex-col sm:flex-row gap-4 lg:gap-6 justify-center max-w-4xl mx-auto">
+            <div className="flex flex-col sm:flex-row gap-4 lg:gap-6 justify-center items-center max-w-4xl mx-auto">
               <Button 
                 size="lg" 
                 onClick={() => navigate(user ? '/dashboard' : '/auth')}
-                className="text-lg lg:text-xl px-8 lg:px-12 py-6 lg:py-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-2xl shadow-blue-500/25 rounded-xl font-semibold flex-1 sm:flex-none"
+                className="text-base lg:text-lg px-6 lg:px-8 py-4 lg:py-6 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-2xl shadow-blue-500/25 rounded-xl font-semibold w-full sm:w-auto"
               >
                 {user ? 'Analyze Your Conversations' : 'Start Your Analysis'}
-                <ArrowRight className="ml-2 lg:ml-3 h-5 w-5 lg:h-6 lg:w-6" />
+                <ArrowRight className="ml-2 lg:ml-3 h-4 w-4 lg:h-5 lg:w-5" />
               </Button>
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="text-lg lg:text-xl px-8 lg:px-12 py-6 lg:py-8 border-white/30 text-white hover:bg-white/10 rounded-xl font-semibold flex-1 sm:flex-none"
+                className="text-base lg:text-lg px-6 lg:px-8 py-4 lg:py-6 border-white/30 text-white hover:bg-white/10 rounded-xl font-semibold w-full sm:w-auto"
               >
                 View Sample Analysis
               </Button>
@@ -417,8 +422,8 @@ const HomePage: React.FC = () => {
                 whileInView={{ 
                   opacity: 1, 
                   y: 0, 
-                  rotate: (index - 2.5) * 8, // Reduced angle for better visibility
-                  x: (index - 2.5) * 80 // Increased spacing
+                  rotate: (index - 2.5) * 6, // Reduced angle for better visibility
+                  x: (index - 2.5) * 100 // Increased spacing
                 }}
                 whileHover={{ 
                   y: -40, 
@@ -435,7 +440,7 @@ const HomePage: React.FC = () => {
                   damping: 20
                 }}
                 viewport={{ once: true }}
-                className="absolute w-72 lg:w-80 h-80 lg:h-96 cursor-pointer group"
+                className="absolute w-80 lg:w-96 h-96 lg:h-[450px] cursor-pointer group"
                 style={{ zIndex: featureCards.length - index }}
               >
                 <Card className={`h-full bg-gradient-to-br ${card.gradient} border-0 shadow-2xl overflow-hidden relative transform-gpu`}>
@@ -481,14 +486,14 @@ const HomePage: React.FC = () => {
 
                   <CardHeader className="relative z-10 pb-3 lg:pb-4">
                     <div className="flex items-center justify-between mb-4 lg:mb-6">
-                      <div className="w-12 h-12 lg:w-16 lg:h-16 bg-white/20 rounded-xl lg:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
-                        <card.icon className="h-6 w-6 lg:h-8 lg:w-8 text-white" />
+                      <div className="w-14 h-14 lg:w-20 lg:h-20 bg-white/20 rounded-xl lg:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+                        <card.icon className="h-7 w-7 lg:h-10 lg:w-10 text-white" />
                       </div>
                       <div className="px-3 lg:px-4 py-1 lg:py-2 bg-white/20 text-white border border-white/30 rounded-full text-xs lg:text-sm font-bold backdrop-blur-sm">
                         {card.preview}
                       </div>
                     </div>
-                    <CardTitle className="text-white text-lg lg:text-2xl mb-2 lg:mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-200 transition-all duration-300 leading-tight">
+                    <CardTitle className="text-white text-xl lg:text-2xl mb-2 lg:mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-200 transition-all duration-300 leading-tight">
                       {card.title}
                     </CardTitle>
                   </CardHeader>
@@ -583,6 +588,23 @@ const HomePage: React.FC = () => {
           </motion.div>
         </div>
       </section>
+
+      {/* Built with Bolt.new Badge */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <motion.a
+          href="https://bolt.new"
+          target="_blank"
+          rel="noopener noreferrer"
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 2, duration: 0.5 }}
+          whileHover={{ scale: 1.05 }}
+          className="flex items-center bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-400/30"
+        >
+          <Zap className="h-4 w-4 mr-2" />
+          Built with Bolt.new
+        </motion.a>
+      </div>
     </div>
   );
 };

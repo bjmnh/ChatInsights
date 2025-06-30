@@ -21,7 +21,55 @@ export interface Report {
 }
 
 export class FileService {
-  // Upload a file to storage and create database record
+  // Upload selected conversations as a new file
+  static async uploadSelectedConversations(
+    conversations: any[], 
+    userId: string, 
+    filename: string
+  ): Promise<UploadedFile> {
+    try {
+      // Convert conversations array back to JSON
+      const jsonContent = JSON.stringify(conversations, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json' });
+      
+      // Generate unique file path
+      const fileId = crypto.randomUUID();
+      const filePath = `${userId}/${fileId}/${filename}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('conversation-files')
+        .upload(filePath, blob);
+
+      if (uploadError) {
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
+
+      // Create database record
+      const { data, error } = await supabase
+        .from('uploaded_files')
+        .insert({
+          id: fileId,
+          user_id: userId,
+          filename: filename,
+          file_path: filePath,
+          file_size: blob.size,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw new Error(`Database error: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error uploading selected conversations:', error);
+      throw error;
+    }
+  }
+
+  // Original upload method (kept for backward compatibility)
   static async uploadFile(file: File, userId: string): Promise<UploadedFile> {
     try {
       // Generate unique file path

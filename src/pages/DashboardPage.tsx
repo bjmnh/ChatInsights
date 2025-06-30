@@ -14,10 +14,19 @@ import {
   Loader2,
   MessageSquare,
   Calendar,
-  HardDrive
+  HardDrive,
+  Info
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FileService, type UploadedFile } from '../services/fileService';
+import ConversationSelector from '../components/ConversationSelector';
+
+interface ParsedConversation {
+  id?: string;
+  title?: string;
+  create_time?: number;
+  mapping?: { [id: string]: any };
+}
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -26,6 +35,11 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
+  
+  // New state for conversation selection
+  const [parsedConversations, setParsedConversations] = useState<ParsedConversation[]>([]);
+  const [originalFilename, setOriginalFilename] = useState<string>('');
+  const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -48,6 +62,44 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const parseConversationFile = (file: File): Promise<ParsedConversation[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          let parsed = JSON.parse(text);
+          
+          // Handle different JSON structures
+          if (!Array.isArray(parsed)) {
+            // Look for an array within the object
+            const potentialArray = Object.values(parsed).find(value => Array.isArray(value));
+            if (potentialArray && Array.isArray(potentialArray)) {
+              parsed = potentialArray;
+            } else {
+              throw new Error('JSON file does not contain a conversation array');
+            }
+          }
+          
+          if (!Array.isArray(parsed) || parsed.length === 0) {
+            throw new Error('No conversations found in the file');
+          }
+          
+          resolve(parsed as ParsedConversation[]);
+        } catch (error) {
+          reject(new Error(`Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('Failed to read file'));
+      };
+      
+      reader.readAsText(file);
+    });
+  };
+
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user) return;
 
@@ -67,16 +119,47 @@ const DashboardPage: React.FC = () => {
     setUploading(true);
 
     try {
-      const uploadedFile = await FileService.uploadFile(file, user.id);
-      setFiles(prev => [uploadedFile, ...prev]);
-      toast.success('File uploaded successfully!');
+      // Parse the file to extract conversations
+      const conversations = await parseConversationFile(file);
+      
+      if (conversations.length === 0) {
+        throw new Error('No conversations found in the file');
+      }
+
+      // Store parsed data and show selection modal
+      setParsedConversations(conversations);
+      setOriginalFilename(file.name);
+      setIsSelectionModalOpen(true);
+      
+      toast.success(`Found ${conversations.length} conversations. Select which ones to upload.`);
     } catch (error) {
-      console.error('Upload error:', error);
-      toast.error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Parse error:', error);
+      toast.error(`Failed to parse file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setUploading(false);
     }
   }, [user]);
+
+  const handleUploadSelectedConversations = async (selectedConversations: ParsedConversation[], filename: string) => {
+    if (!user) return;
+
+    try {
+      const uploadedFile = await FileService.uploadSelectedConversations(
+        selectedConversations, 
+        user.id, 
+        filename
+      );
+      
+      setFiles(prev => [uploadedFile, ...prev]);
+      
+      // Reset selection state
+      setParsedConversations([]);
+      setOriginalFilename('');
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error; // Re-throw to be handled by ConversationSelector
+    }
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -164,10 +247,18 @@ const DashboardPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Upload Conversations</CardTitle>
           <CardDescription>
-            Upload your ChatGPT conversations.json file to get started with analysis.
+            Upload your ChatGPT conversations.json file. You'll be able to select which conversations to analyze.
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <Alert className="mb-4">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <strong>New:</strong> After uploading, you can select which conversations to analyze. 
+              This helps manage large files and ensures optimal processing performance.
+            </AlertDescription>
+          </Alert>
+          
           <div
             {...getRootProps()}
             className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
@@ -185,7 +276,7 @@ const DashboardPage: React.FC = () => {
               <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             )}
             {uploading ? (
-              <p className="text-lg">Uploading your file...</p>
+              <p className="text-lg">Processing your file...</p>
             ) : isDragActive ? (
               <p className="text-lg">Drop your conversations.json file here...</p>
             ) : (
@@ -303,6 +394,15 @@ const DashboardPage: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Conversation Selection Modal */}
+      <ConversationSelector
+        isOpen={isSelectionModalOpen}
+        onClose={() => setIsSelectionModalOpen(false)}
+        conversations={parsedConversations}
+        originalFilename={originalFilename}
+        onUploadSelected={handleUploadSelectedConversations}
+      />
     </div>
   );
 };

@@ -154,8 +154,8 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
             Select Conversations to Upload
@@ -166,9 +166,9 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 flex-1 min-h-0">
+        <div className="flex flex-col gap-4 flex-1 overflow-hidden">
           {/* Stats and Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
             <div className="space-y-2">
               <Label htmlFor="max-conversations">Max Conversations</Label>
               <Input
@@ -209,7 +209,7 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
             </div>
           </div>
 
-          <Alert>
+          <Alert className="flex-shrink-0">
             <Info className="h-4 w-4" />
             <AlertDescription>
               Larger conversation files may take longer to process. For best performance, 
@@ -219,7 +219,7 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
           </Alert>
 
           {/* Select All Controls */}
-          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg flex-shrink-0">
             <Checkbox
               id="select-all"
               checked={allFilteredSelected}
@@ -233,69 +233,71 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
             </Label>
           </div>
 
-          {/* Conversations List */}
-          <ScrollArea className="flex-1 border rounded-lg">
-            <div className="p-4 space-y-3">
-              {filteredConversations.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No conversations match your search.</p>
-                </div>
-              ) : (
-                filteredConversations.map((conversation, filteredIndex) => {
-                  const originalIndex = conversations.indexOf(conversation);
-                  const isSelected = selectedConversations.has(originalIndex);
-                  const stats = getConversationStats(conversation);
-                  
-                  return (
-                    <div
-                      key={conversation.id || originalIndex}
-                      className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
-                        isSelected ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={(checked) => handleConversationToggle(originalIndex, checked as boolean)}
-                        className="mt-1"
-                      />
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">
-                              {conversation.title || `Conversation ${originalIndex + 1}`}
-                            </h4>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatDate(conversation.create_time)}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                {stats.userMessages}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Bot className="h-3 w-3" />
-                                {stats.aiMessages}
-                              </span>
+          {/* Conversations List - This is the scrollable area */}
+          <div className="flex-1 border rounded-lg overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-3">
+                {filteredConversations.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Filter className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No conversations match your search.</p>
+                  </div>
+                ) : (
+                  filteredConversations.map((conversation, filteredIndex) => {
+                    const originalIndex = conversations.indexOf(conversation);
+                    const isSelected = selectedConversations.has(originalIndex);
+                    const stats = getConversationStats(conversation);
+                    
+                    return (
+                      <div
+                        key={conversation.id || originalIndex}
+                        className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${
+                          isSelected ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => handleConversationToggle(originalIndex, checked as boolean)}
+                          className="mt-1 flex-shrink-0"
+                        />
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium truncate">
+                                {conversation.title || `Conversation ${originalIndex + 1}`}
+                              </h4>
+                              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {formatDate(conversation.create_time)}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <User className="h-3 w-3" />
+                                  {stats.userMessages}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Bot className="h-3 w-3" />
+                                  {stats.aiMessages}
+                                </span>
+                              </div>
                             </div>
+                            
+                            <Badge variant="outline" className="shrink-0">
+                              {stats.totalMessages} messages
+                            </Badge>
                           </div>
-                          
-                          <Badge variant="outline" className="shrink-0">
-                            {stats.totalMessages} messages
-                          </Badge>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </ScrollArea>
+                    );
+                  })
+                )}
+              </div>
+            </ScrollArea>
+          </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-between items-center pt-4 border-t">
+          <div className="flex justify-between items-center pt-4 border-t flex-shrink-0">
             <Button variant="outline" onClick={onClose} disabled={uploading}>
               Cancel
             </Button>

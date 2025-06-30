@@ -474,7 +474,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
             <p className="text-slate-400 text-xs max-w-sm mx-auto leading-relaxed">
               {data.disclaimer}
             </p>
-          </motion.div>
+          </div>
         </motion.div>
       </div>
     </motion.div>

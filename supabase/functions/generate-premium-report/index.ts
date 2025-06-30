@@ -26,6 +26,15 @@ interface PerConversationInsights {
   intriguingObservation: string;
 }
 
+interface SocialPost {
+  id: string;
+  content: string;
+  timestamp: string;
+  likes: number;
+  retweets: number;
+  replies: number;
+}
+
 // Report types
 interface FBIReportData { reportTitle: string; subjectCodename: { name: string; justification: string; }; subjectProfileSummary: string; dominantInterests: string[]; communicationModalities: string[]; emotionalToneAndEngagement: string; informationSharingTendencies: string; piiExamples: ExtractedPii[]; overallInteractionStyle: string; disclaimer: string; }
 interface LinguisticFingerprintData { reportTitle: string; overallStyleDescription: string; vocabularyProfile: { qualitativeAssessment: string; notableWords: string[]; }; sentenceStructure: string; expressiveness: string; potentialInterestsIndicatedByLanguage: string[]; disclaimer: string; }
@@ -33,7 +42,7 @@ interface TopConversation { conversationId: string; title?: string; justificatio
 interface RealityTVPersonaData { reportTitle: string; personaArchetype: string; description: string; popCultureComparisons: string[]; disclaimer: string; }
 interface UnfilteredMirrorData { reportTitle: string; observation: string; disclaimer: string; }
 interface PIISafetyCompassData { reportTitle: string; awarenessScore: "Low Risk" | "Medium Risk" | "High Risk"; summary: string; detailedBreakdown: { category: string; advice: string; }[]; disclaimer: string; }
-interface DigitalDoppelgangerData { reportTitle: string; handle: string; bio: string; topHashtags: string[]; disclaimer: string; }
+interface DigitalDoppelgangerData { reportTitle: string; handle: string; bio: string; topHashtags: string[]; posts: SocialPost[]; disclaimer: string; }
 
 interface AdvancedAnalysisResult {
     fbiReport?: FBIReportData;
@@ -228,19 +237,58 @@ JSON Format:
 JSON only:`;
 }
 
-function getDoppelgangerPrompt(topics: string[] = [], vocab: string[] = []): string {
-    return `Create social media profile from:
-Topics: ${(topics || []).slice(0, 6).join(', ')}
-Vocab: ${(vocab || []).slice(0, 10).join(', ')}
+function getDoppelgangerPrompt(topics: string[] = [], vocab: string[] = [], insights: PerConversationInsights[] = []): string {
+    // Generate sample posts based on user's topics and communication patterns
+    const sampleTopics = topics.slice(0, 3);
+    const sampleVocab = vocab.slice(0, 8);
+    
+    return `Create social media profile with posts from:
+Topics: ${sampleTopics.join(', ')}
+Vocab: ${sampleVocab.join(', ')}
+Communication Style: Based on user's conversation patterns
 
 JSON Format:
 {
   "reportTitle": "Your Digital Doppelgänger",
-  "handle": "string (@username)",
-  "bio": "string (1-2 sentences)",
+  "handle": "string (@username based on interests/style)",
+  "bio": "string (1-2 sentences reflecting personality)",
   "topHashtags": ["string", "string", "string"],
+  "posts": [
+    {
+      "id": "1",
+      "content": "string (tweet-like post reflecting user's interests and communication style)",
+      "timestamp": "2h",
+      "likes": "number (10-100)",
+      "retweets": "number (1-20)",
+      "replies": "number (1-30)"
+    },
+    {
+      "id": "2", 
+      "content": "string (another post showing different aspect of personality)",
+      "timestamp": "6h",
+      "likes": "number (10-100)",
+      "retweets": "number (1-20)", 
+      "replies": "number (1-30)"
+    },
+    {
+      "id": "3",
+      "content": "string (third post demonstrating user's typical communication)",
+      "timestamp": "1d",
+      "likes": "number (10-100)",
+      "retweets": "number (1-20)",
+      "replies": "number (1-30)"
+    }
+  ],
   "disclaimer": "This is an AI-generated fictional profile for entertainment."
 }
+
+Instructions:
+- Create realistic social media posts that reflect the user's interests and communication style
+- Make the handle creative but relevant to their personality
+- Posts should feel authentic and match their vocabulary/topics
+- Include realistic engagement numbers
+- Keep posts under 280 characters each
+
 JSON only:`;
 }
 
@@ -400,9 +448,9 @@ async function generateAllPremiumInsights(conversations: RawConversation[]): Pro
             .catch(e => { console.error("PII Safety Compass failed:", e.message); return null; })
     );
 
-    // 7. Digital Doppelgänger (Fast model)
+    // 7. Digital Doppelgänger with Posts (Fast model)
     reportPromises.push(
-        callLlmForJson<DigitalDoppelgangerData>(getDoppelgangerPrompt(topTopics, allVocab.slice(0, 15)), 'fast')
+        callLlmForJson<DigitalDoppelgangerData>(getDoppelgangerPrompt(topTopics, allVocab.slice(0, 15), stage1Results.slice(0, 5)), 'fast')
             .then(data => ({ type: 'digitalDoppelganger', data }))
             .catch(e => { console.error("Digital Doppelganger failed:", e.message); return null; })
     );

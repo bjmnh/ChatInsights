@@ -1,7 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
-import { User, Hash, Users, MessageSquare, Globe, Heart, Share } from 'lucide-react';
+import { User, Hash, MessageSquare, Heart, Repeat2, Share, MoreHorizontal, Calendar } from 'lucide-react';
+
+interface SocialPost {
+  id: string;
+  content: string;
+  timestamp: string;
+  likes: number;
+  retweets: number;
+  replies: number;
+}
 
 interface DigitalDoppelgangerData {
   reportTitle: string;
@@ -9,9 +18,7 @@ interface DigitalDoppelgangerData {
   bio: string;
   topHashtags: string[];
   personalityTraits?: string[];
-  likelyFollowers?: string[];
-  contentStyle?: string;
-  onlineBehavior?: string;
+  posts?: SocialPost[];
   disclaimer: string;
 }
 
@@ -26,20 +33,42 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
   onNavigate, 
   showNavigation = false 
 }) => {
-  // Generate a unique color scheme based on the handle
-  const getProfileColor = (handle: string) => {
-    const colors = [
-      { bg: 'from-purple-600 to-blue-600', accent: 'text-purple-400', border: 'border-purple-500' },
-      { bg: 'from-green-600 to-teal-600', accent: 'text-green-400', border: 'border-green-500' },
-      { bg: 'from-pink-600 to-rose-600', accent: 'text-pink-400', border: 'border-pink-500' },
-      { bg: 'from-orange-600 to-red-600', accent: 'text-orange-400', border: 'border-orange-500' },
-      { bg: 'from-indigo-600 to-purple-600', accent: 'text-indigo-400', border: 'border-indigo-500' },
-    ];
-    const index = handle.length % colors.length;
-    return colors[index];
+  // Generate a profile picture using a simple pattern based on handle
+  const getProfilePicture = (handle: string) => {
+    const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-orange-500', 'bg-red-500'];
+    const colorIndex = handle.length % colors.length;
+    return colors[colorIndex];
   };
 
-  const profileColor = getProfileColor(data.handle);
+  const profileBgColor = getProfilePicture(data.handle);
+
+  // Mock posts if none provided
+  const mockPosts: SocialPost[] = data.posts || [
+    {
+      id: '1',
+      content: "Just discovered something fascinating about the intersection of technology and human behavior. The way we adapt to new interfaces says so much about our cognitive flexibility! 🧠✨",
+      timestamp: '2h',
+      likes: 42,
+      retweets: 8,
+      replies: 12
+    },
+    {
+      id: '2', 
+      content: "Working on a new project that combines my interests in data analysis and creative problem-solving. Sometimes the best insights come from unexpected connections 🔗",
+      timestamp: '6h',
+      likes: 28,
+      retweets: 5,
+      replies: 7
+    },
+    {
+      id: '3',
+      content: "Reflecting on how our digital conversations shape our thinking patterns. Every interaction is both a mirror and a window into who we're becoming 🪟",
+      timestamp: '1d',
+      likes: 67,
+      retweets: 15,
+      replies: 23
+    }
+  ];
 
   return (
     <motion.div 
@@ -47,7 +76,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.8 }}
-      className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950 p-8 relative"
+      className="min-h-screen bg-black text-white relative"
     >
       {/* Navigation Controls */}
       {showNavigation && onNavigate && (
@@ -56,7 +85,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
             variant="ghost"
             size="sm"
             onClick={() => onNavigate('prev')}
-            className="absolute top-8 left-8 z-50 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-600"
+            className="absolute top-8 left-8 z-50 bg-gray-900/80 hover:bg-gray-800/80 text-white border border-gray-700"
           >
             ← Previous
           </Button>
@@ -64,277 +93,221 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
             variant="ghost"
             size="sm"
             onClick={() => onNavigate('next')}
-            className="absolute top-8 right-8 z-50 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-600"
+            className="absolute top-8 right-8 z-50 bg-gray-900/80 hover:bg-gray-800/80 text-white border border-gray-700"
           >
             Next →
           </Button>
         </>
       )}
 
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `
-            radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-            radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
-          `,
-          backgroundSize: '300px 300px'
-        }} />
-      </div>
-
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Header */}
+      <div className="max-w-2xl mx-auto">
+        {/* Twitter-like Header */}
         <motion.div 
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-center mb-12"
+          className="sticky top-0 bg-black/80 backdrop-blur-sm border-b border-gray-800 p-4 z-40"
         >
-          <h1 className="text-4xl font-bold text-white mb-4 tracking-wide">
-            {data.reportTitle}
-          </h1>
-          <div className="flex items-center justify-center">
-            <Globe className="h-6 w-6 text-cyan-400 mr-2" />
-            <span className="text-cyan-400 text-lg">Your Social Media Twin</span>
-            <Globe className="h-6 w-6 text-cyan-400 ml-2" />
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-bold">{data.reportTitle}</h1>
+            <MoreHorizontal className="h-5 w-5 text-gray-500" />
           </div>
         </motion.div>
 
-        {/* Main Profile Card */}
+        {/* Profile Section */}
         <motion.div
-          initial={{ y: 100, opacity: 0, rotateX: -30 }}
-          animate={{ y: 0, opacity: 1, rotateX: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-slate-600 overflow-hidden"
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="p-6 border-b border-gray-800"
         >
-          {/* Profile Header */}
-          <div className={`bg-gradient-to-r ${profileColor.bg} p-8 relative`}>
-            {/* Decorative Elements */}
-            <div className="absolute top-4 right-4 opacity-20">
-              <MessageSquare className="h-8 w-8 text-white" />
-            </div>
-            <div className="absolute bottom-4 left-4 opacity-20">
-              <Share className="h-6 w-6 text-white" />
-            </div>
-
-            <div className="flex items-center space-x-6">
-              {/* Profile Picture Placeholder */}
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.6, duration: 0.6 }}
-                className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center border-4 border-white/30"
-              >
-                <User className="h-12 w-12 text-white" />
-              </motion.div>
-
-              {/* Profile Info */}
-              <div className="flex-1">
-                <motion.h2
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 }}
-                  className="text-3xl font-bold text-white mb-2"
-                >
-                  {data.handle}
-                </motion.h2>
-                <motion.div
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 1 }}
-                  className="flex items-center space-x-4 text-white/80"
-                >
-                  <span className="flex items-center">
-                    <Users className="h-4 w-4 mr-1" />
-                    {Math.floor(Math.random() * 10000) + 1000} followers
-                  </span>
-                  <span className="flex items-center">
-                    <MessageSquare className="h-4 w-4 mr-1" />
-                    {Math.floor(Math.random() * 5000) + 500} posts
-                  </span>
-                </motion.div>
-              </div>
-            </div>
+          {/* Cover Photo Area */}
+          <div className="h-32 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg mb-4 relative">
+            <div className="absolute inset-0 bg-black/20 rounded-lg" />
           </div>
 
-          {/* Profile Content */}
-          <div className="p-8">
-            {/* Bio */}
+          {/* Profile Info */}
+          <div className="relative -mt-16 mb-4">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2 }}
-              className="mb-8"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className={`w-24 h-24 ${profileBgColor} rounded-full border-4 border-black flex items-center justify-center text-2xl font-bold text-white`}
             >
-              <h3 className="text-lg font-semibold text-white mb-3">Bio</h3>
-              <p className="text-slate-300 leading-relaxed text-lg">
-                {data.bio}
-              </p>
+              {data.handle.replace('@', '').charAt(0).toUpperCase()}
             </motion.div>
+          </div>
 
-            {/* Top Hashtags */}
-            {data.topHashtags && data.topHashtags.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.4 }}
-                className="mb-8"
-              >
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Hash className="h-5 w-5 mr-2" />
-                  Signature Hashtags
-                </h3>
-                <div className="flex flex-wrap gap-3">
-                  {data.topHashtags.map((hashtag, index) => (
-                    <motion.span
-                      key={index}
-                      initial={{ scale: 0, rotate: -180 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: 1.6 + index * 0.1 }}
-                      className={`px-4 py-2 bg-gradient-to-r ${profileColor.bg} text-white rounded-full text-sm font-medium border-2 ${profileColor.border} hover:scale-105 transition-transform cursor-default`}
-                    >
-                      #{hashtag}
-                    </motion.span>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <h2 className="text-xl font-bold mb-1">
+              {data.handle.replace('@', '').split(/(?=[A-Z])/).join(' ')}
+            </h2>
+            <p className="text-gray-500 mb-3">{data.handle}</p>
+            
+            <p className="text-white mb-4 leading-relaxed">
+              {data.bio}
+            </p>
 
-            {/* Personality Traits */}
-            {data.personalityTraits && data.personalityTraits.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.8 }}
-                className="mb-8"
-              >
-                <h3 className="text-lg font-semibold text-white mb-4">Personality Traits</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {data.personalityTraits.map((trait, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 2 + index * 0.1 }}
-                      className="bg-slate-700/50 p-3 rounded-lg border border-slate-600 text-center"
-                    >
-                      <span className="text-slate-300 text-sm">{trait}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Content Style & Online Behavior */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-              {data.contentStyle && (
-                <motion.div
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 2.2 }}
-                  className="bg-slate-700/30 p-6 rounded-xl border border-slate-600"
-                >
-                  <h4 className="text-white font-semibold mb-3 flex items-center">
-                    <MessageSquare className="h-5 w-5 mr-2" />
-                    Content Style
-                  </h4>
-                  <p className="text-slate-300 text-sm leading-relaxed">
-                    {data.contentStyle}
-                  </p>
-                </motion.div>
-              )}
-
-              {data.onlineBehavior && (
-                <motion.div
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 2.4 }}
-                  className="bg-slate-700/30 p-6 rounded-xl border border-slate-600"
-                >
-                  <h4 className="text-white font-semibold mb-3 flex items-center">
-                    <Globe className="h-5 w-5 mr-2" />
-                    Online Behavior
-                  </h4>
-                  <p className="text-slate-300 text-sm leading-relaxed">
-                    {data.onlineBehavior}
-                  </p>
-                </motion.div>
-              )}
+            <div className="flex items-center text-gray-500 text-sm mb-4">
+              <Calendar className="h-4 w-4 mr-1" />
+              <span>Joined {new Date().getFullYear() - Math.floor(Math.random() * 3) - 1}</span>
             </div>
 
-            {/* Likely Followers */}
-            {data.likelyFollowers && data.likelyFollowers.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 2.6 }}
-                className="mb-8"
-              >
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Your Likely Audience
-                </h3>
-                <div className="space-y-3">
-                  {data.likelyFollowers.map((follower, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 2.8 + index * 0.1 }}
-                      className="flex items-center bg-slate-700/30 p-4 rounded-lg border border-slate-600"
-                    >
-                      <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center mr-3">
-                        <User className="h-4 w-4 text-white" />
+            <div className="flex space-x-6 text-sm">
+              <span>
+                <span className="font-bold text-white">{Math.floor(Math.random() * 500) + 100}</span>
+                <span className="text-gray-500 ml-1">Following</span>
+              </span>
+              <span>
+                <span className="font-bold text-white">{Math.floor(Math.random() * 2000) + 500}</span>
+                <span className="text-gray-500 ml-1">Followers</span>
+              </span>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        {/* Hashtags Section */}
+        {data.topHashtags && data.topHashtags.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1 }}
+            className="p-6 border-b border-gray-800"
+          >
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Hash className="h-5 w-5 mr-2 text-blue-400" />
+              Frequently Used
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {data.topHashtags.map((hashtag, index) => (
+                <motion.span
+                  key={`hashtag-${index}`}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 1.2 + index * 0.1 }}
+                  className="px-3 py-1 bg-gray-900 text-blue-400 rounded-full text-sm border border-gray-700 hover:bg-gray-800 transition-colors cursor-pointer"
+                >
+                  #{hashtag}
+                </motion.span>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Posts Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.4 }}
+          className="divide-y divide-gray-800"
+        >
+          <div className="p-4 border-b border-gray-800">
+            <h3 className="text-lg font-semibold">Posts</h3>
+          </div>
+
+          {mockPosts.map((post, index) => (
+            <motion.div
+              key={post.id}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.6 + index * 0.2 }}
+              className="p-4 hover:bg-gray-950/50 transition-colors cursor-pointer"
+            >
+              <div className="flex space-x-3">
+                {/* Profile Picture */}
+                <div className={`w-10 h-10 ${profileBgColor} rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0`}>
+                  {data.handle.replace('@', '').charAt(0).toUpperCase()}
+                </div>
+
+                {/* Post Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <span className="font-bold text-white">
+                      {data.handle.replace('@', '').split(/(?=[A-Z])/).join(' ')}
+                    </span>
+                    <span className="text-gray-500">{data.handle}</span>
+                    <span className="text-gray-500">·</span>
+                    <span className="text-gray-500 text-sm">{post.timestamp}</span>
+                  </div>
+
+                  <p className="text-white mb-3 leading-relaxed">
+                    {post.content}
+                  </p>
+
+                  {/* Engagement Actions */}
+                  <div className="flex items-center justify-between max-w-md text-gray-500">
+                    <button className="flex items-center space-x-2 hover:text-blue-400 transition-colors group">
+                      <div className="p-2 rounded-full group-hover:bg-blue-400/10 transition-colors">
+                        <MessageSquare className="h-4 w-4" />
                       </div>
-                      <span className="text-slate-300">{follower}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+                      <span className="text-sm">{post.replies}</span>
+                    </button>
 
-            {/* Engagement Metrics (Mock) */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 3 }}
-              className="bg-slate-700/30 p-6 rounded-xl border border-slate-600 mb-8"
-            >
-              <h3 className="text-lg font-semibold text-white mb-4">Predicted Engagement</h3>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="text-2xl font-bold text-cyan-400">
-                    {(Math.random() * 5 + 2).toFixed(1)}%
+                    <button className="flex items-center space-x-2 hover:text-green-400 transition-colors group">
+                      <div className="p-2 rounded-full group-hover:bg-green-400/10 transition-colors">
+                        <Repeat2 className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm">{post.retweets}</span>
+                    </button>
+
+                    <button className="flex items-center space-x-2 hover:text-red-400 transition-colors group">
+                      <div className="p-2 rounded-full group-hover:bg-red-400/10 transition-colors">
+                        <Heart className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm">{post.likes}</span>
+                    </button>
+
+                    <button className="hover:text-blue-400 transition-colors group">
+                      <div className="p-2 rounded-full group-hover:bg-blue-400/10 transition-colors">
+                        <Share className="h-4 w-4" />
+                      </div>
+                    </button>
                   </div>
-                  <div className="text-slate-400 text-sm">Avg. Engagement</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-400">
-                    {Math.floor(Math.random() * 100 + 50)}
-                  </div>
-                  <div className="text-slate-400 text-sm">Likes per Post</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-purple-400">
-                    {Math.floor(Math.random() * 20 + 5)}
-                  </div>
-                  <div className="text-slate-400 text-sm">Comments per Post</div>
                 </div>
               </div>
             </motion.div>
+          ))}
+        </motion.div>
 
-            {/* Footer */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 3.2 }}
-              className="text-center pt-6 border-t border-slate-600"
-            >
-              <p className="text-slate-400 text-sm">
-                {data.disclaimer}
-              </p>
-            </motion.div>
-          </div>
+        {/* Personality Traits */}
+        {data.personalityTraits && data.personalityTraits.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.4 }}
+            className="p-6 border-t border-gray-800"
+          >
+            <h3 className="text-lg font-semibold mb-4">Personality Insights</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {data.personalityTraits.map((trait, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 2.6 + index * 0.1 }}
+                  className="bg-gray-900 p-3 rounded-lg border border-gray-700 text-center"
+                >
+                  <span className="text-gray-300 text-sm">{trait}</span>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Footer */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 3 }}
+          className="p-6 text-center border-t border-gray-800"
+        >
+          <p className="text-gray-500 text-sm">
+            {data.disclaimer}
+          </p>
         </motion.div>
       </div>
     </motion.div>

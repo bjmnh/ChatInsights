@@ -94,7 +94,7 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
   return (
     <div className="relative min-h-screen">
       {/* Navigation Controls */}
-      <div className="fixed top-4 left-4 z-50">
+      <div className="fixed top-20 left-4 z-50">
         <Button
           variant="ghost"
           onClick={onBack}

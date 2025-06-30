@@ -235,9 +235,9 @@ const PremiumReportOverview: React.FC<{
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950">
       <div className="container mx-auto px-4 py-8">
         <Button 
-          variant="ghost" 
+          variant="secondary"
           onClick={onBack}
-          className="mb-8 text-white hover:text-gray-300"
+          className="mb-8 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow hover:shadow-lg transition-all"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Dashboard

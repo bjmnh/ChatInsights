@@ -17,7 +17,9 @@ import {
   Eye,
   Sparkles,
   Database,
-  Bot
+  Bot,
+  User,
+  Heart
 } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
 
@@ -38,7 +40,7 @@ const HomePage: React.FC = () => {
       label: 'Digital Dossier', 
       description: 'FBI-style behavioral analysis',
       icon: Brain,
-      angle: -20,
+      angle: -25,
       delay: 0.5
     },
     { 
@@ -46,31 +48,31 @@ const HomePage: React.FC = () => {
       label: 'Linguistic Fingerprint', 
       description: 'Language pattern analysis',
       icon: FileText,
-      angle: -10,
+      angle: -12,
       delay: 0.7
     },
     { 
       color: 'from-yellow-500 to-yellow-600', 
-      label: 'Top Conversations', 
-      description: 'Most fascinating discussions',
-      icon: MessageSquare,
+      label: 'Personality Profile', 
+      description: 'In-depth personality insights',
+      icon: User,
       angle: 0,
       delay: 0.9
     },
     { 
       color: 'from-green-500 to-green-600', 
-      label: 'Reality TV Persona', 
-      description: 'Your entertainment archetype',
-      icon: Tv,
-      angle: 10,
+      label: 'Emotional Analysis', 
+      description: 'Emotional tone evaluation',
+      icon: Heart,
+      angle: 12,
       delay: 1.1
     },
     { 
       color: 'from-blue-500 to-blue-600', 
-      label: 'Unfiltered Mirror', 
-      description: 'Deep self-reflection',
-      icon: Eye,
-      angle: 20,
+      label: 'Cognitive Patterns', 
+      description: 'Thinking style analysis',
+      icon: Brain,
+      angle: 25,
       delay: 1.3
     },
     { 
@@ -155,24 +157,28 @@ const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
+    <div className="min-h-screen w-full bg-black text-white overflow-hidden">
       {/* Bolt.new Logo positioned under header - Made larger and removed backdrop */}
       <div className="absolute top-24 right-8 z-40">
-        <motion.div
+        <motion.a
+          href="https://bolt.new"
+          target="_blank"
+          rel="noopener noreferrer"
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
+          className="block hover:opacity-90 transition-opacity"
         >
           <img 
             src="/white_circle_360x360.png" 
             alt="Built with Bolt.new" 
-            className="h-16 w-16"
+            className="h-24 w-24 lg:h-32 lg:w-32"
           />
-        </motion.div>
+        </motion.a>
       </div>
 
       {/* Hero Section - The Digital Prism */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-2">
+      <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden pt-2">
         {/* Professional Background Pattern */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-gray-950 to-black" />
@@ -211,7 +217,7 @@ const HomePage: React.FC = () => {
           ))}
         </div>
 
-        <div className="container mx-auto px-4 relative z-10">
+        <div className="w-full max-w-full px-4 relative z-10">
           <div className="text-center mb-6">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -232,14 +238,14 @@ const HomePage: React.FC = () => {
             </motion.div>
           </div>
 
-          {/* Enhanced Digital Prism Animation - Reduced spacing */}
-          <div className="relative flex items-center justify-center mb-6 h-[350px] lg:h-[400px]">
-            {/* Data Input Visualization */}
+          {/* Enhanced Digital Prism Animation - Improved spacing and layout */}
+          <div className="relative flex items-center justify-center mb-6 h-[400px] lg:h-[500px] w-full">
+            {/* Data Input Visualization - Positioned between center and edge */}
             <motion.div
-              initial={{ opacity: 0, x: -300 }}
-              animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -300 }}
+              initial={{ opacity: 0, x: -225 }}
+              animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -225 }}
               transition={{ duration: 1.2, delay: 0.5 }}
-              className="absolute left-0 lg:left-8 flex items-center"
+              className="absolute left-1/5 lg:left-1/4 flex items-center"
             >
               <div className="text-right mr-6 lg:mr-8">
                 <div className="flex items-center justify-end mb-4">
@@ -277,19 +283,19 @@ const HomePage: React.FC = () => {
               </motion.div>
             </motion.div>
 
-            {/* Enhanced 3D Prism */}
+            {/* Enhanced 3D Prism - Larger and better centered */}
             <motion.div
               initial={{ opacity: 0, scale: 0, rotateY: -180 }}
               animate={{ 
                 opacity: animationStarted ? 1 : 0, 
-                scale: animationStarted ? 1 : 0, 
+                scale: animationStarted ? 1.2 : 0, 
                 rotateY: animationStarted ? 0 : -180,
               }}
               transition={{ 
                 duration: 2.5, 
                 delay: 1.8,
               }}
-              className="relative z-20"
+              className="relative z-20 mx-8 lg:mx-16"
             >
               <motion.div
                 animate={{ 
@@ -300,22 +306,25 @@ const HomePage: React.FC = () => {
                   rotateZ: { duration: 20, repeat: Infinity, ease: "linear" },
                   rotateY: { duration: 4, repeat: Infinity, ease: "easeInOut" }
                 }}
-                className="relative"
+                className="relative flex items-center justify-center"
               >
-                {/* Main Prism Body */}
+                {/* Main Prism Body - Slightly smaller */}
                 <div className="w-24 h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 relative shadow-2xl">
                   {/* Inner Glow */}
-                  <div className="absolute inset-3 lg:inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
+                  <div className="absolute inset-2 lg:inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
                   <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20 rounded-sm" />
                   
-                  {/* Prism Facets */}
-                  <div className="absolute -top-1.5 lg:-top-2 -left-1.5 lg:-left-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-lg" />
-                  <div className="absolute -top-1.5 lg:-top-2 -right-1.5 lg:-right-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-lg" />
-                  <div className="absolute -bottom-1.5 lg:-bottom-2 -left-1.5 lg:-left-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-lg" />
-                  <div className="absolute -bottom-1.5 lg:-bottom-2 -right-1.5 lg:-right-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-tl from-cyan-300 to-cyan-500 transform -rotate-45 opacity-90 shadow-lg" />
+                  {/* Prism Facets - Adjusted for smaller size */}
+                  <div className="absolute -top-1.5 -left-1.5 lg:-top-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-xl" />
+                  <div className="absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-xl" />
+                  <div className="absolute -bottom-1.5 -left-1.5 lg:-bottom-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-xl" />
+                  <div className="absolute -bottom-1.5 -right-1.5 lg:-bottom-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tl from-cyan-300 to-cyan-500 transform -rotate-45 opacity-90 shadow-xl" />
                   
-                  {/* Central Core */}
-                  <div className="absolute inset-6 lg:inset-8 bg-white rounded-full opacity-60 animate-pulse" />
+                  {/* Central Core with Brain Icon */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="absolute inset-4 lg:inset-6 bg-white rounded-full opacity-60 animate-pulse" />
+                    <Brain className="h-8 w-8 lg:h-12 lg:w-12 text-white relative z-10 transform -rotate-45" />
+                  </div>
                 </div>
 
                 {/* Prism Glow Effect */}
@@ -324,7 +333,7 @@ const HomePage: React.FC = () => {
             </motion.div>
 
             {/* Enhanced Refracted Beams - Moved closer and made longer */}
-            <div className="absolute left-1/2 ml-8 lg:ml-12 flex flex-col items-start space-y-1 lg:space-y-2">
+            <div className="absolute left-1/2 ml-12 lg:ml-20 flex flex-col items-start space-y-3 lg:space-y-4">
               {prismBeams.map((beam, index) => (
                 <motion.div
                   key={index}
@@ -344,7 +353,7 @@ const HomePage: React.FC = () => {
                   }}
                 >
                   {/* Enhanced Beam - Made longer and responsive */}
-                  <div className={`w-40 lg:w-56 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
+                  <div className={`w-48 lg:w-64 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
                     <motion.div
                       animate={{ x: [-150, 300] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
@@ -392,15 +401,15 @@ const HomePage: React.FC = () => {
               <Button 
                 size="lg" 
                 onClick={() => navigate(user ? '/dashboard' : '/auth')}
-                className="text-sm lg:text-base px-6 lg:px-8 py-3 lg:py-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-2xl shadow-blue-500/25 rounded-xl font-semibold w-full sm:w-auto max-w-xs"
+                className="text-lg lg:text-xl px-10 lg:px-12 py-7 lg:py-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-2xl shadow-blue-500/25 rounded-xl font-bold w-full sm:w-auto max-w-sm"
               >
                 {user ? 'Analyze Your Conversations' : 'Start Your Analysis'}
-                <ArrowRight className="ml-2 h-4 w-4 lg:h-5 lg:w-5" />
+                <ArrowRight className="ml-3 h-6 w-6 lg:h-7 lg:w-7" />
               </Button>
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="text-sm lg:text-base px-6 lg:px-8 py-3 lg:py-4 border-white/30 text-white hover:bg-white/10 rounded-xl font-semibold w-full sm:w-auto max-w-xs"
+                className="text-lg lg:text-xl px-10 lg:px-12 py-7 lg:py-8 border-white/30 text-white hover:bg-white/10 rounded-xl font-bold w-full sm:w-auto max-w-sm"
               >
                 View Sample Analysis
               </Button>
@@ -420,7 +429,7 @@ const HomePage: React.FC = () => {
             className="text-center mb-16 lg:mb-20"
           >
             <h2 className="text-4xl lg:text-6xl font-bold mb-6 lg:mb-8">
-              Your Insights, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Revealed</span>
+              Your Data, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Revealed</span>
             </h2>
             <p className="text-lg lg:text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
               Each analysis creates a unique insight card in your personal collection. 

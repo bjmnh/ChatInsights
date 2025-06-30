@@ -19,7 +19,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <div className="min-h-screen bg-background text-foreground flex flex-col">
+          <div className="min-h-screen w-full bg-background text-foreground flex flex-col">
             <Header />
             <main className="flex-1">
               <Routes>

@@ -63,14 +63,6 @@ const Footer: React.FC = () => {
                 <span className="text-sm text-muted-foreground">Bolt.new</span>
               </div>
               
-              {/* Entri Logo */}
-              <div className="flex items-center space-x-2 opacity-70 hover:opacity-100 transition-opacity">
-                <img 
-                  src="/wordmark-color copy.svg" 
-                  alt="Entri" 
-                  className="h-6"
-                />
-              </div>
               
               {/* Netlify Logo */}
               <div className="flex items-center space-x-2 opacity-70 hover:opacity-100 transition-opacity">

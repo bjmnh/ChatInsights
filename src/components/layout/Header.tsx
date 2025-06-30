@@ -70,7 +70,7 @@ const Header: React.FC = () => {
             </DropdownMenu>
           ) : (
             <div className="flex items-center space-x-2">
-              <Button variant="ghost" onClick={() => navigate('/auth')}>
+              <Button onClick={() => navigate('/auth')}>
                 Sign In
               </Button>
               <Button onClick={() => navigate('/auth')}>

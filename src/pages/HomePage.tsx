@@ -16,7 +16,6 @@ import {
   Globe,
   Eye,
   Sparkles,
-  Zap,
   Database,
   Bot
 } from 'lucide-react';
@@ -157,6 +156,22 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
+      {/* Bolt.new Logo positioned under header */}
+      <div className="absolute top-20 right-8 z-40">
+        <motion.div
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 2, duration: 0.5 }}
+          className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20"
+        >
+          <img 
+            src="/white_circle_360x360.png" 
+            alt="Built with Bolt.new" 
+            className="h-8 w-8"
+          />
+        </motion.div>
+      </div>
+
       {/* Hero Section - The Digital Prism */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-8">
         {/* Professional Background Pattern */}
@@ -588,23 +603,6 @@ const HomePage: React.FC = () => {
           </motion.div>
         </div>
       </section>
-
-      {/* Built with Bolt.new Badge */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <motion.a
-          href="https://bolt.new"
-          target="_blank"
-          rel="noopener noreferrer"
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 2, duration: 0.5 }}
-          whileHover={{ scale: 1.05 }}
-          className="flex items-center bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-400/30"
-        >
-          <Zap className="h-4 w-4 mr-2" />
-          Built with Bolt.new
-        </motion.a>
-      </div>
     </div>
   );
 };

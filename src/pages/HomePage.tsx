@@ -250,12 +250,12 @@ const HomePage: React.FC = () => {
 
           {/* Enhanced Digital Prism Animation - Fixed positioning */}
           <div className="relative flex items-center justify-center mb-6 h-[400px] lg:h-[500px] w-full">
-            {/* Data Input Visualization - Fixed positioning relative to center */}
+            {/* Data Input Visualization - Properly positioned to the left */}
             <motion.div
               initial={{ opacity: 0, x: -225 }}
               animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -225 }}
               transition={{ duration: 1.2, delay: 0.5 }}
-              className="absolute left-1/2 transform -translate-x-1/2 -translate-x-80 lg:-translate-x-96 flex items-center"
+              className="absolute left-1/2 transform -translate-x-1/2 -translate-x-48 lg:-translate-x-64 flex items-center"
             >
               <div className="text-right mr-6 lg:mr-8">
                 <div className="flex items-center justify-end mb-4">

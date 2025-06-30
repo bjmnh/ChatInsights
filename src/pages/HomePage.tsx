@@ -158,7 +158,7 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden">
       {/* Hero Section - The Digital Prism */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
         {/* Professional Background Pattern */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-gray-950 to-black" />
@@ -198,20 +198,20 @@ const HomePage: React.FC = () => {
         </div>
 
         <div className="container mx-auto px-4 relative z-10">
-          <div className="text-center mb-20">
+          <div className="text-center mb-16">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h1 className="text-6xl lg:text-8xl font-bold mb-8 leading-tight">
+              <h1 className="text-5xl lg:text-7xl font-bold mb-8 leading-tight">
                 <span className="block text-white">See What Your</span>
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
                   Conversations
                 </span>
                 <span className="block text-white">Say About You</span>
               </h1>
-              <p className="text-xl lg:text-2xl text-gray-300 mb-16 max-w-4xl mx-auto leading-relaxed">
+              <p className="text-lg lg:text-xl text-gray-300 mb-12 max-w-3xl mx-auto leading-relaxed">
                 Transform your ChatGPT conversation data into profound insights about your personality, 
                 communication style, and digital behavior through advanced AI analysis.
               </p>
@@ -219,26 +219,26 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Enhanced Digital Prism Animation */}
-          <div className="relative flex items-center justify-center mb-20 h-[500px]">
+          <div className="relative flex items-center justify-center mb-16 h-[400px] lg:h-[500px]">
             {/* Data Input Visualization */}
             <motion.div
               initial={{ opacity: 0, x: -300 }}
               animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -300 }}
               transition={{ duration: 1.2, delay: 0.5 }}
-              className="absolute left-0 flex items-center"
+              className="absolute left-0 lg:left-8 flex items-center"
             >
-              <div className="text-right mr-12">
+              <div className="text-right mr-8 lg:mr-12">
                 <div className="flex items-center justify-end mb-4">
-                  <Bot className="h-8 w-8 text-green-400 mr-3" />
+                  <Bot className="h-6 w-6 lg:h-8 lg:w-8 text-green-400 mr-3" />
                   <div>
-                    <div className="text-lg font-semibold text-white">OpenAI Conversations</div>
-                    <div className="text-sm text-gray-400">Raw conversation data</div>
+                    <div className="text-base lg:text-lg font-semibold text-white">OpenAI Conversations</div>
+                    <div className="text-xs lg:text-sm text-gray-400">Raw conversation data</div>
                   </div>
                 </div>
-                <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg p-4 max-w-xs">
+                <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg p-3 lg:p-4 max-w-xs">
                   <div className="flex items-center mb-2">
-                    <Database className="h-4 w-4 text-blue-400 mr-2" />
-                    <span className="text-sm text-gray-300">conversations.json</span>
+                    <Database className="h-3 w-3 lg:h-4 lg:w-4 text-blue-400 mr-2" />
+                    <span className="text-xs lg:text-sm text-gray-300">conversations.json</span>
                   </div>
                   <div className="text-xs text-gray-500 font-mono">
                     {Math.floor(Math.random() * 500 + 100)} conversations<br/>
@@ -254,11 +254,11 @@ const HomePage: React.FC = () => {
                 transition={{ duration: 2, delay: 1.2 }}
                 className="relative"
               >
-                <div className="w-48 h-2 bg-gradient-to-r from-blue-400 to-transparent origin-left rounded-full" />
+                <div className="w-32 lg:w-48 h-2 bg-gradient-to-r from-blue-400 to-transparent origin-left rounded-full" />
                 <motion.div
-                  animate={{ x: animationStarted ? [0, 192, 0] : 0 }}
+                  animate={{ x: animationStarted ? [0, 128, 0] : 0 }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="absolute top-0 left-0 w-8 h-2 bg-white rounded-full opacity-80"
+                  className="absolute top-0 left-0 w-6 lg:w-8 h-2 bg-white rounded-full opacity-80"
                 />
               </motion.div>
             </motion.div>
@@ -289,19 +289,19 @@ const HomePage: React.FC = () => {
                 className="relative"
               >
                 {/* Main Prism Body */}
-                <div className="w-32 h-32 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 relative shadow-2xl">
+                <div className="w-24 h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 relative shadow-2xl">
                   {/* Inner Glow */}
-                  <div className="absolute inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
+                  <div className="absolute inset-3 lg:inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
                   <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20 rounded-sm" />
                   
                   {/* Prism Facets */}
-                  <div className="absolute -top-2 -left-2 w-8 h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-lg" />
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-lg" />
-                  <div className="absolute -bottom-2 -left-2 w-8 h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-lg" />
-                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-gradient-to-tl from-cyan-300 to-cyan-500 transform -rotate-45 opacity-90 shadow-lg" />
+                  <div className="absolute -top-1.5 lg:-top-2 -left-1.5 lg:-left-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-lg" />
+                  <div className="absolute -top-1.5 lg:-top-2 -right-1.5 lg:-right-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-lg" />
+                  <div className="absolute -bottom-1.5 lg:-bottom-2 -left-1.5 lg:-left-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-lg" />
+                  <div className="absolute -bottom-1.5 lg:-bottom-2 -right-1.5 lg:-right-2 w-6 lg:w-8 h-6 lg:h-8 bg-gradient-to-tl from-cyan-300 to-cyan-500 transform -rotate-45 opacity-90 shadow-lg" />
                   
                   {/* Central Core */}
-                  <div className="absolute inset-8 bg-white rounded-full opacity-60 animate-pulse" />
+                  <div className="absolute inset-6 lg:inset-8 bg-white rounded-full opacity-60 animate-pulse" />
                 </div>
 
                 {/* Prism Glow Effect */}
@@ -309,8 +309,8 @@ const HomePage: React.FC = () => {
               </motion.div>
             </motion.div>
 
-            {/* Enhanced Refracted Beams */}
-            <div className="absolute right-0 flex flex-col items-start space-y-3">
+            {/* Enhanced Refracted Beams - Responsive positioning */}
+            <div className="absolute right-0 lg:right-8 flex flex-col items-start space-y-2 lg:space-y-3">
               {prismBeams.map((beam, index) => (
                 <motion.div
                   key={index}
@@ -324,10 +324,13 @@ const HomePage: React.FC = () => {
                   className="relative group cursor-pointer"
                   onMouseEnter={() => setHoveredBeam(index)}
                   onMouseLeave={() => setHoveredBeam(null)}
-                  style={{ transform: `rotate(${beam.angle}deg)` }}
+                  style={{ 
+                    transform: `rotate(${beam.angle}deg)`,
+                    transformOrigin: 'left center'
+                  }}
                 >
-                  {/* Enhanced Beam */}
-                  <div className={`w-48 h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
+                  {/* Enhanced Beam - Responsive width */}
+                  <div className={`w-32 lg:w-48 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
                     <motion.div
                       animate={{ x: [-150, 300] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
@@ -336,7 +339,7 @@ const HomePage: React.FC = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-full" />
                   </div>
                   
-                  {/* Enhanced Label */}
+                  {/* Enhanced Label - Better responsive positioning */}
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8, x: 20 }}
                     animate={{ 
@@ -344,40 +347,40 @@ const HomePage: React.FC = () => {
                       scale: hoveredBeam === index ? 1 : 0.8,
                       x: hoveredBeam === index ? 0 : 20
                     }}
-                    className="absolute left-full top-1/2 transform -translate-y-1/2 ml-6 bg-black/90 backdrop-blur-sm border border-white/20 rounded-xl p-4 min-w-64 shadow-2xl"
+                    className="absolute left-full top-1/2 transform -translate-y-1/2 ml-4 lg:ml-6 bg-black/90 backdrop-blur-sm border border-white/20 rounded-xl p-3 lg:p-4 min-w-48 lg:min-w-64 shadow-2xl"
                   >
-                    <div className="flex items-center mb-3">
-                      <beam.icon className="h-5 w-5 mr-3 text-white" />
-                      <span className="font-semibold text-white text-lg">{beam.label}</span>
+                    <div className="flex items-center mb-2 lg:mb-3">
+                      <beam.icon className="h-4 w-4 lg:h-5 lg:w-5 mr-2 lg:mr-3 text-white" />
+                      <span className="font-semibold text-white text-sm lg:text-lg">{beam.label}</span>
                     </div>
-                    <p className="text-gray-300 text-sm leading-relaxed">{beam.description}</p>
-                    <div className={`w-full h-1 bg-gradient-to-r ${beam.color} rounded-full mt-3`} />
+                    <p className="text-gray-300 text-xs lg:text-sm leading-relaxed">{beam.description}</p>
+                    <div className={`w-full h-0.5 lg:h-1 bg-gradient-to-r ${beam.color} rounded-full mt-2 lg:mt-3`} />
                   </motion.div>
                 </motion.div>
               ))}
             </div>
           </div>
 
-          {/* Enhanced CTA Buttons */}
+          {/* Enhanced CTA Buttons - Better responsive sizing */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 3, duration: 0.8 }}
             className="text-center"
           >
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 lg:gap-6 justify-center max-w-4xl mx-auto">
               <Button 
                 size="lg" 
                 onClick={() => navigate(user ? '/dashboard' : '/auth')}
-                className="text-xl px-12 py-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-2xl shadow-blue-500/25 rounded-xl font-semibold"
+                className="text-lg lg:text-xl px-8 lg:px-12 py-6 lg:py-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-2xl shadow-blue-500/25 rounded-xl font-semibold flex-1 sm:flex-none"
               >
                 {user ? 'Analyze Your Conversations' : 'Start Your Analysis'}
-                <ArrowRight className="ml-3 h-6 w-6" />
+                <ArrowRight className="ml-2 lg:ml-3 h-5 w-5 lg:h-6 lg:w-6" />
               </Button>
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="text-xl px-12 py-8 border-white/30 text-white hover:bg-white/10 rounded-xl font-semibold"
+                className="text-lg lg:text-xl px-8 lg:px-12 py-6 lg:py-8 border-white/30 text-white hover:bg-white/10 rounded-xl font-semibold flex-1 sm:flex-none"
               >
                 View Sample Analysis
               </Button>
@@ -387,26 +390,26 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enhanced Feature Cards Deck */}
-      <section className="py-32 bg-gradient-to-b from-black via-slate-950 to-black relative">
+      <section className="py-20 lg:py-32 bg-gradient-to-b from-black via-slate-950 to-black relative">
         <div className="container mx-auto px-4">
           <motion.div 
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
-            className="text-center mb-20"
+            className="text-center mb-16 lg:mb-20"
           >
-            <h2 className="text-5xl lg:text-6xl font-bold mb-8">
+            <h2 className="text-4xl lg:text-6xl font-bold mb-6 lg:mb-8">
               Your Insights, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Revealed</span>
             </h2>
-            <p className="text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-lg lg:text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
               Each analysis creates a unique insight card in your personal collection. 
               Professional-grade reports that reveal the hidden patterns in your digital communication.
             </p>
           </motion.div>
 
-          {/* Enhanced Fanned Card Deck */}
-          <div className="relative max-w-7xl mx-auto h-[600px] flex items-center justify-center">
+          {/* Enhanced Fanned Card Deck - Better fan angle and spacing */}
+          <div className="relative max-w-7xl mx-auto h-[500px] lg:h-[600px] flex items-center justify-center">
             {featureCards.map((card, index) => (
               <motion.div
                 key={index}
@@ -414,14 +417,14 @@ const HomePage: React.FC = () => {
                 whileInView={{ 
                   opacity: 1, 
                   y: 0, 
-                  rotate: (index - 2.5) * 12,
-                  x: (index - 2.5) * 60
+                  rotate: (index - 2.5) * 8, // Reduced angle for better visibility
+                  x: (index - 2.5) * 80 // Increased spacing
                 }}
                 whileHover={{ 
                   y: -40, 
                   rotate: 0, 
                   x: 0,
-                  scale: 1.08,
+                  scale: 1.05,
                   zIndex: 50
                 }}
                 transition={{ 
@@ -432,7 +435,7 @@ const HomePage: React.FC = () => {
                   damping: 20
                 }}
                 viewport={{ once: true }}
-                className="absolute w-80 h-96 cursor-pointer group"
+                className="absolute w-72 lg:w-80 h-80 lg:h-96 cursor-pointer group"
                 style={{ zIndex: featureCards.length - index }}
               >
                 <Card className={`h-full bg-gradient-to-br ${card.gradient} border-0 shadow-2xl overflow-hidden relative transform-gpu`}>
@@ -451,7 +454,7 @@ const HomePage: React.FC = () => {
                         {[...Array(30)].map((_, i) => (
                           <div
                             key={i}
-                            className="absolute w-3 h-3 bg-white rounded-full animate-pulse"
+                            className="absolute w-2 lg:w-3 h-2 lg:h-3 bg-white rounded-full animate-pulse"
                             style={{
                               left: `${Math.random() * 100}%`,
                               top: `${Math.random() * 100}%`,
@@ -476,29 +479,29 @@ const HomePage: React.FC = () => {
                     )}
                   </div>
 
-                  <CardHeader className="relative z-10 pb-4">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
-                        <card.icon className="h-8 w-8 text-white" />
+                  <CardHeader className="relative z-10 pb-3 lg:pb-4">
+                    <div className="flex items-center justify-between mb-4 lg:mb-6">
+                      <div className="w-12 h-12 lg:w-16 lg:h-16 bg-white/20 rounded-xl lg:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+                        <card.icon className="h-6 w-6 lg:h-8 lg:w-8 text-white" />
                       </div>
-                      <div className="px-4 py-2 bg-white/20 text-white border border-white/30 rounded-full text-sm font-bold backdrop-blur-sm">
+                      <div className="px-3 lg:px-4 py-1 lg:py-2 bg-white/20 text-white border border-white/30 rounded-full text-xs lg:text-sm font-bold backdrop-blur-sm">
                         {card.preview}
                       </div>
                     </div>
-                    <CardTitle className="text-white text-2xl mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-200 transition-all duration-300 leading-tight">
+                    <CardTitle className="text-white text-lg lg:text-2xl mb-2 lg:mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-200 transition-all duration-300 leading-tight">
                       {card.title}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="relative z-10">
-                    <CardDescription className="text-white/90 text-base leading-relaxed mb-6">
+                    <CardDescription className="text-white/90 text-sm lg:text-base leading-relaxed mb-4 lg:mb-6">
                       {card.description}
                     </CardDescription>
                     
                     {/* Feature List */}
-                    <div className="space-y-2">
+                    <div className="space-y-1 lg:space-y-2">
                       {card.features.map((feature, featureIndex) => (
-                        <div key={featureIndex} className="flex items-center text-white/80 text-sm">
-                          <div className="w-1.5 h-1.5 bg-white rounded-full mr-3" />
+                        <div key={featureIndex} className="flex items-center text-white/80 text-xs lg:text-sm">
+                          <div className="w-1 lg:w-1.5 h-1 lg:h-1.5 bg-white rounded-full mr-2 lg:mr-3" />
                           {feature}
                         </div>
                       ))}
@@ -518,9 +521,9 @@ const HomePage: React.FC = () => {
             whileInView={{ opacity: 1 }}
             transition={{ delay: 1.5 }}
             viewport={{ once: true }}
-            className="text-center mt-20"
+            className="text-center mt-16 lg:mt-20"
           >
-            <p className="text-gray-400 text-lg">
+            <p className="text-gray-400 text-base lg:text-lg">
               Hover over each card to explore the insights waiting to be discovered
             </p>
           </motion.div>
@@ -528,14 +531,14 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Enhanced Final CTA Section */}
-      <section className="py-32 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
+      <section className="py-20 lg:py-32 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
         {/* Enhanced Background Animation */}
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-black/30" />
           {[...Array(50)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-2 h-2 bg-white rounded-full"
+              className="absolute w-1 lg:w-2 h-1 lg:h-2 bg-white rounded-full"
               style={{
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
@@ -561,21 +564,21 @@ const HomePage: React.FC = () => {
             transition={{ duration: 0.8 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-5xl lg:text-6xl font-bold text-white mb-8 leading-tight">
+            <h2 className="text-4xl lg:text-6xl font-bold text-white mb-6 lg:mb-8 leading-tight">
               Ready to Discover Your
               <span className="block">Digital Personality?</span>
             </h2>
-            <p className="text-xl lg:text-2xl text-white/90 mb-12 max-w-4xl mx-auto leading-relaxed">
-              Join thousands of professionals who've unlocked profound insights about their communication patterns, 
+            <p className="text-lg lg:text-2xl text-white/90 mb-8 lg:mb-12 max-w-4xl mx-auto leading-relaxed">
+              Transform your ChatGPT conversations into profound insights about your communication patterns, 
               thinking style, and digital behavior through advanced AI analysis.
             </p>
             <Button 
               size="lg" 
               onClick={() => navigate(user ? '/dashboard' : '/auth')}
-              className="text-xl px-16 py-8 bg-white text-gray-900 hover:bg-gray-100 font-bold shadow-2xl rounded-xl transform hover:scale-105 transition-all duration-300"
+              className="text-lg lg:text-xl px-12 lg:px-16 py-6 lg:py-8 bg-white text-gray-900 hover:bg-gray-100 font-bold shadow-2xl rounded-xl transform hover:scale-105 transition-all duration-300"
             >
               {user ? 'Start New Analysis' : 'Begin Your Journey'}
-              <Sparkles className="ml-3 h-6 w-6" />
+              <Sparkles className="ml-2 lg:ml-3 h-5 w-5 lg:h-6 lg:w-6" />
             </Button>
           </motion.div>
         </div>

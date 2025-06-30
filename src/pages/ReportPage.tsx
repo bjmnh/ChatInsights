@@ -141,72 +141,86 @@ const PremiumReportOverview: React.FC<{
     {
       id: 'fbi',
       title: 'Digital Behavioral Analysis',
-      subtitle: 'FBI-Style Dossier',
       description: 'A comprehensive behavioral profile with psychological insights and operational assessment.',
       icon: Brain,
-      color: 'from-amber-500 to-orange-600',
+      gradient: 'from-amber-500 via-orange-500 to-red-500',
+      iconBg: 'bg-gradient-to-br from-amber-400 to-orange-600',
       textColor: 'text-amber-100',
+      borderColor: 'border-amber-500/30',
+      hoverBorder: 'hover:border-amber-400',
       available: !!reportData.fbiReport,
       codename: reportData.fbiReport?.subjectCodename?.name
     },
     {
       id: 'linguistic',
       title: 'Linguistic Fingerprint',
-      subtitle: 'Communication Analysis',
       description: 'Advanced analysis of your language patterns, vocabulary, and communication style.',
       icon: FileText,
-      color: 'from-blue-500 to-cyan-600',
+      gradient: 'from-blue-500 via-cyan-500 to-teal-500',
+      iconBg: 'bg-gradient-to-br from-blue-400 to-cyan-600',
       textColor: 'text-blue-100',
+      borderColor: 'border-blue-500/30',
+      hoverBorder: 'hover:border-blue-400',
       available: !!reportData.linguisticFingerprint
     },
     {
       id: 'top5',
       title: 'Most Fascinating Conversations',
-      subtitle: 'Curated Collection',
       description: 'Your 5 most intellectually unique and engaging conversation topics.',
       icon: Users,
-      color: 'from-purple-500 to-indigo-600',
+      gradient: 'from-purple-500 via-violet-500 to-indigo-500',
+      iconBg: 'bg-gradient-to-br from-purple-400 to-indigo-600',
       textColor: 'text-purple-100',
+      borderColor: 'border-purple-500/30',
+      hoverBorder: 'hover:border-purple-400',
       available: !!reportData.topInterestingConversations
     },
     {
       id: 'reality',
       title: 'Reality TV Persona',
-      subtitle: 'Entertainment Profile',
       description: 'Your personality archetype and how you\'d appear on reality television.',
       icon: Tv,
-      color: 'from-pink-500 to-rose-600',
+      gradient: 'from-pink-500 via-rose-500 to-red-500',
+      iconBg: 'bg-gradient-to-br from-pink-400 to-rose-600',
       textColor: 'text-pink-100',
+      borderColor: 'border-pink-500/30',
+      hoverBorder: 'hover:border-pink-400',
       available: !!reportData.realityTVPersona
     },
     {
       id: 'mirror',
       title: 'The Unfiltered Mirror',
-      subtitle: 'Deep Reflection',
       description: 'A profound, unvarnished observation about your inner patterns and motivations.',
       icon: Eye,
-      color: 'from-gray-800 to-black',
+      gradient: 'from-gray-700 via-slate-600 to-gray-800',
+      iconBg: 'bg-gradient-to-br from-gray-600 to-slate-800',
       textColor: 'text-gray-100',
+      borderColor: 'border-gray-500/30',
+      hoverBorder: 'hover:border-gray-400',
       available: !!reportData.unfilteredMirror
     },
     {
       id: 'pii',
       title: 'PII Safety Compass',
-      subtitle: 'Privacy Assessment',
       description: 'Analysis of your information sharing patterns and privacy security recommendations.',
       icon: Shield,
-      color: 'from-green-500 to-emerald-600',
+      gradient: 'from-green-500 via-emerald-500 to-teal-500',
+      iconBg: 'bg-gradient-to-br from-green-400 to-emerald-600',
       textColor: 'text-green-100',
+      borderColor: 'border-green-500/30',
+      hoverBorder: 'hover:border-green-400',
       available: !!reportData.piiSafetyCompass
     },
     {
       id: 'doppelganger',
       title: 'Digital Doppelgänger',
-      subtitle: 'Social Media Twin',
       description: 'Your hypothetical social media profile based on your communication patterns.',
       icon: Globe,
-      color: 'from-indigo-500 to-purple-600',
+      gradient: 'from-indigo-500 via-blue-500 to-cyan-500',
+      iconBg: 'bg-gradient-to-br from-indigo-400 to-blue-600',
       textColor: 'text-indigo-100',
+      borderColor: 'border-indigo-500/30',
+      hoverBorder: 'hover:border-indigo-400',
       available: !!reportData.digitalDoppelganger
     }
   ].filter(insight => insight.available);
@@ -244,41 +258,42 @@ const PremiumReportOverview: React.FC<{
             <p className="text-gray-400">No premium insights were generated for this analysis.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {availableInsights.map((insight, index) => (
               <motion.div
                 key={insight.id}
                 initial={{ opacity: 0, y: 50 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.6 }}
-                whileHover={{ scale: 1.02, y: -5 }}
+                whileHover={{ scale: 1.02, y: -8 }}
                 className="group cursor-pointer"
                 onClick={() => onCardSelect(index)}
               >
-                <Card className="h-full bg-gradient-to-br from-slate-800/50 to-slate-900/50 border-slate-700 hover:border-slate-600 transition-all duration-300 backdrop-blur-sm">
+                <Card className={`h-full bg-gradient-to-br from-slate-800/50 to-slate-900/50 border ${insight.borderColor} ${insight.hoverBorder} transition-all duration-300 backdrop-blur-sm hover:shadow-2xl hover:shadow-white/10`}>
                   <CardHeader className="pb-4">
-                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${insight.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                      <insight.icon className={`h-8 w-8 ${insight.textColor}`} />
+                    <div className={`w-20 h-20 rounded-2xl ${insight.iconBg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                      <insight.icon className={`h-10 w-10 ${insight.textColor}`} />
                     </div>
-                    <CardTitle className="text-white text-xl mb-2">
+                    <CardTitle className="text-white text-2xl mb-4 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-300 transition-all duration-300">
                       {insight.title}
                     </CardTitle>
-                    <Badge variant="secondary" className="w-fit text-xs">
-                      {insight.subtitle}
-                    </Badge>
                     {insight.codename && (
-                      <Badge variant="outline" className="w-fit text-xs mt-2 border-amber-500 text-amber-400">
-                        Codename: {insight.codename}
-                      </Badge>
+                      <div className="mb-4">
+                        <Badge variant="outline" className="border-amber-500 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
+                          Codename: {insight.codename}
+                        </Badge>
+                      </div>
                     )}
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                    <p className="text-gray-300 text-base leading-relaxed mb-6">
                       {insight.description}
                     </p>
-                    <div className="flex items-center text-blue-400 text-sm font-medium group-hover:text-blue-300 transition-colors">
-                      Explore Insight
-                      <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    <div className="flex items-center justify-between">
+                      <div className={`flex items-center text-sm font-medium bg-gradient-to-r ${insight.gradient} bg-clip-text text-transparent group-hover:scale-105 transition-transform duration-300`}>
+                        Explore Insight
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-white group-hover:translate-x-1 transition-all duration-300" />
                     </div>
                   </CardContent>
                 </Card>
@@ -297,7 +312,7 @@ const PremiumReportOverview: React.FC<{
             <p className="text-gray-400 text-sm">
               Click on any insight card to explore it in detail. Use the navigation arrows to move between insights.
             </p>
-          </motion.div>
+          </div>
         )}
       </div>
     </div>

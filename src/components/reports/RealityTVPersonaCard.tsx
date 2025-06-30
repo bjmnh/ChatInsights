@@ -237,7 +237,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
                       className="bg-white/70 p-4 rounded-xl border-l-4 border-purple-500"
                     >
                       <span className="text-gray-800">• {arc}</span>
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </motion.div>

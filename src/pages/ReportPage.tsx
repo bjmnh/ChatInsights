@@ -548,7 +548,7 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void }> = ({ report
               <Button 
                 size="lg" 
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-8 py-3"
-                onClick={() => navigate('/dashboard')}
+                onClick={onBack}
               >
                 Generate Premium Report
               </Button>

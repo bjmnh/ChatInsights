@@ -277,13 +277,7 @@ const PremiumReportOverview: React.FC<{
                     <CardTitle className="text-white text-2xl mb-4 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-300 transition-all duration-300">
                       {insight.title}
                     </CardTitle>
-                    {insight.codename && (
-                      <div className="mb-4">
-                        <Badge variant="outline" className="border-amber-500 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors">
-                          Codename: {insight.codename}
-                        </Badge>
-                      </div>
-                    )}
+                 
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-300 text-base leading-relaxed mb-6">

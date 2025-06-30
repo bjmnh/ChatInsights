@@ -248,14 +248,7 @@ const HomePage: React.FC = () => {
             </motion.div>
           </div>
 
-// --- ROOT COMPONENT (EXAMPLE) ---
-// You would place the following JSX inside your main component.
-// Make sure you have state for `animationStarted` and `hoveredBeam` as before.
-// const [animationStarted, setAnimationStarted] = useState(false);
-// const [hoveredBeam, setHoveredBeam] = useState(null);
-// useEffect(() => { setAnimationStarted(true); }, []);
 
-// --- THE ADJUSTED JSX ---
 <div className="relative flex items-center justify-center w-full h-[400px] lg:h-[500px]">
   {/* 
     This is the new main container. 

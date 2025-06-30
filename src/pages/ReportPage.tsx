@@ -312,7 +312,7 @@ const PremiumReportOverview: React.FC<{
             <p className="text-gray-400 text-sm">
               Click on any insight card to explore it in detail. Use the navigation arrows to move between insights.
             </p>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

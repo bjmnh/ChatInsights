@@ -22,6 +22,7 @@ import {
   Heart
 } from 'lucide-react';
 import { motion, useAnimation } from 'framer-motion';
+import { samplePremiumReportData } from '../lib/sampleReportData';
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -33,6 +34,15 @@ const HomePage: React.FC = () => {
     const timer = setTimeout(() => setAnimationStarted(true), 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleViewSampleAnalysis = () => {
+    navigate('/report/sample/premium', { 
+      state: { 
+        sampleReport: samplePremiumReportData,
+        isSample: true 
+      } 
+    });
+  };
 
   const prismBeams = [
     { 
@@ -353,7 +363,7 @@ const HomePage: React.FC = () => {
                   }}
                 >
                   {/* Enhanced Beam - Made longer and responsive */}
-                  <div className={`w-48 lg:w-64 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
+                  <div className={`w-56 lg:w-72 h-2 lg:h-3 bg-gradient-to-r ${beam.color} origin-left relative overflow-hidden rounded-full shadow-lg`}>
                     <motion.div
                       animate={{ x: [-150, 300] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
@@ -373,7 +383,7 @@ const HomePage: React.FC = () => {
                     className="absolute left-full top-1/2 transform -translate-y-1/2 ml-3 lg:ml-4 bg-black/90 backdrop-blur-sm border border-white/20 rounded-xl p-2 lg:p-3 shadow-2xl"
                     style={{ 
                       width: 'max-content',
-                      maxWidth: '200px',
+                      maxWidth: '180px',
                       right: 'auto',
                       zIndex: 1000
                     }}
@@ -409,6 +419,7 @@ const HomePage: React.FC = () => {
               <Button 
                 variant="outline" 
                 size="lg" 
+                onClick={handleViewSampleAnalysis}
                 className="text-lg lg:text-xl px-10 lg:px-12 py-7 lg:py-8 border-white/30 text-white hover:bg-white/10 rounded-xl font-bold w-full sm:w-auto max-w-sm"
               >
                 View Sample Analysis

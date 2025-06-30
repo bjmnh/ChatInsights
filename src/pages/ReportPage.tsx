@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -34,20 +34,37 @@ const ReportPage: React.FC = () => {
   const { fileId, reportType } = useParams<{ fileId: string; reportType: 'basic' | 'premium' }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCardDeck, setShowCardDeck] = useState(false);
   const [selectedCardIndex, setSelectedCardIndex] = useState(0);
+  const [isSampleReport, setIsSampleReport] = useState(false);
 
   useEffect(() => {
+    // Check if this is a sample report
+    if (fileId === 'sample' && reportType === 'premium' && location.state?.isSample) {
+      setIsSampleReport(true);
+      setReport({
+        id: 'sample',
+        user_id: 'sample',
+        file_id: 'sample',
+        report_type: 'premium',
+        report_data: location.state.sampleReport,
+        generated_at: new Date().toISOString()
+      });
+      setLoading(false);
+      return;
+    }
+
     if (!user || !fileId || !reportType) {
       navigate('/dashboard');
       return;
     }
 
     fetchReport();
-  }, [user, fileId, reportType, navigate]);
+  }, [user, fileId, reportType, navigate, location.state]);
 
   const fetchReport = async () => {
     try {
@@ -73,6 +90,8 @@ const ReportPage: React.FC = () => {
   const handleBack = () => {
     if (showCardDeck) {
       setShowCardDeck(false);
+    } else if (isSampleReport) {
+      navigate('/');
     } else {
       navigate('/dashboard');
     }
@@ -107,7 +126,7 @@ const ReportPage: React.FC = () => {
           className="mb-6"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
+          {isSampleReport ? 'Back to Home' : 'Back to Dashboard'}
         </Button>
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -120,7 +139,7 @@ const ReportPage: React.FC = () => {
   const reportData = report.report_data;
 
   if (reportType === 'basic') {
-    return <BasicReportView report={reportData} onBack={handleBack} />;
+    return <BasicReportView report={reportData} onBack={handleBack} isSample={isSampleReport} />;
   }
 
   if (showCardDeck) {
@@ -133,7 +152,7 @@ const ReportPage: React.FC = () => {
     );
   }
 
-  return <PremiumReportOverview reportData={reportData} onBack={handleBack} onCardSelect={handleCardSelect} />;
+  return <PremiumReportOverview reportData={reportData} onBack={handleBack} onCardSelect={handleCardSelect} isSample={isSampleReport} />;
 };
 
 // Premium Report Overview Component
@@ -141,7 +160,8 @@ const PremiumReportOverview: React.FC<{
   reportData: any; 
   onBack: () => void; 
   onCardSelect: (index: number) => void;
-}> = ({ reportData, onBack, onCardSelect }) => {
+  isSample?: boolean;
+}> = ({ reportData, onBack, onCardSelect, isSample = false }) => {
   
   const availableInsights = [
     {
@@ -240,7 +260,7 @@ const PremiumReportOverview: React.FC<{
           className="mb-8 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow hover:shadow-lg transition-all"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
+          {isSample ? 'Back to Home' : 'Back to Dashboard'}
         </Button>
 
         <motion.div
@@ -249,10 +269,13 @@ const PremiumReportOverview: React.FC<{
           className="text-center mb-12"
         >
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Your Premium Insights
+            {isSample ? 'Sample Premium Insights' : 'Your Premium Insights'}
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Explore deep AI-powered analysis of your conversation patterns and digital personality
+            {isSample 
+              ? 'Explore this sample analysis to see the depth of insights available with premium reports'
+              : 'Explore deep AI-powered analysis of your conversation patterns and digital personality'
+            }
           </p>
           <div className="w-32 h-1 bg-gradient-to-r from-blue-400 to-purple-600 mx-auto mt-6 rounded-full" />
         </motion.div>
@@ -283,7 +306,13 @@ const PremiumReportOverview: React.FC<{
                     <CardTitle className="text-white text-2xl mb-4 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-300 transition-all duration-300">
                       {insight.title}
                     </CardTitle>
-                 
+                    {insight.codename && (
+                      <div className="mb-4">
+                        <Badge variant="outline" className="bg-amber-500/20 text-amber-300 border-amber-500/30">
+                          Codename: {insight.codename}
+                        </Badge>
+                      </div>
+                    )}
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-300 text-base leading-relaxed mb-6">
@@ -320,7 +349,7 @@ const PremiumReportOverview: React.FC<{
 };
 
 // Enhanced Basic Report View
-const BasicReportView: React.FC<{ report: any; onBack: () => void }> = ({ report, onBack }) => {
+const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: boolean }> = ({ report, onBack, isSample = false }) => {
   const stats = [
     {
       icon: MessageSquare,
@@ -381,7 +410,7 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void }> = ({ report
           className="mb-8 text-white hover:text-gray-300"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
+          {isSample ? 'Back to Home' : 'Back to Dashboard'}
         </Button>
 
         <motion.div
@@ -390,7 +419,7 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void }> = ({ report
           className="text-center mb-12"
         >
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Your Conversation Analytics
+            {isSample ? 'Sample Conversation Analytics' : 'Your Conversation Analytics'}
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             Essential insights into your communication patterns and conversation data
@@ -532,29 +561,31 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void }> = ({ report
         </div>
 
         {/* Upgrade Prompt */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.6 }}
-          className="mt-12 text-center"
-        >
-          <Card className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 backdrop-blur-sm">
-            <CardContent className="p-8">
-              <h3 className="text-2xl font-bold text-white mb-4">Want Deeper Insights?</h3>
-              <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-                Upgrade to premium analysis for psychological profiling, personality insights, 
-                linguistic fingerprinting, and much more detailed behavioral analysis.
-              </p>
-              <Button 
-                size="lg" 
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-8 py-3"
-                onClick={onBack}
-              >
-                Generate Premium Report
-              </Button>
-            </CardContent>
-          </Card>
-        </motion.div>
+        {!isSample && (
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.6 }}
+            className="mt-12 text-center"
+          >
+            <Card className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 backdrop-blur-sm">
+              <CardContent className="p-8">
+                <h3 className="text-2xl font-bold text-white mb-4">Want Deeper Insights?</h3>
+                <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+                  Upgrade to premium analysis for psychological profiling, personality insights, 
+                  linguistic fingerprinting, and much more detailed behavioral analysis.
+                </p>
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-8 py-3"
+                  onClick={onBack}
+                >
+                  Generate Premium Report
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
       </div>
     </div>
   );

@@ -15,10 +15,15 @@ import { DigitalDoppelgangerCard } from './DigitalDoppelgangerCard';
 interface ReportCardDeckProps {
   reportData: any;
   onBack: () => void;
+  initialCardIndex?: number;
 }
 
-export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({ reportData, onBack }) => {
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({ 
+  reportData, 
+  onBack, 
+  initialCardIndex = 0 
+}) => {
+  const [currentCardIndex, setCurrentCardIndex] = useState(initialCardIndex);
 
   // Define available cards based on report data
   const availableCards = [
@@ -79,7 +84,7 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({ reportData, onBa
           <p className="text-slate-400 mb-6">No premium insights were generated for this analysis.</p>
           <Button onClick={onBack} variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            Back to Overview
           </Button>
         </div>
       </div>
@@ -96,7 +101,7 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({ reportData, onBa
           className="bg-black/50 text-white hover:bg-black/70 border border-white/20"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Dashboard
+          Back to Overview
         </Button>
       </div>
 
@@ -107,7 +112,6 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({ reportData, onBa
             variant="ghost"
             onClick={prevCard}
             className="fixed top-1/2 left-4 transform -translate-y-1/2 z-50 bg-black/50 text-white hover:bg-black/70 border border-white/20"
-            disabled={currentCardIndex === 0}
           >
             <ChevronLeft className="h-6 w-6" />
           </Button>
@@ -116,7 +120,6 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({ reportData, onBa
             variant="ghost"
             onClick={nextCard}
             className="fixed top-1/2 right-4 transform -translate-y-1/2 z-50 bg-black/50 text-white hover:bg-black/70 border border-white/20"
-            disabled={currentCardIndex === availableCards.length - 1}
           >
             <ChevronRight className="h-6 w-6" />
           </Button>

@@ -604,7 +604,7 @@ const HomePage: React.FC = () => {
               <span className="block">Digital Personality?</span>
             </h2>
             <p className="text-lg lg:text-2xl text-white/90 mb-8 lg:mb-12 max-w-4xl mx-auto leading-relaxed">
-              Transform your ChatGPT conversations into profound insights about your communication patterns, 
+              Transform your ChatGPT conversations into insights about your communication patterns, 
               thinking style, and digital behavior through advanced AI analysis.
             </p>
             <Button 

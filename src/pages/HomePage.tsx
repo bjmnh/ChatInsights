@@ -400,7 +400,7 @@ const HomePage: React.FC = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 3, duration: 0.8 }}
-            className="text-center"
+            className="text-center -mt-24"
           >
             <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-center items-center px-4 max-w-4xl mx-auto">
               <Button 

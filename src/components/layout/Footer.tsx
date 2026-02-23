@@ -19,15 +19,8 @@ const Footer: React.FC = () => {
 
           <div>
             <h3 className="font-semibold mb-4">Contact</h3>
-            <div className="space-y-2 text-sm">
-              <p>
-                <a 
-                  href="mailto:support@chatinsights.online" 
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                >
-                  support@chatinsights.online
-                </a>
-              </p>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>Contact options coming soon.</p>
             </div>
           </div>
 

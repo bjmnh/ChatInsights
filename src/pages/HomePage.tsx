@@ -28,7 +28,7 @@ const HomePage: React.FC = () => {
   const [animationStarted, setAnimationStarted] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setAnimationStarted(true), 1000);
+    const timer = setTimeout(() => setAnimationStarted(true), 300);
     return () => clearTimeout(timer);
   }, []);
 
@@ -48,7 +48,7 @@ const HomePage: React.FC = () => {
       description: 'FBI-style behavioral analysis',
       icon: Brain,
       angle: -25,
-      delay: 0.5
+      delay: 0.15
     },
     { 
       color: 'from-orange-500 to-orange-600', 
@@ -56,7 +56,7 @@ const HomePage: React.FC = () => {
       description: 'Language pattern analysis',
       icon: FileText,
       angle: -12,
-      delay: 0.7
+      delay: 0.21
     },
     { 
       color: 'from-yellow-500 to-yellow-600', 
@@ -64,7 +64,7 @@ const HomePage: React.FC = () => {
       description: 'In-depth personality insights',
       icon: User,
       angle: 0,
-      delay: 0.9
+      delay: 0.27
     },
     { 
       color: 'from-green-500 to-green-600', 
@@ -72,7 +72,7 @@ const HomePage: React.FC = () => {
       description: 'Emotional tone evaluation',
       icon: Heart,
       angle: 12,
-      delay: 1.1
+      delay: 0.33
     },
     { 
       color: 'from-blue-500 to-blue-600', 
@@ -80,7 +80,7 @@ const HomePage: React.FC = () => {
       description: 'Thinking style analysis',
       icon: Brain,
       angle: 25,
-      delay: 1.3
+      delay: 0.39
     },
     { 
       color: 'from-purple-500 to-purple-600', 
@@ -88,7 +88,7 @@ const HomePage: React.FC = () => {
       description: 'Privacy & security analysis',
       icon: Shield,
       angle: 30,
-      delay: 1.5
+      delay: 0.45
     },
     { 
       color: 'from-pink-500 to-pink-600', 
@@ -96,7 +96,7 @@ const HomePage: React.FC = () => {
       description: 'Your social media persona',
       icon: Globe,
       angle: 40,
-      delay: 1.7
+      delay: 0.51
     }
   ];
 
@@ -216,9 +216,9 @@ const HomePage: React.FC = () => {
                 scale: [0, 1, 0],
               }}
               transition={{
-                duration: 6,
+                duration: 1.8,
                 repeat: Infinity,
-                delay: Math.random() * 6,
+                delay: Math.random() * 1.8,
               }}
             />
           ))}
@@ -229,7 +229,7 @@ const HomePage: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
+              transition={{ duration: 0.24 }}
             >
               <h1 className="text-5xl lg:text-7xl font-bold mb-3 leading-tight">
                 <span className="block text-white">See What Your</span>
@@ -245,7 +245,7 @@ const HomePage: React.FC = () => {
             </motion.div>
           </div>
 
-<div className="relative flex items-center justify-center w-full h-[400px] lg:h-[500px]">
+<div className="relative flex items-center justify-center w-full h-[340px] lg:h-[440px]">
   {/* 
     This is the new main container. 
     It's a flexbox row that gets centered by its parent.
@@ -260,7 +260,7 @@ const HomePage: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, x: -50 }}
       animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -50 }}
-      transition={{ duration: 1.2, delay: 0.5 }}
+      transition={{ duration: 0.36, delay: 0.15 }}
       className="flex items-center"
     >
       <div className="text-right mr-4 sm:mr-6 lg:mr-8">
@@ -287,13 +287,13 @@ const HomePage: React.FC = () => {
       <motion.div
         initial={{ scaleX: 0 }}
         animate={{ scaleX: animationStarted ? 1 : 0 }}
-        transition={{ duration: 1.5, delay: 1.2 }}
+        transition={{ duration: 0.45, delay: 0.36 }}
         className="relative origin-left"
       >
         <div className="w-12 sm:w-20 lg:w-24 h-2 bg-gradient-to-r from-blue-400 to-transparent rounded-full" />
         <motion.div
           animate={{ x: animationStarted ? [0, '100%', 0] : 0 }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-0 left-0 w-4 lg:w-6 h-2 bg-white rounded-full opacity-80"
         />
       </motion.div>
@@ -305,7 +305,7 @@ const HomePage: React.FC = () => {
     <motion.div
       initial={{ opacity: 0, scale: 0.5 }}
       animate={{ opacity: animationStarted ? 1 : 0, scale: animationStarted ? 1 : 0.5 }}
-      transition={{ duration: 1.5, delay: 1.8 }}
+      transition={{ duration: 0.45, delay: 0.54 }}
       className="relative z-20 flex-shrink-0"
     >
       <motion.div
@@ -314,8 +314,8 @@ const HomePage: React.FC = () => {
           rotateY: animationStarted ? [0, 15, -15, 0] : 0
         }}
         transition={{ 
-          rotateZ: { duration: 20, repeat: Infinity, ease: "linear" },
-          rotateY: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+          rotateZ: { duration: 6, repeat: Infinity, ease: "linear" },
+          rotateY: { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
         }}
         className="relative flex items-center justify-center"
       >
@@ -349,7 +349,7 @@ const HomePage: React.FC = () => {
             scaleX: animationStarted ? 1 : 0,
             x: animationStarted ? 0 : -50
           }}
-          transition={{ duration: 1, delay: beam.delay }}
+          transition={{ duration: 0.3, delay: beam.delay }}
           className="relative group cursor-pointer origin-left"
           style={{ 
             transform: `rotate(${beam.angle}deg)`,
@@ -396,8 +396,8 @@ const HomePage: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 3, duration: 0.8 }}
-            className="text-center -mt-24"
+            transition={{ delay: 0.9, duration: 0.24 }}
+            className="text-center"
           >
             <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-center items-center px-4 max-w-4xl mx-auto">
               <Button 

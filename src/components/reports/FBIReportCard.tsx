@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
-import { Brain, Shield, Eye, EyeOff, AlertTriangle, FileText, Stamp } from 'lucide-react';
+import { Brain, Shield, Eye, EyeOff, AlertTriangle, FileText } from 'lucide-react';
 
 interface FBIReportData {
   reportTitle: string;

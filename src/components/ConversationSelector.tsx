@@ -147,11 +147,6 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
       return selectedConversations.has(originalIndex);
     });
 
-  const someFilteredSelected = filteredConversations.some((_, index) => {
-    const originalIndex = conversations.indexOf(filteredConversations[index]);
-    return selectedConversations.has(originalIndex);
-  });
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[85vh] flex flex-col">
@@ -243,7 +238,7 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
                     <p>No conversations match your search.</p>
                   </div>
                 ) : (
-                  filteredConversations.map((conversation, filteredIndex) => {
+                  filteredConversations.map((conversation) => {
                     const originalIndex = conversations.indexOf(conversation);
                     const isSelected = selectedConversations.has(originalIndex);
                     const stats = getConversationStats(conversation);

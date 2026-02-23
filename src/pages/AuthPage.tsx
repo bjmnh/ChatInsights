@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Separator } from '../components/ui/separator';
-import { Loader2, AlertCircle, Info, Brain } from 'lucide-react';
+import { Loader2, Info, Brain } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Social provider icons (using simple SVGs for better performance)

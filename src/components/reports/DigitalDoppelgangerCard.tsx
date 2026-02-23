@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
-import { User, Hash, MessageSquare, Heart, Repeat2, Share, MoreHorizontal, Calendar } from 'lucide-react';
+import { Hash, MessageSquare, Heart, Repeat2, Share, MoreHorizontal, Calendar } from 'lucide-react';
 
 interface SocialPost {
   id: string;

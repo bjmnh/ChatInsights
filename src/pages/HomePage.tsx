@@ -5,11 +5,8 @@ import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { 
   Brain, 
-  Upload, 
   BarChart3, 
   Shield, 
-  MessageSquare, 
-  TrendingUp,
   ArrowRight,
   FileText,
   Tv,
@@ -21,7 +18,7 @@ import {
   User,
   Heart
 } from 'lucide-react';
-import { motion, useAnimation } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { samplePremiumReportData } from '../lib/sampleReportData';
 
 const HomePage: React.FC = () => {

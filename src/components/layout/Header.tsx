@@ -40,7 +40,7 @@ const Header: React.FC = () => {
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.name} />
                     <AvatarFallback>
-                      {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
+                      {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || '?'}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -49,7 +49,9 @@ const Header: React.FC = () => {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{user.user_metadata?.name || 'User'}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    {user.email && (
+                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    )}
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />

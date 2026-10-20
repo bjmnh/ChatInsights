@@ -9,6 +9,10 @@ export const config = {
     url: import.meta.env.VITE_SUPABASE_URL,
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
   },
+  stripe: {
+    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
+    testMode: (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '').startsWith('pk_test_'),
+  },
   // Helper to get the correct redirect URLs
   getRedirectUrl: (path: string) => {
     const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;

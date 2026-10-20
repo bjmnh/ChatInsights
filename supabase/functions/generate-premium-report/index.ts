@@ -391,6 +391,16 @@ async function generateAllPremiumInsights(conversations) {
     return advancedResults;
 }
 
+class HttpError extends Error {
+    status: number;
+    code?: string;
+    constructor(status: number, message: string, code?: string) {
+        super(message);
+        this.status = status;
+        this.code = code;
+    }
+}
+
 // --- SECTION 6: MAIN SERVER LOGIC ---
 serve(async (req) => {
     const corsHeaders = {
@@ -406,11 +416,30 @@ serve(async (req) => {
         const authHeader = req.headers.get('Authorization');
         if (!authHeader) throw new Error('Authorization required');
         const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-        if (userError || !user) throw new Error('Invalid token');
+        if (userError || !user) throw new HttpError(401, 'Invalid token');
+
+        const { data: profile, error: profileError } = await supabase
+            .from('users')
+            .select('premium_status')
+            .eq('id', user.id)
+            .maybeSingle();
+        if (profileError) {
+            const missing = /premium_status/i.test(profileError.message || '');
+            throw new HttpError(
+                missing ? 503 : 500,
+                missing
+                    ? 'Apply the premium_unlock migration before generating premium reports.'
+                    : 'Could not verify premium access',
+            );
+        }
+        if (!profile?.premium_status) {
+            throw new HttpError(402, 'Premium unlock required', 'PREMIUM_REQUIRED');
+        }
+
         const { fileId } = await req.json();
-        if (!fileId) throw new Error('File ID required');
+        if (!fileId) throw new HttpError(400, 'File ID required');
         const { data: fileData, error: fileError } = await supabase.from('uploaded_files').select('file_path').eq('id', fileId).eq('user_id', user.id).single();
-        if (fileError || !fileData) throw new Error('File not found or access denied');
+        if (fileError || !fileData) throw new HttpError(404, 'File not found or access denied');
         const { data: fileBlob, error: downloadError } = await supabase.storage.from('conversation-files').download(fileData.file_path);
         if (downloadError) throw new Error(`Failed to download file: ${downloadError.message}`);
         
@@ -439,7 +468,7 @@ serve(async (req) => {
             report_data: premiumReportData
         });
         if (reportError) {
-            console.error(`Failed to save report: ${reportError.message}`);
+            throw new Error(`Failed to save report: ${reportError.message}`);
         }
         await supabase.from('uploaded_files').update({ has_premium_report: true }).eq('id', fileId);
 
@@ -448,8 +477,10 @@ serve(async (req) => {
         });
     } catch (error) {
         console.error('Error in generate-premium-report:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
+        const status = error instanceof HttpError ? error.status : 500;
+        const code = error instanceof HttpError ? error.code : undefined;
+        return new Response(JSON.stringify({ error: error.message, code }), {
+            status,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }

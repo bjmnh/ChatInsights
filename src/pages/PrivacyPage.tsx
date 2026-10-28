@@ -20,11 +20,11 @@ const PrivacyPage: React.FC = () => {
         <div className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Welcome to OpenAI Chat Insights</CardTitle>
+              <CardTitle>Welcome to Chat Insights</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Welcome to OpenAI Chat Insights ("we," "us," "our"). We are committed to protecting your privacy and handling your data with transparency and care. This Privacy Policy explains how we collect, use, process, and protect your information when you use our web application (the "Service").
+                Welcome to Chat Insights ("we," "us," "our"). We are committed to protecting your privacy and handling your data with transparency and care. This Privacy Policy explains how we collect, use, process, and protect your information when you use our web application (the "Service").
               </p>
             </CardContent>
           </Card>
@@ -46,7 +46,7 @@ const PrivacyPage: React.FC = () => {
               <div>
                 <h4 className="font-semibold mb-2">Uploaded Conversation Data</h4>
                 <p className="text-muted-foreground">
-                  To use our Service, you voluntarily upload your OpenAI conversations.json file. This file contains your conversation history with OpenAI's models.
+                  To use our Service, you voluntarily upload your AI conversation export. This file contains your conversation history with an AI assistant.
                 </p>
               </div>
               <div>
@@ -120,14 +120,14 @@ const PrivacyPage: React.FC = () => {
               <div>
                 <h4 className="font-semibold mb-2">Initial Upload and Temporary Processing</h4>
                 <p className="text-muted-foreground">
-                  Your conversations.json file is uploaded directly to secure, private cloud storage associated with your user identity and a specific processing job. Our automated Coordinator function streams this file. As each individual conversation is parsed, it is sent to a message queue for processing. Our automated Worker functions retrieve individual conversations from the queue, use Large Language Models (LLMs) to perform initial analysis, and store these per-conversation insights in a temporary, secure database (temp_conversation_insights), strictly segregated and linked only to your processing job.
+                  Your conversation export is uploaded directly to secure, private cloud storage associated with your user identity and a specific processing job. Our automated Coordinator function streams this file. As each individual conversation is parsed, it is sent to a message queue for processing. Our automated Worker functions retrieve individual conversations from the queue, use Large Language Models (LLMs) to perform initial analysis, and store these per-conversation insights in a temporary, secure database (temp_conversation_insights), strictly segregated and linked only to your processing job.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-semibold mb-2">Aggregation and Final Report Generation</h4>
                 <p className="text-muted-foreground">
-                  Once all individual conversations from your conversations.json file have been processed by the Worker functions, our automated Aggregator function retrieves all associated temp_conversation_insights. The Aggregator performs further analysis and uses LLMs to compile your final, comprehensive User Report (containing both free and any applicable paid insights). This User Report is then stored in our primary database, linked to your user account.
+                  Once all individual conversations from your conversation export have been processed by the Worker functions, our automated Aggregator function retrieves all associated temp_conversation_insights. The Aggregator performs further analysis and uses LLMs to compile your final, comprehensive User Report (containing both free and any applicable paid insights). This User Report is then stored in our primary database, linked to your user account.
                 </p>
               </div>
 
@@ -135,7 +135,7 @@ const PrivacyPage: React.FC = () => {
                 <h4 className="font-semibold mb-2 text-primary">AUTOMATIC DELETION OF RAW AND TEMPORARY DATA</h4>
                 <div className="space-y-2 text-sm">
                   <p className="text-muted-foreground">
-                    <strong>CRITICAL:</strong> Immediately upon the successful generation and storage of your final User Report, the original conversations.json file you uploaded is PERMANENTLY DELETED from our cloud storage.
+                    <strong>CRITICAL:</strong> Immediately upon the successful generation and storage of your final User Report, the original conversation export you uploaded is PERMANENTLY DELETED from our cloud storage.
                   </p>
                   <p className="text-muted-foreground">
                     Simultaneously, all temp_conversation_insights (the intermediate, per-conversation analytical data) related to that processing job are PERMANENTLY DELETED from our temporary database.

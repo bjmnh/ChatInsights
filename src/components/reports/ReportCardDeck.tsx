@@ -13,7 +13,15 @@ import { PIISafetyCompassCard } from './PIISafetyCompassCard';
 import { DigitalDoppelgangerCard } from './DigitalDoppelgangerCard';
 
 interface ReportCardDeckProps {
-  reportData: any;
+  reportData: {
+    fbiReport?: React.ComponentProps<typeof FBIReportCard>['data'];
+    linguisticFingerprint?: React.ComponentProps<typeof LinguisticFingerprintCard>['data'];
+    topInterestingConversations?: React.ComponentProps<typeof Top5ConversationsCard>['data'];
+    realityTVPersona?: React.ComponentProps<typeof RealityTVPersonaCard>['data'];
+    unfilteredMirror?: React.ComponentProps<typeof UnfilteredMirrorCard>['data'];
+    piiSafetyCompass?: React.ComponentProps<typeof PIISafetyCompassCard>['data'];
+    digitalDoppelganger?: React.ComponentProps<typeof DigitalDoppelgangerCard>['data'];
+  };
   onBack: () => void;
   initialCardIndex?: number;
 }

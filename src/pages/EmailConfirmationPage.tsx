@@ -52,10 +52,11 @@ const EmailConfirmationPage: React.FC = () => {
         } else {
           throw new Error('Invalid confirmation type.');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('Email confirmation error:', error);
         setStatus('error');
-        setMessage(error.message || 'Failed to confirm email. Please try again.');
+        const message = error instanceof Error ? error.message : 'Failed to confirm email. Please try again.';
+        setMessage(message);
         toast.error('Email confirmation failed');
       }
     };

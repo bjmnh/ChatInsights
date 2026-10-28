@@ -97,7 +97,7 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       await login(formData.email, formData.password);
-    } catch (error) {
+    } catch {
       // Error is already handled in AuthContext
     } finally {
       setIsLoading(false);
@@ -112,7 +112,7 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       await register(formData.email, formData.password, formData.name);
-    } catch (error) {
+    } catch {
       // Error is already handled in AuthContext
     } finally {
       setIsLoading(false);
@@ -122,7 +122,7 @@ export default function AuthPage() {
   const handleGoogleLogin = async () => {
     try {
       await loginWithGoogle();
-    } catch (error) {
+    } catch {
       // Error is already handled in AuthContext
     }
   };
@@ -130,7 +130,7 @@ export default function AuthPage() {
   const handleAppleLogin = async () => {
     try {
       await loginWithApple();
-    } catch (error) {
+    } catch {
       // Error is already handled in AuthContext
     }
   };
@@ -147,7 +147,7 @@ export default function AuthPage() {
     try {
       await resetPassword(formData.email);
       setShowResetPassword(false);
-    } catch (error) {
+    } catch {
       // Error is already handled in AuthContext
     } finally {
       setIsLoading(false);
@@ -231,7 +231,7 @@ export default function AuthPage() {
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Welcome to ChatInsights
           </h1>
-          <p className="text-muted-foreground">Sign in to unlock your conversation insights</p>
+          <p className="text-muted-foreground">Sign in to analyze conversations from any AI assistant</p>
         </div>
 
         <Card>

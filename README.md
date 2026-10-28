@@ -1,16 +1,34 @@
-# OpenAI Chat Insights
+# Chat Insights
 
-A React application that analyzes ChatGPT conversation data to provide insights about communication patterns, personality traits, and behavioral characteristics.
+A React application that analyzes conversations from any AI assistant — ChatGPT, Claude, Gemini, Grok, Copilot, Perplexity, Mistral, DeepSeek, Cursor, and other LLM tools — to surface communication patterns, personality traits, and behavioral characteristics.
 
 ## Features
 
 - **User Authentication**: Secure sign-up and login with Supabase Auth (Email, Google, Apple)
-- **File Upload**: Upload ChatGPT conversations.json files
+- **File Upload**: Upload conversation exports as JSON, JSONL, Markdown, plain text, CSV, HTML, or ZIP
 - **Real-time Analysis**: Track analysis progress in real-time
 - **Free Insights**: Basic conversation analytics and patterns
 - **Premium Insights**: Advanced personality profiling and hidden pattern discovery
 - **Data Privacy**: Automatic deletion of raw conversation data after analysis
 - **Responsive Design**: Works on desktop and mobile devices
+
+## Supported conversation exports
+
+Uploads are normalized into one internal shape — conversations with messages that have a role, text, and a timestamp when the file includes one — before either report runs. ChatGPT `conversations.json` still works, including files uploaded before this change.
+
+| Export | Recognition |
+| --- | --- |
+| ChatGPT `conversations.json` | Message tree in `mapping` |
+| Claude `conversations.json` | `chat_messages` |
+| Gemini / Google Takeout | My Activity JSON or HTML. Takeout often has your prompts only, so those reports are based on what you wrote. |
+| Grok | `grok_conversations`, `conversation_items`, turn pairs, or messages sent by Grok |
+| Generic JSON | An array of `{role, content}` messages, `{messages:[...]}`, or a list of those conversations |
+| JSONL | One message or one conversation per line |
+| Markdown or plain text | Transcripts labeled `User:` / `Assistant:` (also Human, AI, You, Model, and similar labels) |
+| CSV | `role` and `content` columns, with optional timestamp, conversation id, and title |
+| ZIP | An archive containing any of the above |
+
+Copilot, Perplexity, Mistral, DeepSeek, Cursor, and similar tools are best-effort: they work when the export is generic JSON, JSONL, Markdown, CSV, or a ZIP of those files. There is no separate parser for every vendor's private schema. If a file cannot be recognized, the upload screen lists the formats above.
 
 ## Tech Stack
 
@@ -33,7 +51,7 @@ A React application that analyzes ChatGPT conversation data to provide insights 
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd openai-chat-insights
+cd chat-insights
 ```
 
 2. Install dependencies:
@@ -71,7 +89,7 @@ VITE_APP_URL=http://localhost:5173
      - **Name**: `conversation-files` (exactly this name)
      - **Public**: Leave unchecked (private bucket)
      - **File size limit**: 500MB (optional)
-     - **Allowed MIME types**: `application/json` (optional)
+     - **Allowed MIME types**: `application/json`, `text/plain`, `text/csv`, `text/markdown`, `text/html`, `application/zip` (optional)
    
    **Set up Storage Policies:**
    

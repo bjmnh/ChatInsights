@@ -19,20 +19,14 @@ import {
   Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface Conversation {
-  id?: string;
-  title?: string;
-  create_time?: number;
-  mapping?: { [id: string]: any };
-}
+import type { NormalizedConversation } from '../lib/conversationParser';
 
 interface ConversationSelectorProps {
   isOpen: boolean;
   onClose: () => void;
-  conversations: Conversation[];
+  conversations: NormalizedConversation[];
   originalFilename: string;
-  onUploadSelected: (selectedConversations: Conversation[], filename: string) => Promise<void>;
+  onUploadSelected: (selectedConversations: NormalizedConversation[], filename: string) => Promise<void>;
 }
 
 const ConversationSelector: React.FC<ConversationSelectorProps> = ({
@@ -66,25 +60,22 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
     }
   }, [maxConversations, conversations.length]);
 
-  const getConversationStats = (conversation: Conversation) => {
-    if (!conversation.mapping) return { userMessages: 0, aiMessages: 0, totalMessages: 0 };
-    
-    const messages = Object.values(conversation.mapping);
+  const getConversationStats = (conversation: NormalizedConversation) => {
     let userMessages = 0;
     let aiMessages = 0;
-    
-    messages.forEach((msgContainer: any) => {
-      const msg = msgContainer.message;
-      if (msg?.author?.role === 'user') userMessages++;
-      else if (msg?.author?.role === 'assistant') aiMessages++;
+    conversation.messages.forEach((message) => {
+      if (message.role === 'user') userMessages++;
+      else if (message.role !== 'system' && message.role !== 'tool') aiMessages++;
     });
-    
-    return { userMessages, aiMessages, totalMessages: userMessages + aiMessages };
+    return { userMessages, aiMessages, totalMessages: conversation.messages.length };
   };
 
-  const formatDate = (timestamp?: number) => {
+  const formatDate = (conversation: NormalizedConversation) => {
+    const timestamp = conversation.createdAt || conversation.messages.find((message) => message.timestamp)?.timestamp;
     if (!timestamp) return 'Unknown date';
-    return new Date(timestamp * 1000).toLocaleDateString();
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return 'Unknown date';
+    return date.toLocaleDateString();
   };
 
   const filteredConversations = conversations.filter(conv => {
@@ -128,7 +119,9 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
         .map(index => conversations[index])
         .filter(Boolean);
       
-      const newFilename = originalFilename.replace('.json', `_selected_${selectedConvs.length}.json`);
+      const dot = originalFilename.lastIndexOf('.');
+      const base = dot > 0 ? originalFilename.slice(0, dot) : originalFilename;
+      const newFilename = `${base}_selected_${selectedConvs.length}.json`;
       
       await onUploadSelected(selectedConvs, newFilename);
       onClose();
@@ -265,7 +258,7 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
                               <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
-                                  {formatDate(conversation.create_time)}
+                                  {formatDate(conversation)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <User className="h-3 w-3" />

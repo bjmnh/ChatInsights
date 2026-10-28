@@ -16,14 +16,14 @@ export interface Report {
   user_id: string;
   file_id: string;
   report_type: 'basic' | 'premium';
-  report_data: any;
+  report_data: unknown;
   generated_at: string;
 }
 
 export class FileService {
   // Upload selected conversations as a new file
   static async uploadSelectedConversations(
-    conversations: any[], 
+    conversations: unknown[], 
     userId: string, 
     filename: string
   ): Promise<UploadedFile> {
@@ -174,7 +174,7 @@ export class FileService {
   }
 
   // Generate basic report
-  static async generateBasicReport(fileId: string): Promise<any> {
+  static async generateBasicReport(fileId: string): Promise<unknown> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -205,7 +205,7 @@ export class FileService {
   }
 
   // Generate premium report
-  static async generatePremiumReport(fileId: string): Promise<any> {
+  static async generatePremiumReport(fileId: string): Promise<unknown> {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       

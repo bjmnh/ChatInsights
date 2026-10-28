@@ -2,13 +2,15 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "npm:@google/generative-ai";
+import { parseConversationExport } from '../../../src/lib/conversationParser/index.ts';
 
 // --- SECTION 2: UTILITIES ---
 function extractUserConversationText(conversation) {
-    if (!conversation.mapping) return "";
-    const messages = Object.values(conversation.mapping).filter((m) => m.message?.author?.role === 'user' && m.message?.content?.parts);
-    messages.sort((a, b) => (a.message?.create_time || 0) - (b.message?.create_time || 0));
-    return messages.map((m) => m.message?.content?.parts?.join(" ") || "").filter(Boolean).join("\n\n---\n\n");
+    const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
+    return messages
+        .filter((message) => message?.role === 'user' && typeof message.text === 'string' && message.text.trim())
+        .map((message) => message.text)
+        .join("\n\n---\n\n");
 }
 
 // --- SECTION 3: OPTIMIZED LLM SERVICE ---
@@ -286,7 +288,29 @@ function getDoppelgangerPrompt(topics = [], vocab = [], insights = []) {
 }
 
 // --- SECTION 5: OPTIMIZED ANALYSIS PIPELINE ---
-function performSupplementalBasicAnalysis(conversations) { let totalUserSentences = 0, totalUserWordsInSentences = 0; const userWordFrequency = {}; const commonStopWords = new Set([ 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'what', 'which', 'who', 'this', 'that', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'of', 'at', 'by', 'for', 'with', 'about', 'to', 'from', 'in', 'out', 'on', 'so', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'chatgpt' ]); const getWords = (text)=>text ? text.toLowerCase().replace(/[^\w\s'-]/g, ' ').split(/\s+/).filter((w)=>w.length > 2 && !commonStopWords.has(w) && !/^\d+$/.test(w)) : []; const getSentences = (text)=>text ? text.split(/(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s+/).filter((s)=>s.trim().length > 0) : []; conversations.forEach((conv)=>{ if (!conv.mapping) return; Object.values(conv.mapping).forEach((mc)=>{ const msg = mc.message; if (msg?.author.role === 'user' && msg.content.parts) { const text = msg.content.parts.join(" "); getWords(text).forEach((w)=>userWordFrequency[w] = 1); const sentences = getSentences(text); totalUserSentences += sentences.length; sentences.forEach((s)=>totalUserWordsInSentences += getWords(s).length); } }); }); return { averageWordsPerUserSentence: totalUserSentences > 0 ? parseFloat((totalUserWordsInSentences / totalUserSentences).toFixed(1)) : 0, userVocabularySizeEstimate: Object.keys(userWordFrequency).length }; }
+function performSupplementalBasicAnalysis(conversations) {
+    let totalUserSentences = 0, totalUserWordsInSentences = 0;
+    const userWordFrequency = {};
+    const commonStopWords = new Set([ 'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her', 'it', 'its', 'they', 'them', 'their', 'what', 'which', 'who', 'this', 'that', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'a', 'an', 'the', 'and', 'but', 'if', 'or', 'because', 'as', 'of', 'at', 'by', 'for', 'with', 'about', 'to', 'from', 'in', 'out', 'on', 'so', 's', 't', 'can', 'will', 'just', 'don', 'should', 'now', 'chatgpt' ]);
+    const getWords = (text) => text ? text.toLowerCase().replace(/[^\w\s'-]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !commonStopWords.has(w) && !/^\d+$/.test(w)) : [];
+    const getSentences = (text) => text ? text.split(/(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s+/).filter((s) => s.trim().length > 0) : [];
+    conversations.forEach((conv) => {
+        const messages = Array.isArray(conv?.messages) ? conv.messages : [];
+        messages.forEach((msg) => {
+            if (msg?.role === 'user' && typeof msg.text === 'string') {
+                const text = msg.text;
+                getWords(text).forEach((w) => userWordFrequency[w] = 1);
+                const sentences = getSentences(text);
+                totalUserSentences += sentences.length;
+                sentences.forEach((s) => totalUserWordsInSentences += getWords(s).length);
+            }
+        });
+    });
+    return {
+        averageWordsPerUserSentence: totalUserSentences > 0 ? parseFloat((totalUserWordsInSentences / totalUserSentences).toFixed(1)) : 0,
+        userVocabularySizeEstimate: Object.keys(userWordFrequency).length,
+    };
+}
 
 async function processConversationWithFastLlm(conv) {
     const userText = extractUserConversationText(conv);
@@ -412,26 +436,14 @@ serve(async (req) => {
         if (userError || !user) throw new Error('Invalid token');
         const { fileId } = await req.json();
         if (!fileId) throw new Error('File ID required');
-        const { data: fileData, error: fileError } = await supabase.from('uploaded_files').select('file_path').eq('id', fileId).eq('user_id', user.id).single();
+        const { data: fileData, error: fileError } = await supabase.from('uploaded_files').select('file_path, filename').eq('id', fileId).eq('user_id', user.id).single();
         if (fileError || !fileData) throw new Error('File not found or access denied');
         const { data: fileBlob, error: downloadError } = await supabase.storage.from('conversation-files').download(fileData.file_path);
         if (downloadError) throw new Error(`Failed to download file: ${downloadError.message}`);
-        
-        let conversations;
-        try {
-            let rawParsed = JSON.parse(await fileBlob.text());
-            if (!Array.isArray(rawParsed)) {
-                const potentialArray = Object.values(rawParsed).find(Array.isArray);
-                if (potentialArray && potentialArray.length > 0) {
-                    rawParsed = potentialArray;
-                } else {
-                    throw new Error("Parsed JSON is not an array and no conversation array found within.");
-                }
-            }
-            conversations = rawParsed;
-        } catch (e) {
-            throw new Error(`JSON Parsing Error: ${e.message}`);
-        }
+
+        const filename = fileData.filename || fileData.file_path.split('/').pop() || 'export';
+        const parsed = await parseConversationExport(filename, new Uint8Array(await fileBlob.arrayBuffer()));
+        const conversations = parsed.conversations;
 
         const premiumReportData = await generateAllPremiumInsights(conversations);
 

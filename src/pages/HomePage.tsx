@@ -165,25 +165,6 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-black text-white overflow-hidden">
-      {/* Bolt.new Logo positioned under header - Made larger and removed backdrop */}
-      <div className="absolute top-24 right-8 z-40">
-        <motion.a
-          href="https://bolt.new"
-          target="_blank"
-          rel="noopener noreferrer"
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="block hover:opacity-90 transition-opacity"
-        >
-          <img 
-            src="/white_circle_360x360.png" 
-            alt="Built with Bolt.new" 
-            className="h-24 w-24 lg:h-32 lg:w-32"
-          />
-        </motion.a>
-      </div>
-
       {/* Hero Section - The Digital Prism */}
       <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden pt-2">
         {/* Professional Background Pattern */}
@@ -239,7 +220,7 @@ const HomePage: React.FC = () => {
                 <span className="block text-white">Say About You</span>
               </h1>
               <p className="text-lg lg:text-xl text-gray-300 mb-4 max-w-3xl mx-auto leading-relaxed">
-                Transform your ChatGPT conversation data into insights about your personality, 
+                Transform conversations with any AI assistant into insights about your personality,
                 communication style, and digital behavior through advanced AI analysis.
               </p>
             </motion.div>
@@ -267,14 +248,14 @@ const HomePage: React.FC = () => {
         <div className="flex items-center justify-end mb-4">
           <Bot className="h-6 w-6 lg:h-8 lg:w-8 text-green-400 mr-3 flex-shrink-0" />
           <div className="hidden sm:block"> {/* Hide text on very small screens to save space */}
-            <div className="text-base lg:text-lg font-semibold text-white">OpenAI Conversations</div>
-            <div className="text-xs lg:text-sm text-gray-400">Raw conversation data</div>
+            <div className="text-base lg:text-lg font-semibold text-white">Any AI assistant</div>
+            <div className="text-xs lg:text-sm text-gray-400">ChatGPT, Claude, Gemini, Grok, and more</div>
           </div>
         </div>
         <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg p-3 lg:p-4 max-w-xs">
           <div className="flex items-center mb-2">
             <Database className="h-3 w-3 lg:h-4 lg:w-4 text-blue-400 mr-2 flex-shrink-0" />
-            <span className="text-xs lg:text-sm text-gray-300 truncate">conversations.json</span>
+            <span className="text-xs lg:text-sm text-gray-300 truncate">conversation export</span>
           </div>
           <div className="text-xs text-gray-500 font-mono">
             {Math.floor(Math.random() * 500 + 100)} conversations<br/>
@@ -601,8 +582,8 @@ const HomePage: React.FC = () => {
               <span className="block">Digital Personality?</span>
             </h2>
             <p className="text-lg lg:text-2xl text-white/90 mb-8 lg:mb-12 max-w-4xl mx-auto leading-relaxed">
-              Transform your ChatGPT conversations into insights about your communication patterns, 
-              thinking style, and digital behavior through advanced AI analysis.
+              Transform conversations from ChatGPT, Claude, Gemini, Grok, Copilot, and other LLM tools
+              into insights about your communication patterns, thinking style, and digital behavior.
             </p>
             <Button 
               size="lg" 

@@ -20,13 +20,12 @@ import {
 import { toast } from 'sonner';
 import { FileService, type UploadedFile } from '../services/fileService';
 import ConversationSelector from '../components/ConversationSelector';
-
-interface ParsedConversation {
-  id?: string;
-  title?: string;
-  create_time?: number;
-  mapping?: { [id: string]: any };
-}
+import {
+  describeDetectedFormat,
+  parseConversationExport,
+  validateUploadFile,
+  type NormalizedConversation,
+} from '../lib/conversationParser';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -37,7 +36,7 @@ const DashboardPage: React.FC = () => {
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
   
   // New state for conversation selection
-  const [parsedConversations, setParsedConversations] = useState<ParsedConversation[]>([]);
+  const [parsedConversations, setParsedConversations] = useState<NormalizedConversation[]>([]);
   const [originalFilename, setOriginalFilename] = useState<string>('');
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
 
@@ -62,85 +61,42 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const parseConversationFile = (file: File): Promise<ParsedConversation[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        try {
-          const text = e.target?.result as string;
-          let parsed = JSON.parse(text);
-          
-          // Handle different JSON structures
-          if (!Array.isArray(parsed)) {
-            // Look for an array within the object
-            const potentialArray = Object.values(parsed).find(value => Array.isArray(value));
-            if (potentialArray && Array.isArray(potentialArray)) {
-              parsed = potentialArray;
-            } else {
-              throw new Error('JSON file does not contain a conversation array');
-            }
-          }
-          
-          if (!Array.isArray(parsed) || parsed.length === 0) {
-            throw new Error('No conversations found in the file');
-          }
-          
-          resolve(parsed as ParsedConversation[]);
-        } catch (error) {
-          reject(new Error(`Failed to parse JSON: ${error instanceof Error ? error.message : 'Unknown error'}`));
-        }
-      };
-      
-      reader.onerror = () => {
-        reject(new Error('Failed to read file'));
-      };
-      
-      reader.readAsText(file);
-    });
-  };
-
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user) return;
 
     const file = acceptedFiles[0];
     if (!file) return;
 
-    if (!file.name.endsWith('.json')) {
-      toast.error('Please upload a JSON file');
-      return;
-    }
-
-    if (file.size > 100 * 1024 * 1024) { // 100MB limit
-      toast.error('File size must be less than 100MB');
+    const validationError = validateUploadFile(file);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
     setUploading(true);
 
     try {
-      // Parse the file to extract conversations
-      const conversations = await parseConversationFile(file);
-      
-      if (conversations.length === 0) {
+      const parsed = await parseConversationExport(file.name, new Uint8Array(await file.arrayBuffer()));
+
+      if (parsed.conversations.length === 0) {
         throw new Error('No conversations found in the file');
       }
 
-      // Store parsed data and show selection modal
-      setParsedConversations(conversations);
+      setParsedConversations(parsed.conversations);
       setOriginalFilename(file.name);
       setIsSelectionModalOpen(true);
-      
-      toast.success(`Found ${conversations.length} conversations. Select which ones to upload.`);
+
+      toast.success(`Found ${parsed.conversations.length} conversations in ${describeDetectedFormat(parsed.format)}. Select which ones to upload.`);
+      parsed.warnings.forEach((warning) => toast.message(warning));
     } catch (error) {
       console.error('Parse error:', error);
-      toast.error(`Failed to parse file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(error instanceof Error ? error.message : 'Failed to parse file', { duration: 8000 });
     } finally {
       setUploading(false);
     }
   }, [user]);
 
-  const handleUploadSelectedConversations = async (selectedConversations: ParsedConversation[], filename: string) => {
+  const handleUploadSelectedConversations = async (selectedConversations: NormalizedConversation[], filename: string) => {
     if (!user) return;
 
     try {
@@ -163,10 +119,26 @@ const DashboardPage: React.FC = () => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected: (rejections) => {
+      const tooBig = rejections.some((rejection) => rejection.errors.some((error) => error.code === 'file-too-large'));
+      toast.error(tooBig
+        ? 'File size must be less than 100MB.'
+        : 'That file type is not supported. Upload a .json, .jsonl, .zip, .md, .txt, .csv, or Gemini .html export.');
+    },
     accept: {
-      'application/json': ['.json']
+      'application/json': ['.json'],
+      'application/x-ndjson': ['.jsonl'],
+      'application/jsonl': ['.jsonl'],
+      'text/plain': ['.txt', '.jsonl', '.md', '.csv'],
+      'text/markdown': ['.md', '.markdown'],
+      'text/csv': ['.csv'],
+      'application/csv': ['.csv'],
+      'application/zip': ['.zip'],
+      'application/x-zip-compressed': ['.zip'],
+      'text/html': ['.html', '.htm'],
     },
     maxFiles: 1,
+    maxSize: 100 * 1024 * 1024,
     disabled: uploading
   });
 
@@ -238,7 +210,7 @@ const DashboardPage: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-4">Conversation Analysis Dashboard</h1>
         <p className="text-muted-foreground">
-          Upload your ChatGPT conversations.json file to generate insights about your communication patterns.
+          Upload a conversation export from any AI assistant to generate insights about your communication patterns.
         </p>
       </div>
 
@@ -247,15 +219,15 @@ const DashboardPage: React.FC = () => {
         <CardHeader>
           <CardTitle>Upload Conversations</CardTitle>
           <CardDescription>
-            Upload your ChatGPT conversations.json file. You'll be able to select which conversations to analyze.
+            Upload an export from ChatGPT, Claude, Gemini, Grok, Copilot, Perplexity, Mistral, DeepSeek, Cursor, or another LLM. You'll be able to select which conversations to analyze.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert className="mb-4">
             <Info className="h-4 w-4" />
             <AlertDescription>
-              <strong>New:</strong> After uploading, you can select which conversations to analyze. 
-              This helps manage large files and ensures optimal processing performance.
+              JSON, JSONL, Markdown, plain text, CSV, HTML, or a ZIP of those files. Up to 100MB.
+              After uploading, choose which conversations to analyze.
             </AlertDescription>
           </Alert>
           
@@ -278,11 +250,11 @@ const DashboardPage: React.FC = () => {
             {uploading ? (
               <p className="text-lg">Processing your file...</p>
             ) : isDragActive ? (
-              <p className="text-lg">Drop your conversations.json file here...</p>
+              <p className="text-lg">Drop your conversation export here...</p>
             ) : (
               <div>
-                <p className="text-lg mb-2">Drag & drop your conversations.json file here</p>
-                <p className="text-muted-foreground mb-4">or click to browse files</p>
+                <p className="text-lg mb-2">Drag & drop your conversation export here</p>
+                <p className="text-muted-foreground mb-4">.json, .jsonl, .zip, .md, .txt, .csv, or .html</p>
                 <Button variant="outline" disabled={uploading}>
                   <FileText className="h-4 w-4 mr-2" />
                   Choose File

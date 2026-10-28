@@ -30,6 +30,32 @@ import { FileService, type Report } from '../services/fileService';
 import { ReportCardDeck } from '../components/reports/ReportCardDeck';
 import { toast } from 'sonner';
 
+interface PremiumOverviewData {
+  fbiReport?: { subjectCodename?: { name?: string } };
+  linguisticFingerprint?: unknown;
+  topInterestingConversations?: unknown;
+  realityTVPersona?: unknown;
+  unfilteredMirror?: unknown;
+  piiSafetyCompass?: unknown;
+  digitalDoppelganger?: unknown;
+}
+
+interface BasicReportData {
+  totalConversations?: number;
+  totalMessages?: number;
+  userMessagesCount?: number;
+  averageUserMessageLength?: number;
+  userVocabularySizeEstimate?: number;
+  conversationDaysSpan?: number | null;
+  mostUsedUserWords?: Array<{ word: string; count: number }>;
+  mostActiveHour?: string | null;
+  mostActiveDay?: string | null;
+  averageWordsPerUserSentence?: number;
+  questionMarksUsedByUser?: number;
+  exclamationMarksUsedByUser?: number;
+  userToAiMessageRatio?: number;
+}
+
 const ReportPage: React.FC = () => {
   const { fileId, reportType } = useParams<{ fileId: string; reportType: 'basic' | 'premium' }>();
   const { user } = useAuth();
@@ -136,28 +162,26 @@ const ReportPage: React.FC = () => {
     );
   }
 
-  const reportData = report.report_data;
-
   if (reportType === 'basic') {
-    return <BasicReportView report={reportData} onBack={handleBack} isSample={isSampleReport} />;
+    return <BasicReportView report={report.report_data as BasicReportData} onBack={handleBack} isSample={isSampleReport} />;
   }
 
   if (showCardDeck) {
     return (
       <ReportCardDeck 
-        reportData={reportData} 
+        reportData={report.report_data as React.ComponentProps<typeof ReportCardDeck>['reportData']} 
         onBack={handleBack}
         initialCardIndex={selectedCardIndex}
       />
     );
   }
 
-  return <PremiumReportOverview reportData={reportData} onBack={handleBack} onCardSelect={handleCardSelect} isSample={isSampleReport} />;
+  return <PremiumReportOverview reportData={report.report_data as PremiumOverviewData} onBack={handleBack} onCardSelect={handleCardSelect} isSample={isSampleReport} />;
 };
 
 // Premium Report Overview Component
 const PremiumReportOverview: React.FC<{ 
-  reportData: any; 
+  reportData: PremiumOverviewData; 
   onBack: () => void; 
   onCardSelect: (index: number) => void;
   isSample?: boolean;
@@ -349,7 +373,7 @@ const PremiumReportOverview: React.FC<{
 };
 
 // Enhanced Basic Report View
-const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: boolean }> = ({ report, onBack, isSample = false }) => {
+const BasicReportView: React.FC<{ report: BasicReportData; onBack: () => void; isSample?: boolean }> = ({ report, onBack, isSample = false }) => {
   const stats = [
     {
       icon: MessageSquare,
@@ -471,7 +495,7 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: bo
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-3">
-                  {report.mostUsedUserWords.slice(0, 15).map((word: any, index: number) => (
+                  {report.mostUsedUserWords.slice(0, 15).map((word, index) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, scale: 0 }}

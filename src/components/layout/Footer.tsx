@@ -13,7 +13,7 @@ const Footer: React.FC = () => {
               <span className="text-lg font-bold">ChatInsights</span>
             </Link>
             <p className="text-sm text-muted-foreground max-w-xs">
-              Unlock deep insights from your ChatGPT conversations with AI-powered analysis.
+              Unlock deep insights from conversations with any AI assistant.
             </p>
           </div>
 
@@ -46,17 +46,6 @@ const Footer: React.FC = () => {
           <div className="text-center mb-6">
             <h4 className="text-sm font-semibold text-muted-foreground mb-4">Built With</h4>
             <div className="flex flex-wrap items-center justify-center gap-6 md:gap-8">
-              {/* Bolt.new Logo */}
-              <div className="flex items-center space-x-2 opacity-70 hover:opacity-100 transition-opacity">
-                <img 
-                  src="/white_circle_360x360.png" 
-                  alt="Bolt.new" 
-                  className="h-6 w-6"
-                />
-                <span className="text-sm text-muted-foreground">Bolt.new</span>
-              </div>
-              
-              
               {/* Netlify Logo */}
               <div className="flex items-center space-x-2 opacity-70 hover:opacity-100 transition-opacity">
                 <svg className="h-6 w-6" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">

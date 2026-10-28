@@ -15,6 +15,7 @@ export interface Database {
           email: string
           name: string | null
           premium_status: boolean
+          premium_unlocked_at: string | null
           avatar_url: string | null
           stripe_customer_id: string | null
           created_at: string
@@ -25,6 +26,7 @@ export interface Database {
           email: string
           name?: string | null
           premium_status?: boolean
+          premium_unlocked_at?: string | null
           avatar_url?: string | null
           stripe_customer_id?: string | null
           created_at?: string
@@ -35,110 +37,115 @@ export interface Database {
           email?: string
           name?: string | null
           premium_status?: boolean
+          premium_unlocked_at?: string | null
           avatar_url?: string | null
           stripe_customer_id?: string | null
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
-      jobs: {
+      uploaded_files: {
         Row: {
           id: string
           user_id: string
           filename: string
-          status: 'uploading' | 'processing' | 'completed' | 'failed'
-          progress: number
-          total_conversations: number | null
-          processed_conversations: number | null
-          error_message: string | null
+          file_path: string
+          file_size: number
+          uploaded_at: string
+          has_basic_report: boolean
+          has_premium_report: boolean
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          filename: string
+          file_path: string
+          file_size: number
+          uploaded_at?: string
+          has_basic_report?: boolean
+          has_premium_report?: boolean
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          filename?: string
+          file_path?: string
+          file_size?: number
+          uploaded_at?: string
+          has_basic_report?: boolean
+          has_premium_report?: boolean
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          id: string
+          user_id: string
+          file_id: string
+          report_type: 'basic' | 'premium'
+          report_data: Json
+          generated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          file_id: string
+          report_type: 'basic' | 'premium'
+          report_data: Json
+          generated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          file_id?: string
+          report_type?: 'basic' | 'premium'
+          report_data?: Json
+          generated_at?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          id: string
+          user_id: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string | null
+          stripe_customer_id: string | null
+          price_id: string | null
+          amount: number | null
+          currency: string
+          status: string
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
           user_id: string
-          filename: string
-          status?: 'uploading' | 'processing' | 'completed' | 'failed'
-          progress?: number
-          total_conversations?: number | null
-          processed_conversations?: number | null
-          error_message?: string | null
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id?: string | null
+          stripe_customer_id?: string | null
+          price_id?: string | null
+          amount?: number | null
+          currency?: string
+          status: string
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
           user_id?: string
-          filename?: string
-          status?: 'uploading' | 'processing' | 'completed' | 'failed'
-          progress?: number
-          total_conversations?: number | null
-          processed_conversations?: number | null
-          error_message?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      user_reports: {
-        Row: {
-          id: string
-          user_id: string
-          job_id: string
-          free_insights: Json
-          paid_insights: Json | null
-          generated_at: string
-          expires_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          job_id: string
-          free_insights: Json
-          paid_insights?: Json | null
-          generated_at?: string
-          expires_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          job_id?: string
-          free_insights?: Json
-          paid_insights?: Json | null
-          generated_at?: string
-          expires_at?: string | null
-        }
-      }
-      payments: {
-        Row: {
-          id: string
-          user_id: string
-          job_id: string | null
-          stripe_payment_intent_id: string
-          amount: number
-          currency: string
-          status: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          job_id?: string | null
-          stripe_payment_intent_id: string
-          amount: number
-          currency: string
-          status: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          job_id?: string | null
-          stripe_payment_intent_id?: string
-          amount?: number
+          stripe_checkout_session_id?: string
+          stripe_payment_intent_id?: string | null
+          stripe_customer_id?: string | null
+          price_id?: string | null
+          amount?: number | null
           currency?: string
           status?: string
           created_at?: string
+          updated_at?: string
         }
+        Relationships: []
       }
     }
     Views: {

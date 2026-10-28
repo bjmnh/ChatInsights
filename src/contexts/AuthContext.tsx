@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { config } from '../lib/config';
@@ -61,15 +61,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const authReady = useRef(false);
+
   useEffect(() => {
-    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -77,12 +79,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       setLoading(false);
 
+      if (!authReady.current) {
+        authReady.current = true;
+        return;
+      }
+
       if (event === 'SIGNED_IN') {
-        toast.success('Successfully signed in!');
+        toast.success('Signed in');
       } else if (event === 'SIGNED_OUT') {
-        toast.success('Successfully signed out!');
-      } else if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed');
+        toast.success('Signed out');
       }
     });
 

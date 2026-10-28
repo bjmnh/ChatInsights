@@ -1,618 +1,172 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
-import { 
-  Brain, 
-  BarChart3, 
-  Shield, 
-  ArrowRight,
-  FileText,
-  Tv,
-  Globe,
-  Eye,
-  Sparkles,
-  Database,
-  Bot,
-  User,
-  Heart
-} from 'lucide-react';
-import { motion } from 'framer-motion';
 import { samplePremiumReportData } from '../lib/sampleReportData';
+import { config } from '../lib/config';
+import { ArrowUpRight } from 'lucide-react';
+
+const posters = [
+  { index: 0, kicker: 'Classified', title: 'FBI Report', line: 'Codename, interests, and how you operate.', wash: 'from-[#3a2a1c] to-[#120e0b]', ink: 'text-[#f6ead7]' },
+  { index: 1, kicker: 'Language', title: 'Linguistic Fingerprint', line: 'The words that show up when you are thinking.', wash: 'from-[#243006] to-[#10140a]', ink: 'text-[#f3ffc4]' },
+  { index: 3, kicker: 'Casting', title: 'Reality TV Persona', line: 'The character your chats would play.', wash: 'from-[#4a1230] to-[#1a0a12]', ink: 'text-[#ffe4ef]' },
+  { index: 6, kicker: 'Profile', title: 'Digital Doppelganger', line: 'The account you would run if you meant it.', wash: 'from-[#10243f] to-[#0b1018]', ink: 'text-[#e7f1ff]' },
+  { index: 5, kicker: 'Privacy', title: 'PII Safety Compass', line: 'What you gave away without noticing.', wash: 'from-[#063226] to-[#071410]', ink: 'text-[#dfffee]' },
+  { index: 4, kicker: 'Mirror', title: 'Unfiltered Mirror', line: 'One sentence you might not say out loud.', wash: 'from-[#1c1c22] to-[#0c0c10]', ink: 'text-[#f4f4f5]' },
+  { index: 2, kicker: 'Archive', title: 'Top 5 Conversations', line: 'The threads that were actually doing something.', wash: 'from-[#2c2416] to-[#12100c]', ink: 'text-[#fff6df]' },
+];
+
+const marquee = ['FBI Report', 'Reality TV Persona', 'Digital Doppelganger', 'Linguistic Fingerprint', 'PII Safety Compass', 'Unfiltered Mirror', 'Top 5 Conversations'];
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [hoveredBeam, setHoveredBeam] = useState<number | null>(null);
-  const [animationStarted, setAnimationStarted] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setAnimationStarted(true), 300);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const handleViewSampleAnalysis = () => {
-    navigate('/report/sample/premium', { 
-      state: { 
+  const openSample = (cardIndex?: number) => {
+    navigate('/report/sample/premium', {
+      state: {
         sampleReport: samplePremiumReportData,
-        isSample: true 
-      } 
+        isSample: true,
+        cardIndex,
+      },
     });
   };
 
-  const prismBeams = [
-    { 
-      color: 'from-red-500 to-red-600', 
-      label: 'Digital Dossier', 
-      description: 'FBI-style behavioral analysis',
-      icon: Brain,
-      angle: -25,
-      delay: 0.15
-    },
-    { 
-      color: 'from-orange-500 to-orange-600', 
-      label: 'Linguistic Fingerprint', 
-      description: 'Language pattern analysis',
-      icon: FileText,
-      angle: -12,
-      delay: 0.21
-    },
-    { 
-      color: 'from-yellow-500 to-yellow-600', 
-      label: 'Personality Profile', 
-      description: 'In-depth personality insights',
-      icon: User,
-      angle: 0,
-      delay: 0.27
-    },
-    { 
-      color: 'from-green-500 to-green-600', 
-      label: 'Emotional Analysis', 
-      description: 'Emotional tone evaluation',
-      icon: Heart,
-      angle: 12,
-      delay: 0.33
-    },
-    { 
-      color: 'from-blue-500 to-blue-600', 
-      label: 'Cognitive Patterns', 
-      description: 'Thinking style analysis',
-      icon: Brain,
-      angle: 25,
-      delay: 0.39
-    },
-    { 
-      color: 'from-purple-500 to-purple-600', 
-      label: 'Safety Compass', 
-      description: 'Privacy & security analysis',
-      icon: Shield,
-      angle: 30,
-      delay: 0.45
-    },
-    { 
-      color: 'from-pink-500 to-pink-600', 
-      label: 'Digital Twin', 
-      description: 'Your social media persona',
-      icon: Globe,
-      angle: 40,
-      delay: 0.51
-    }
-  ];
-
-  const featureCards = [
-    {
-      title: "Digital Behavioral Dossier",
-      description: "Professional psychological profiling with operational assessment and behavioral pattern analysis",
-      icon: Brain,
-      gradient: "from-red-500 to-red-600",
-      bgPattern: "confidential-file",
-      preview: "CONFIDENTIAL",
-      style: "fbi",
-      features: ["Psychological Assessment", "Behavioral Patterns", "Operational Analysis"]
-    },
-    {
-      title: "Linguistic Fingerprint", 
-      description: "Advanced analysis of communication style, vocabulary sophistication, and cognitive complexity",
-      icon: BarChart3,
-      gradient: "from-orange-500 to-orange-600", 
-      bgPattern: "soundwave",
-      preview: "ANALYZING",
-      style: "tech",
-      features: ["Vocabulary Analysis", "Communication Style", "Cognitive Markers"]
-    },
-    {
-      title: "Reality TV Persona",
-      description: "Entertainment industry casting profile with personality archetype and viewer appeal analysis",
-      icon: Tv,
-      gradient: "from-pink-500 to-pink-600",
-      bgPattern: "glitter",
-      preview: "ON AIR",
-      style: "reality",
-      features: ["Personality Archetype", "Character Traits", "Story Potential"]
-    },
-    {
-      title: "The Unfiltered Mirror",
-      description: "Profound psychological insights that reveal hidden patterns and unconscious motivations",
-      icon: Eye,
-      gradient: "from-gray-700 to-gray-900",
-      bgPattern: "minimal",
-      preview: "REFLECTING",
-      style: "mirror",
-      features: ["Deep Insights", "Hidden Patterns", "Self-Awareness"]
-    },
-    {
-      title: "PII Safety Compass",
-      description: "Comprehensive privacy assessment with security recommendations and risk analysis",
-      icon: Shield,
-      gradient: "from-green-500 to-green-600",
-      bgPattern: "security",
-      preview: "SECURED",
-      style: "security",
-      features: ["Privacy Analysis", "Security Posture", "Risk Assessment"]
-    },
-    {
-      title: "Digital Doppelgänger",
-      description: "Authentic social media profile simulation based on your communication patterns and interests",
-      icon: Globe,
-      gradient: "from-blue-500 to-blue-600",
-      bgPattern: "social",
-      preview: "@username",
-      style: "social",
-      features: ["Social Profile", "Content Style", "Online Behavior"]
-    }
-  ];
+  const start = () => navigate(user ? '/dashboard' : '/auth');
 
   return (
-    <div className="min-h-screen w-full bg-black text-white overflow-hidden">
-      {/* Bolt.new Logo positioned under header - Made larger and removed backdrop */}
-      <div className="absolute top-24 right-8 z-40">
-        <motion.a
-          href="https://bolt.new"
-          target="_blank"
-          rel="noopener noreferrer"
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="block hover:opacity-90 transition-opacity"
-        >
-          <img 
-            src="/white_circle_360x360.png" 
-            alt="Built with Bolt.new" 
-            className="h-24 w-24 lg:h-32 lg:w-32"
-          />
-        </motion.a>
-      </div>
-
-      {/* Hero Section - The Digital Prism */}
-      <section className="relative w-full min-h-screen flex items-center justify-center overflow-hidden pt-2">
-        {/* Professional Background Pattern */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-gray-950 to-black" />
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute inset-0" style={{
-              backgroundImage: `
-                radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(147, 51, 234, 0.1) 0%, transparent 50%),
-                linear-gradient(45deg, transparent 40%, rgba(59, 130, 246, 0.05) 50%, transparent 60%)
-              `,
-              backgroundSize: '800px 800px, 600px 600px, 400px 400px'
-            }} />
-          </div>
-        </div>
-
-        {/* Floating Particles */}
-        <div className="absolute inset-0">
-          {[...Array(30)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-blue-400 rounded-full"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                opacity: [0, 0.8, 0],
-                scale: [0, 1, 0],
-              }}
-              transition={{
-                duration: 1.8,
-                repeat: Infinity,
-                delay: Math.random() * 1.8,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="w-full max-w-full px-4 relative z-10">
-          <div className="text-center mb-6">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.24 }}
-            >
-              <h1 className="text-5xl lg:text-7xl font-bold mb-3 leading-tight">
-                <span className="block text-white">See What Your</span>
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">
-                  Conversations
-                </span>
-                <span className="block text-white">Say About You</span>
-              </h1>
-              <p className="text-lg lg:text-xl text-gray-300 mb-4 max-w-3xl mx-auto leading-relaxed">
-                Transform your ChatGPT conversation data into insights about your personality, 
-                communication style, and digital behavior through advanced AI analysis.
-              </p>
-            </motion.div>
-          </div>
-
-<div className="relative flex items-center justify-center w-full h-[340px] lg:h-[440px]">
-  {/* 
-    This is the new main container. 
-    It's a flexbox row that gets centered by its parent.
-    It uses 'gap' for responsive spacing between the Input, Prism, and Beams.
-    'max-w-7xl' prevents it from becoming too wide on large screens.
-    'px-4' adds padding on mobile.
-  */}
-  <div className="flex items-center justify-center w-full max-w-7xl mx-auto px-4 gap-4 sm:gap-6 lg:gap-8">
-    
-    {/* 1. Data Input Visualization (Left Side) */}
-    {/* No longer needs 'absolute' or complex transforms for positioning. */}
-    <motion.div
-      initial={{ opacity: 0, x: -50 }}
-      animate={{ opacity: animationStarted ? 1 : 0, x: animationStarted ? 0 : -50 }}
-      transition={{ duration: 0.36, delay: 0.15 }}
-      className="flex items-center"
-    >
-      <div className="text-right mr-4 sm:mr-6 lg:mr-8">
-        <div className="flex items-center justify-end mb-4">
-          <Bot className="h-6 w-6 lg:h-8 lg:w-8 text-green-400 mr-3 flex-shrink-0" />
-          <div className="hidden sm:block"> {/* Hide text on very small screens to save space */}
-            <div className="text-base lg:text-lg font-semibold text-white">OpenAI Conversations</div>
-            <div className="text-xs lg:text-sm text-gray-400">Raw conversation data</div>
-          </div>
-        </div>
-        <div className="bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-lg p-3 lg:p-4 max-w-xs">
-          <div className="flex items-center mb-2">
-            <Database className="h-3 w-3 lg:h-4 lg:w-4 text-blue-400 mr-2 flex-shrink-0" />
-            <span className="text-xs lg:text-sm text-gray-300 truncate">conversations.json</span>
-          </div>
-          <div className="text-xs text-gray-500 font-mono">
-            {Math.floor(Math.random() * 500 + 100)} conversations<br/>
-            {Math.floor(Math.random() * 10000 + 5000)} messages
-          </div>
-        </div>
-      </div>
-      
-      {/* Data Flow Line */}
-      <motion.div
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: animationStarted ? 1 : 0 }}
-        transition={{ duration: 0.45, delay: 0.36 }}
-        className="relative origin-left"
-      >
-        <div className="w-12 sm:w-20 lg:w-24 h-2 bg-gradient-to-r from-blue-400 to-transparent rounded-full" />
-        <motion.div
-          animate={{ x: animationStarted ? [0, '100%', 0] : 0 }}
-          transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-0 left-0 w-4 lg:w-6 h-2 bg-white rounded-full opacity-80"
-        />
-      </motion.div>
-    </motion.div>
-
-    {/* 2. Enhanced 3D Prism (Center) */}
-    {/* This element will now stay perfectly in the middle, and others will space away from it. */}
-    {/* flex-shrink-0 prevents the prism from shrinking on small screens. */}
-    <motion.div
-      initial={{ opacity: 0, scale: 0.5 }}
-      animate={{ opacity: animationStarted ? 1 : 0, scale: animationStarted ? 1 : 0.5 }}
-      transition={{ duration: 0.45, delay: 0.54 }}
-      className="relative z-20 flex-shrink-0"
-    >
-      <motion.div
-        animate={{ 
-          rotateZ: animationStarted ? [0, 360] : 0,
-          rotateY: animationStarted ? [0, 15, -15, 0] : 0
-        }}
-        transition={{ 
-          rotateZ: { duration: 6, repeat: Infinity, ease: "linear" },
-          rotateY: { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
-        }}
-        className="relative flex items-center justify-center"
-      >
-        {/* Main Prism Body */}
-        <div className="w-24 h-24 lg:w-32 lg:h-32 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 relative shadow-2xl">
-          <div className="absolute inset-2 lg:inset-4 bg-gradient-to-br from-white/30 to-transparent rounded-sm" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-white/20 rounded-sm" />
-          <div className="absolute -top-1.5 -left-1.5 lg:-top-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-br from-blue-300 to-blue-500 transform -rotate-45 opacity-90 shadow-xl" />
-          <div className="absolute -top-1.5 -right-1.5 lg:-top-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-bl from-purple-300 to-purple-500 transform -rotate-45 opacity-90 shadow-xl" />
-          <div className="absolute -bottom-1.5 -left-1.5 lg:-bottom-2 lg:-left-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tr from-pink-300 to-pink-500 transform -rotate-45 opacity-90 shadow-xl" />
-          <div className="absolute -bottom-1.5 -right-1.5 lg:-bottom-2 lg:-right-2 w-6 h-6 lg:w-8 lg:h-8 bg-gradient-to-tl from-cyan-300 to-cyan-500 transform -rotate-45 opacity-90 shadow-xl" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="absolute inset-4 lg:inset-6 bg-white rounded-full opacity-60 animate-pulse" />
-            <Brain className="h-8 w-8 lg:h-12 lg:w-12 text-white relative z-10 transform -rotate-45" />
-          </div>
-        </div>
-        {/* Prism Glow Effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 transform rotate-45 blur-2xl opacity-40 scale-150" />
-      </motion.div>
-    </motion.div>
-
-    {/* 3. Refracted Beams (Right Side) */}
-    {/* No longer needs 'absolute' or complex transforms for positioning. */}
-    <div className="flex flex-col items-start space-y-3 lg:space-y-4">
-      {prismBeams.map((beam, index) => (
-        <motion.div
-          key={index}
-          initial={{ opacity: 0, scaleX: 0, x: -50 }}
-          animate={{ 
-            opacity: animationStarted ? 1 : 0, 
-            scaleX: animationStarted ? 1 : 0,
-            x: animationStarted ? 0 : -50
-          }}
-          transition={{ duration: 0.3, delay: beam.delay }}
-          className="relative group cursor-pointer origin-left"
-          style={{ 
-            transform: `rotate(${beam.angle}deg)`,
-            transformOrigin: 'left center'
-          }}
-          onMouseEnter={() => setHoveredBeam(index)}
-          onMouseLeave={() => setHoveredBeam(null)}
-        >
-          {/* Beam Line - now with responsive width */}
-          <div className={`w-32 sm:w-48 lg:w-64 h-2 lg:h-3 bg-gradient-to-r ${beam.color} relative overflow-hidden rounded-full shadow-lg`}>
-            <motion.div
-              animate={{ x: [-150, '200%'] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent w-12"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-full" />
-          </div>
-          
-          {/* Label Tooltip - remains absolutely positioned relative to its parent beam */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ 
-              opacity: hoveredBeam === index ? 1 : 0,
-              scale: hoveredBeam === index ? 1 : 0.8
-            }}
-            transition={{ duration: 0.2 }}
-            className="absolute left-full top-1/2 transform -translate-y-1/2 ml-3 lg:ml-4 bg-black/90 backdrop-blur-sm border border-white/20 rounded-xl p-2 lg:p-3 shadow-2xl w-max max-w-xs z-50"
-          >
-            <div className="flex items-center mb-1 lg:mb-2">
-              <beam.icon className="h-3 w-3 lg:h-4 lg:w-4 mr-2 text-white flex-shrink-0" />
-              <span className="font-semibold text-white text-xs lg:text-sm">{beam.label}</span>
-            </div>
-            <p className="text-gray-300 text-xs leading-relaxed">{beam.description}</p>
-            <div className={`w-full h-0.5 bg-gradient-to-r ${beam.color} rounded-full mt-1 lg:mt-2`} />
-          </motion.div>
-        </motion.div>
-      ))}
-    </div>
-
-  </div>
-</div>
-
-          {/* Enhanced CTA Buttons - Better responsive sizing and viewport fitting */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 0.24 }}
-            className="text-center"
-          >
-            <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-center items-center px-4 max-w-4xl mx-auto">
-              <Button 
-                size="lg" 
-                onClick={() => navigate(user ? '/dashboard' : '/auth')}
-                className="text-lg lg:text-xl px-10 lg:px-12 py-7 lg:py-8 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white border-0 shadow-2xl shadow-blue-500/25 rounded-xl font-bold w-full sm:w-auto max-w-sm"
-              >
-                {user ? 'Analyze Your Conversations' : 'Start Your Analysis'}
-                <ArrowRight className="ml-3 h-6 w-6 lg:h-7 lg:w-7" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                onClick={handleViewSampleAnalysis}
-                className="text-lg lg:text-xl px-10 lg:px-12 py-7 lg:py-8 border-white/30 text-white hover:bg-white/10 rounded-xl font-bold w-full sm:w-auto max-w-sm"
-              >
-                View Sample Analysis
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Enhanced Feature Cards Deck */}
-      <section className="py-20 lg:py-32 bg-gradient-to-b from-black via-slate-950 to-black relative">
-        <div className="container mx-auto px-4">
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-            className="text-center mb-16 lg:mb-20"
-          >
-            <h2 className="text-4xl lg:text-6xl font-bold mb-6 lg:mb-8">
-              Your Data, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Revealed</span>
-            </h2>
-            <p className="text-lg lg:text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
-              Each analysis creates a unique insight card in your personal collection. 
-              Professional-grade reports that reveal the hidden patterns in your digital communication.
-            </p>
-          </motion.div>
-
-          {/* Enhanced Fanned Card Deck - Better fan angle and spacing */}
-          <div className="relative max-w-7xl mx-auto h-[500px] lg:h-[600px] flex items-center justify-center">
-            {featureCards.map((card, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 200, rotate: 0 }}
-                whileInView={{ 
-                  opacity: 1, 
-                  y: 0, 
-                  rotate: (index - 2.5) * 6, // Reduced angle for better visibility
-                  x: (index - 2.5) * 140 // Increased spacing
-                }}
-                whileHover={{ 
-                  y: -40, 
-                  rotate: 0, 
-                  x: 0,
-                  scale: 1.05,
-                  zIndex: 50
-                }}
-                transition={{ 
-                  duration: 0.8, 
-                  delay: index * 0.15,
-                  type: "spring",
-                  stiffness: 200,
-                  damping: 20
-                }}
-                viewport={{ once: true }}
-                className="absolute w-80 lg:w-96 h-96 lg:h-[450px] cursor-pointer group"
-                style={{ zIndex: featureCards.length - index }}
-              >
-                <Card className={`h-full bg-gradient-to-br ${card.gradient} border-0 shadow-2xl overflow-hidden relative transform-gpu`}>
-                  {/* Enhanced Background Patterns */}
-                  <div className="absolute inset-0 opacity-15">
-                    {card.style === 'fbi' && (
-                      <div className="absolute inset-0 bg-gradient-to-br from-amber-200 to-amber-400" />
-                    )}
-                    {card.style === 'tech' && (
-                      <div className="absolute inset-0" style={{
-                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(255,255,255,0.1) 3px, rgba(255,255,255,0.1) 6px)'
-                      }} />
-                    )}
-                    {card.style === 'reality' && (
-                      <div className="absolute inset-0">
-                        {[...Array(30)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="absolute w-2 lg:w-3 h-2 lg:h-3 bg-white rounded-full animate-pulse"
-                            style={{
-                              left: `${Math.random() * 100}%`,
-                              top: `${Math.random() * 100}%`,
-                              animationDelay: `${Math.random() * 2}s`
-                            }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {card.style === 'mirror' && (
-                      <div className="absolute inset-0 bg-gradient-radial from-white/10 to-transparent" />
-                    )}
-                    {card.style === 'security' && (
-                      <div className="absolute inset-0" style={{
-                        backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 8px, rgba(255,255,255,0.05) 8px, rgba(255,255,255,0.05) 16px)'
-                      }} />
-                    )}
-                    {card.style === 'social' && (
-                      <div className="absolute inset-0" style={{
-                        backgroundImage: 'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)'
-                      }} />
-                    )}
-                  </div>
-
-                  <CardHeader className="relative z-10 pb-3 lg:pb-4">
-                    <div className="flex items-center justify-between mb-4 lg:mb-6">
-                      <div className="w-14 h-14 lg:w-20 lg:h-20 bg-white/20 rounded-xl lg:rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/30">
-                        <card.icon className="h-7 w-7 lg:h-10 lg:w-10 text-white" />
-                      </div>
-                      <div className="px-3 lg:px-4 py-1 lg:py-2 bg-white/20 text-white border border-white/30 rounded-full text-xs lg:text-sm font-bold backdrop-blur-sm">
-                        {card.preview}
-                      </div>
-                    </div>
-                    <CardTitle className="text-white text-xl lg:text-2xl mb-2 lg:mb-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-gray-200 transition-all duration-300 leading-tight">
-                      {card.title}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="relative z-10">
-                    <CardDescription className="text-white/90 text-sm lg:text-base leading-relaxed mb-4 lg:mb-6">
-                      {card.description}
-                    </CardDescription>
-                    
-                    {/* Feature List */}
-                    <div className="space-y-1 lg:space-y-2">
-                      {card.features.map((feature, featureIndex) => (
-                        <div key={featureIndex} className="flex items-center text-white/80 text-xs lg:text-sm">
-                          <div className="w-1 lg:w-1.5 h-1 lg:h-1.5 bg-white rounded-full mr-2 lg:mr-3" />
-                          {feature}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-
-                  {/* Enhanced Hover Effects */}
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            transition={{ delay: 1.5 }}
-            viewport={{ once: true }}
-            className="text-center mt-16 lg:mt-20"
-          >
-            <p className="text-gray-400 text-base lg:text-lg">
-              Hover over each card to explore the insights waiting to be discovered
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Enhanced Final CTA Section */}
-      <section className="py-20 lg:py-32 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 relative overflow-hidden">
-        {/* Enhanced Background Animation */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-black/30" />
-          {[...Array(50)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 lg:w-2 h-1 lg:h-2 bg-white rounded-full"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                opacity: [0, 1, 0],
-                scale: [0, 1.5, 0],
-                y: [0, -200],
-              }}
-              transition={{
-                duration: 8,
-                repeat: Infinity,
-                delay: Math.random() * 8,
-              }}
-            />
-          ))}
-        </div>
-
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl lg:text-6xl font-bold text-white mb-6 lg:mb-8 leading-tight">
-              Ready to Discover Your
-              <span className="block">Digital Personality?</span>
-            </h2>
-            <p className="text-lg lg:text-2xl text-white/90 mb-8 lg:mb-12 max-w-4xl mx-auto leading-relaxed">
-              Transform your ChatGPT conversations into insights about your communication patterns, 
-              thinking style, and digital behavior through advanced AI analysis.
-            </p>
-            <Button 
-              size="lg" 
-              onClick={() => navigate(user ? '/dashboard' : '/auth')}
-              className="text-lg lg:text-xl px-12 lg:px-16 py-6 lg:py-8 bg-white text-gray-900 hover:bg-gray-100 font-bold shadow-2xl rounded-xl transform hover:scale-105 transition-all duration-300"
-            >
-              {user ? 'Start New Analysis' : 'Begin Your Journey'}
-              <Sparkles className="ml-2 lg:ml-3 h-5 w-5 lg:h-6 lg:w-6" />
+    <div className="overflow-x-hidden">
+      <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pb-16 pt-10 lg:grid-cols-[1.15fr_0.85fr] lg:pt-16">
+        <div>
+          <p className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            Personal AI memory
+          </p>
+          <h1 className="font-display text-5xl leading-[0.95] text-balance sm:text-7xl">
+            Your chats already filed a report.
+          </h1>
+          <p className="mt-6 max-w-xl text-lg text-muted-foreground">
+            Upload a ChatGPT or Grok export. Chat Insights turns the archive into seven cards worth screenshotting: a dossier, a persona, a fingerprint, and the conversations that mattered.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Button onClick={start} className="h-12 rounded-full px-6 text-base">
+              {user ? 'Open the studio' : 'Read your file'}
             </Button>
-          </motion.div>
+            <Button variant="outline" onClick={() => openSample()} className="h-12 rounded-full px-6 text-base">
+              See a sample dossier
+            </Button>
+          </div>
+        </div>
+
+        <motion.button
+          type="button"
+          onClick={() => openSample(0)}
+          initial={{ opacity: 0, y: 24, rotate: 2 }}
+          animate={{ opacity: 1, y: 0, rotate: -2 }}
+          transition={{ duration: 0.6 }}
+          className="relative mx-auto w-full max-w-md text-left"
+        >
+          <div className="absolute -left-4 top-8 hidden h-64 w-full rounded-[28px] bg-[#ff3d8a] sm:block" />
+          <div className="relative rounded-[28px] bg-[#f3ead7] p-6 text-[#1c140c] shadow-2xl sm:p-8">
+            <div className="flex items-start justify-between">
+              <p className="text-xs uppercase tracking-[0.22em]">Behavioral dossier</p>
+              <span className="rounded-full border border-[#1c140c] px-2 py-1 text-[10px] font-semibold uppercase">Confidential</span>
+            </div>
+            <p className="mt-8 font-display text-5xl leading-none">The Catalyst</p>
+            <p className="mt-4 text-sm leading-relaxed text-[#1c140c]/80">
+              Accelerates systems, guards the alpha, and talks like the future is already late.
+            </p>
+            <div className="mt-8 grid grid-cols-3 gap-3 text-center">
+              {[
+                ['7', 'cards'],
+                ['5', 'threads'],
+                ['Low', 'PII risk'],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-2xl bg-[#1c140c] px-2 py-3 text-[#f3ead7]">
+                  <div className="font-display text-2xl">{value}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-[#f3ead7]/70">{label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 flex items-center justify-between text-xs uppercase tracking-[0.16em]">
+              <span>Sample card</span>
+              <ArrowUpRight className="h-4 w-4" />
+            </div>
+          </div>
+        </motion.button>
+      </section>
+
+      <div className="overflow-hidden border-y border-white/10 py-3">
+        <div className="flex w-max animate-marquee gap-8 pr-8">
+          {[...marquee, ...marquee].map((item, index) => (
+            <span key={`${item}-${index}`} className="font-display text-2xl text-foreground/80">
+              {item} <span className="text-primary">/</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <section id="cards" className="mx-auto max-w-6xl px-4 py-20">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <h2 className="font-display text-4xl sm:text-6xl">Seven reads. One export.</h2>
+          <button onClick={() => openSample()} className="hidden text-sm text-primary sm:inline">
+            Flip through the sample
+          </button>
+        </div>
+        <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory lg:grid lg:grid-cols-4 lg:overflow-visible">
+          {posters.map((poster) => (
+            <button
+              key={poster.title}
+              onClick={() => openSample(poster.index)}
+              className={`snap-start min-h-[280px] w-[78%] shrink-0 rounded-[28px] bg-gradient-to-br p-5 text-left sm:w-[320px] lg:w-auto ${poster.wash} ${poster.ink} ${poster.index === 0 ? 'lg:col-span-2 lg:min-h-[340px]' : ''}`}
+            >
+              <p className="text-xs uppercase tracking-[0.18em] opacity-70">{poster.kicker}</p>
+              <h3 className="mt-10 font-display text-4xl leading-none">{poster.title}</h3>
+              <p className="mt-4 max-w-xs text-sm opacity-80">{poster.line}</p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section id="how" className="border-y border-white/10">
+        <div className="mx-auto grid max-w-6xl gap-px bg-white/10 md:grid-cols-3">
+          {[
+            ['01', 'Export', 'Download your ChatGPT data, or save a Grok history as JSON.'],
+            ['02', 'Choose threads', 'Drop the file. Pick the conversations that are actually you.'],
+            ['03', 'Get the cards', 'Basic counts are free. Premium unlocks the seven posters.'],
+          ].map(([step, title, body]) => (
+            <div key={step} className="bg-background px-6 py-10">
+              <p className="font-display text-5xl text-primary">{step}</p>
+              <h3 className="mt-4 font-display text-3xl">{title}</h3>
+              <p className="mt-2 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="pricing" className="mx-auto grid max-w-6xl gap-6 px-4 py-20 lg:grid-cols-2">
+        <div className="rounded-[28px] border border-white/10 p-8">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Free</p>
+          <h3 className="mt-3 font-display text-5xl">The counts</h3>
+          <p className="mt-4 text-muted-foreground">Messages, vocabulary, the hour you usually show up, and the words you lean on.</p>
+          <Button variant="outline" className="mt-8 rounded-full" onClick={start}>Start free</Button>
+        </div>
+        <div className="rounded-[28px] bg-primary p-8 text-primary-foreground">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs uppercase tracking-[0.18em]">Premium · one time</p>
+            {config.stripe.testMode && <span className="rounded-full bg-black/10 px-2 py-1 text-[10px] font-semibold">Stripe test mode</span>}
+          </div>
+          <h3 className="mt-3 font-display text-5xl">The posters</h3>
+          <p className="mt-4">
+            Pay once. Generate the FBI report, reality-TV persona, doppelganger, fingerprint, safety compass, mirror, and top conversations on every upload.
+          </p>
+          <p className="mt-4 text-sm opacity-80">
+            A chat export is a finished artifact, so premium is a one-time unlock rather than a subscription.
+          </p>
+          <Button className="mt-8 rounded-full bg-[#111] text-white hover:bg-black" onClick={start}>
+            Unlock in the studio
+          </Button>
         </div>
       </section>
     </div>

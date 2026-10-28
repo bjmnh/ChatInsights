@@ -15,8 +15,11 @@ function extractUserConversationText(conversation) {
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const FAST_LLM_PROVIDER = Deno.env.get("FAST_LLM_PROVIDER") || "gemini";
 const POWERFUL_LLM_PROVIDER = Deno.env.get("POWERFUL_LLM_PROVIDER") || "gemini";
-const GEMINI_FAST_MODEL_NAME = "gemini-2.0-flash";
-const GEMINI_POWERFUL_MODEL_NAME = "gemini-2.5-flash"; // Powerful model set as requested.
+// Model is configurable via the GEMINI_MODEL env var (set with `supabase secrets set GEMINI_MODEL=...`).
+// GEMINI_FAST_MODEL / GEMINI_POWERFUL_MODEL can override per-stage; all default to GEMINI_MODEL.
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") || "gemini-3.6-flash";
+const GEMINI_FAST_MODEL_NAME = Deno.env.get("GEMINI_FAST_MODEL") || GEMINI_MODEL;
+const GEMINI_POWERFUL_MODEL_NAME = Deno.env.get("GEMINI_POWERFUL_MODEL") || GEMINI_MODEL;
 
 async function callLlmForJson(prompt, modelType) {
     const provider = modelType === 'fast' ? FAST_LLM_PROVIDER : POWERFUL_LLM_PROVIDER;
@@ -46,7 +49,7 @@ async function callLlmForJson(prompt, modelType) {
 
     if (modelType === 'powerful') {
         generationConfig.thinkingConfig = {
-            thinkingBudget: 0, // Disables thinking for gemini-2.5-flash
+            thinkingBudget: 0, // Disables thinking (verified accepted by gemini-3.x flash models)
         };
     }
     

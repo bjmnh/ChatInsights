@@ -30,6 +30,7 @@ import { FileService, type Report } from '../services/fileService';
 import { ReportCardDeck } from '../components/reports/ReportCardDeck';
 import { usePremium } from '../hooks/usePremium';
 import { startPremiumCheckout } from '../services/billingService';
+import { formatPremiumPrice } from '../config/pricing';
 import { toast } from 'sonner';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -172,9 +173,10 @@ const PremiumLock: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     <div className="grid min-h-screen place-items-center bg-[#07080d] px-4 text-center">
       <div className="max-w-lg">
         <p className="text-xs uppercase tracking-[0.2em] text-primary">One-time unlock</p>
-        <h1 className="mt-3 font-display text-5xl text-white">The posters stay on the server.</h1>
+        <p className="mt-3 font-display text-5xl text-white">{formatPremiumPrice()}</p>
+        <h1 className="mt-3 font-display text-4xl text-white">The posters stay on the server.</h1>
         <p className="mt-4 text-white/70">
-          Premium cards are generated only after Stripe records a paid checkout on this account.
+          Premium cards are generated only after Stripe records a paid checkout on this account. One payment, no renewal.
         </p>
         <div className="mt-8 flex justify-center gap-3">
           <Button variant="outline" onClick={onBack}>Back to studio</Button>
@@ -191,7 +193,7 @@ const PremiumLock: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             }}
           >
             {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Unlock premium
+            Unlock for {formatPremiumPrice()}
           </Button>
         </div>
       </div>
@@ -655,8 +657,7 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: bo
               <CardContent className="p-8">
                 <h3 className="text-2xl font-bold text-white mb-4">Want Deeper Insights?</h3>
                 <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-                  Upgrade to premium analysis for psychological profiling, personality insights, 
-                  linguistic fingerprinting, and much more detailed behavioral analysis.
+                  Unlock the posters for {formatPremiumPrice()}, paid once. No subscription and no renewal.
                 </p>
                 <Button
                   size="lg"
@@ -667,7 +668,7 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: bo
                     });
                   }}
                 >
-                  Unlock the posters
+                  Unlock for {formatPremiumPrice()}
                 </Button>
               </CardContent>
             </Card>

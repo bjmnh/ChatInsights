@@ -3,7 +3,6 @@ export const config = {
   app: {
     url: import.meta.env.VITE_APP_URL || 'http://localhost:5173',
     name: 'ChatInsights',
-    supportEmail: 'support@chatinsights.com',
   },
   supabase: {
     url: import.meta.env.VITE_SUPABASE_URL,

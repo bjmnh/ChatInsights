@@ -11,9 +11,11 @@ const Footer: React.FC = () => {
             A personal read of the archive you already built with ChatGPT, Grok, and the rest.
           </p>
         </div>
-        <div className="flex gap-5 text-sm text-muted-foreground">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
           <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link to="/terms" className="hover:text-foreground">Terms</Link>
+          <Link to="/refunds" className="hover:text-foreground">Refunds</Link>
+          <Link to="/contact" className="hover:text-foreground">Contact</Link>
           <a href="/#pricing" className="hover:text-foreground">Pricing</a>
         </div>
       </div>

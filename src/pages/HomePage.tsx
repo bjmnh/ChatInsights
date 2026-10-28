@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { samplePremiumReportData } from '../lib/sampleReportData';
 import { config } from '../lib/config';
+import { formatPremiumPrice } from '../config/pricing';
 import { ArrowUpRight } from 'lucide-react';
 
 const posters = [
@@ -157,12 +158,11 @@ const HomePage: React.FC = () => {
             <p className="text-xs uppercase tracking-[0.18em]">Premium · one time</p>
             {config.stripe.testMode && <span className="rounded-full bg-black/10 px-2 py-1 text-[10px] font-semibold">Stripe test mode</span>}
           </div>
-          <h3 className="mt-3 font-display text-5xl">The posters</h3>
+          <p className="mt-3 font-display text-6xl leading-none">{formatPremiumPrice()}</p>
+          <p className="mt-2 text-sm font-medium">One-time. No subscription and no renewal.</p>
+          <h3 className="mt-6 font-display text-4xl">The posters</h3>
           <p className="mt-4">
             Pay once. Generate the FBI report, reality-TV persona, doppelganger, fingerprint, safety compass, mirror, and top conversations on every upload.
-          </p>
-          <p className="mt-4 text-sm opacity-80">
-            A chat export is a finished artifact, so premium is a one-time unlock rather than a subscription.
           </p>
           <Button className="mt-8 rounded-full bg-[#111] text-white hover:bg-black" onClick={start}>
             Unlock in the studio

@@ -52,7 +52,7 @@ npm run dev
 Create the product in the [Stripe Dashboard](https://dashboard.stripe.com/test/products) while **Test mode** is on.
 
 1. Add a product named `Chat Insights Premium`.
-2. Add one price. Choose **One time**, not recurring. The amount is up to you; the app does not hardcode it.
+2. Add one price. Choose **One time**, not recurring, for **$9.99 USD**. That display amount lives in `src/config/pricing.ts` (`PREMIUM_UNLOCK`). Change the constant and the Stripe Price together. The Price ID is not stored in the repo.
 3. Copy the price id (`price_...`).
 
 API keys (Developers → API keys):
@@ -64,6 +64,7 @@ API keys (Developers → API keys):
 | `STRIPE_PRICE_ID` | Supabase edge secret | `price_...` |
 | `STRIPE_WEBHOOK_SECRET` | Supabase edge secret | `whsec_...` |
 | `APP_URL` | Supabase edge secret | `http://localhost:5173` or your public site |
+| `ALLOWED_ORIGINS` | Supabase edge secret | optional comma-separated return origins |
 | `GEMINI_API_KEY` | Supabase edge secret | required by premium generation |
 
 `STRIPE_PRICE_ID` stays on the server so the browser cannot swap in a different price. Set secrets with the Supabase dashboard or:

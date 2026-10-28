@@ -384,8 +384,10 @@ export default function AuthPage() {
         <p className="text-center text-sm text-muted-foreground mt-6">
           By signing up, you agree to our{' '}
           <a href="/terms" className="underline hover:text-primary">Terms of Service</a>
-          {' '}and{' '}
+          {', '}
           <a href="/privacy" className="underline hover:text-primary">Privacy Policy</a>
+          {', and '}
+          <a href="/refunds" className="underline hover:text-primary">Refund Policy</a>
         </p>
       </div>
     </div>

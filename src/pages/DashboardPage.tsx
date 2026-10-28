@@ -11,6 +11,7 @@ import ConversationSelector from '../components/ConversationSelector';
 import ExportDropzone, { type UploadStage } from '../components/upload/ExportDropzone';
 import { toast } from 'sonner';
 import { BarChart3, Crown, Loader2, Trash2 } from 'lucide-react';
+import { formatPremiumPrice } from '../config/pricing';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -204,11 +205,12 @@ const DashboardPage: React.FC = () => {
               className="mt-6 h-12 rounded-full bg-[#111] px-6 text-white hover:bg-black"
             >
               {checkoutLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
-              Unlock premium
+              Unlock for {formatPremiumPrice()}
             </Button>
           </div>
-          <div className="hidden items-end justify-end p-8 md:flex">
-            <p className="font-display text-7xl leading-none">7</p>
+          <div className="hidden flex-col items-end justify-end p-8 md:flex">
+            <p className="font-display text-5xl leading-none">{formatPremiumPrice()}</p>
+            <p className="mt-2 text-sm">one-time</p>
           </div>
         </section>
       )}

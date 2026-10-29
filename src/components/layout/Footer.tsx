@@ -14,9 +14,8 @@ const Footer: React.FC = () => {
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
           <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link to="/terms" className="hover:text-foreground">Terms</Link>
-          <Link to="/refunds" className="hover:text-foreground">Refunds</Link>
           <Link to="/contact" className="hover:text-foreground">Contact</Link>
-          <a href="/#pricing" className="hover:text-foreground">Pricing</a>
+          <a href="/#data" className="hover:text-foreground">Your data</a>
         </div>
       </div>
     </footer>

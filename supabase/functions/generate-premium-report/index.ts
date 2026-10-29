@@ -445,24 +445,6 @@ serve(async (req) => {
         const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
         if (userError || !user) throw new HttpError(401, 'Invalid token');
 
-        const { data: profile, error: profileError } = await supabase
-            .from('users')
-            .select('premium_status')
-            .eq('id', user.id)
-            .maybeSingle();
-        if (profileError) {
-            const missing = /premium_status/i.test(profileError.message || '');
-            throw new HttpError(
-                missing ? 503 : 500,
-                missing
-                    ? 'Apply the premium_unlock migration before generating premium reports.'
-                    : 'Could not verify premium access',
-            );
-        }
-        if (!profile?.premium_status) {
-            throw new HttpError(402, 'Premium unlock required', 'PREMIUM_REQUIRED');
-        }
-
         const { fileId } = await req.json();
         if (!fileId) throw new HttpError(400, 'File ID required');
         const { data: fileData, error: fileError } = await supabase.from('uploaded_files').select('file_path, filename').eq('id', fileId).eq('user_id', user.id).single();

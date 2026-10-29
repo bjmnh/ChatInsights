@@ -168,51 +168,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithGoogle = async () => {
+  const loginWithProvider = async (provider: 'google' | 'apple') => {
+    const label = provider === 'google' ? 'Google' : 'Apple';
+    const enabled = provider === 'google' ? config.auth.google : config.auth.apple;
+    if (!enabled) {
+      const message = `${label} sign-in isn't turned on. Use email instead.`;
+      toast.error(message);
+      throw new Error(message);
+    }
+
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider,
         options: {
-          redirectTo: config.getRedirectUrl('/dashboard'),
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
+          redirectTo: `${window.location.origin}/auth/callback`,
+          ...(provider === 'google'
+            ? { queryParams: { access_type: 'offline', prompt: 'consent' } }
+            : {}),
         },
       });
 
-      if (error) {
-        throw error;
-      }
-
-      // The redirect will happen automatically
+      if (error) throw error;
     } catch (error) {
-      const message = getAuthErrorMessage(error as AuthError);
+      const raw = error instanceof Error ? error.message : '';
+      const unavailable = /provider|not enabled|unsupported|disabled|validation/i.test(raw);
+      const message = unavailable
+        ? `${label} sign-in isn't available. Use email instead.`
+        : `${label} sign-in didn't start. Use email instead.`;
       toast.error(message);
       throw new Error(message);
     }
   };
 
-  const loginWithApple = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'apple',
-        options: {
-          redirectTo: config.getRedirectUrl('/dashboard'),
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // The redirect will happen automatically
-    } catch (error) {
-      const message = getAuthErrorMessage(error as AuthError);
-      toast.error(message);
-      throw new Error(message);
-    }
-  };
+  const loginWithGoogle = () => loginWithProvider('google');
+  const loginWithApple = () => loginWithProvider('apple');
 
   const logout = async () => {
     try {

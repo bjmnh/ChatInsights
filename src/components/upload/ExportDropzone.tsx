@@ -65,7 +65,7 @@ const ExportDropzone: React.FC<ExportDropzoneProps> = ({ isDragActive, stage, ro
               {isDragActive ? 'Drop it.' : 'Drop the export.'}
             </p>
             <p className="mt-3 text-muted-foreground">
-              JSON, JSONL, Markdown, text, CSV, HTML, or a ZIP from ChatGPT, Claude, Gemini, Grok, or another assistant.
+              Your LLM conversations. JSON, JSONL, Markdown, text, CSV, HTML, or a ZIP from Gemini, Claude, Grok, or ChatGPT.
             </p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
               <span className="inline-flex items-center gap-1 rounded-full border border-white/15 px-3 py-1">

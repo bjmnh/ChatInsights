@@ -6,13 +6,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { LegalDocument, LegalPlaceholder } from '../components/legal/LegalDocument';
 import { LEGAL } from '../config/legal';
-import { formatPremiumPriceLine } from '../config/pricing';
 
 const ContactPage: React.FC = () => {
   return (
     <LegalDocument
       title="Contact and support"
-      lede="How to reach us about your account, a deletion request, or a payment."
+      lede="How to reach us about your account or a deletion request. The service is currently free."
     >
       <section>
         <h2>Write to us</h2>
@@ -44,23 +43,9 @@ const ContactPage: React.FC = () => {
           The app does not include a control that closes an account. Email{' '}
           <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder> from the address on the account
           and ask us to delete it. Say what you want removed. We will respond within{' '}
-          <LegalPlaceholder>{LEGAL.responseTime}</LegalPlaceholder>. Payment records may be kept
-          where we need them for accounting, tax, or disputes, as described in the{' '}
-          <Link to="/privacy">Privacy Policy</Link>.
-        </p>
-      </section>
-
-      <section>
-        <h2>Payments</h2>
-        <p>
-          Premium is a one-time purchase of {formatPremiumPriceLine()}. It is not a subscription and
-          it does not renew. We do not store your card number. Stripe does the charge.
-        </p>
-        <p className="mt-3">
-          <strong>All sales are final</strong>, except where the law requires a refund. If you
-          believe that exception applies, email{' '}
-          <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder> with your account email and the
-          Stripe receipt. Read the <Link to="/refunds">Refund Policy</Link> before you write.
+          <LegalPlaceholder>{LEGAL.responseTime}</LegalPlaceholder>. The service is currently free,
+          so there is no payment record attached to a new account. See the{' '}
+          <Link to="/privacy">Privacy Policy</Link> for what else we keep.
         </p>
       </section>
 
@@ -69,7 +54,6 @@ const ContactPage: React.FC = () => {
         <ul>
           <li><Link to="/privacy">Privacy Policy</Link></li>
           <li><Link to="/terms">Terms of Service</Link></li>
-          <li><Link to="/refunds">Refund Policy</Link></li>
         </ul>
       </section>
     </LegalDocument>

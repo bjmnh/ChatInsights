@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { PremiumRequiredError } from './billingService';
 
 export interface UploadedFile {
   id: string;
@@ -204,9 +203,6 @@ export class FileService {
     }
 
     if (!response.ok) {
-      if (response.status === 402 || payload.code === 'PREMIUM_REQUIRED') {
-        throw new PremiumRequiredError();
-      }
       throw new Error(payload.error || 'Report generation failed');
     }
 

@@ -28,9 +28,6 @@ import {
 import { motion } from 'framer-motion';
 import { FileService, type Report } from '../services/fileService';
 import { ReportCardDeck } from '../components/reports/ReportCardDeck';
-import { usePremium } from '../hooks/usePremium';
-import { startPremiumCheckout } from '../services/billingService';
-import { formatPremiumPrice } from '../config/pricing';
 import { toast } from 'sonner';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -73,7 +70,6 @@ const ReportPage: React.FC = () => {
   const [showCardDeck, setShowCardDeck] = useState(false);
   const [selectedCardIndex, setSelectedCardIndex] = useState(0);
   const [isSampleReport, setIsSampleReport] = useState(false);
-  const { isPremium, loading: premiumLoading } = usePremium(user?.id);
 
   useEffect(() => {
     if (fileId === 'sample' && reportType === 'premium' && location.state?.isSample) {
@@ -138,7 +134,7 @@ const ReportPage: React.FC = () => {
     setShowCardDeck(true);
   };
 
-  if (loading || (reportType === 'premium' && !isSampleReport && premiumLoading)) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <motion.div 
@@ -151,10 +147,6 @@ const ReportPage: React.FC = () => {
         </motion.div>
       </div>
     );
-  }
-
-  if (!report && reportType === 'premium' && !isSampleReport && !isPremium) {
-    return <PremiumLock onBack={() => navigate('/dashboard')} />;
   }
 
   if (error || !report) {
@@ -191,40 +183,6 @@ const ReportPage: React.FC = () => {
   }
 
   return <PremiumReportOverview reportData={report.report_data as PremiumOverviewData} onBack={handleBack} onCardSelect={handleCardSelect} isSample={isSampleReport} />;
-};
-
-const PremiumLock: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const [pending, setPending] = useState(false);
-  return (
-    <div className="grid min-h-screen place-items-center bg-[#07080d] px-4 text-center">
-      <div className="max-w-lg">
-        <p className="text-xs uppercase tracking-[0.2em] text-primary">One-time unlock</p>
-        <p className="mt-3 font-display text-5xl text-white">{formatPremiumPrice()}</p>
-        <h1 className="mt-3 font-display text-4xl text-white">The posters stay on the server.</h1>
-        <p className="mt-4 text-white/70">
-          Premium cards are generated only after Stripe records a paid checkout on this account. One payment, no renewal.
-        </p>
-        <div className="mt-8 flex justify-center gap-3">
-          <Button variant="outline" onClick={onBack}>Back to studio</Button>
-          <Button
-            disabled={pending}
-            onClick={async () => {
-              setPending(true);
-              try {
-                await startPremiumCheckout();
-              } catch (error) {
-                toast.error(error instanceof Error ? error.message : 'Checkout failed');
-                setPending(false);
-              }
-            }}
-          >
-            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Unlock for {formatPremiumPrice()}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
 };
 
 // Premium Report Overview Component
@@ -671,34 +629,10 @@ const BasicReportView: React.FC<{ report: BasicReportData; onBack: () => void; i
           </motion.div>
         </div>
 
-        {/* Upgrade Prompt */}
         {!isSample && (
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.6 }}
-            className="mt-12 text-center"
-          >
-            <Card className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-500/30 backdrop-blur-sm">
-              <CardContent className="p-8">
-                <h3 className="text-2xl font-bold text-white mb-4">Want Deeper Insights?</h3>
-                <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-                  Unlock the posters for {formatPremiumPrice()}, paid once. No subscription and no renewal.
-                </p>
-                <Button
-                  size="lg"
-                  className="rounded-full px-8"
-                  onClick={() => {
-                    startPremiumCheckout().catch((error) => {
-                      toast.error(error instanceof Error ? error.message : 'Checkout failed');
-                    });
-                  }}
-                >
-                  Unlock for {formatPremiumPrice()}
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
+          <p className="mt-12 text-center text-sm text-muted-foreground">
+            The seven cards are free for now. Generate them from the studio when you want them.
+          </p>
         )}
       </div>
     </div>

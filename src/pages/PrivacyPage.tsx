@@ -6,7 +6,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { LegalDocument, LegalPlaceholder } from '../components/legal/LegalDocument';
 import { LEGAL } from '../config/legal';
-import { formatPremiumPriceLine } from '../config/pricing';
 
 const PrivacyPage: React.FC = () => {
   return (
@@ -38,18 +37,13 @@ const PrivacyPage: React.FC = () => {
             that provider sends.
           </li>
           <li>
-            <strong>Your uploaded chat export.</strong> The conversations you choose to upload, as a
-            JSON file or a zip that contains one. A chat export can include sensitive information
-            about you and about other people. Upload only data you have the right to use.
+            <strong>Your uploaded chat export.</strong> The conversations you choose to upload, from
+            Gemini, Claude, Grok, ChatGPT, or another assistant. A chat export can include sensitive
+            information about you and about other people. Upload only data you have the right to use.
           </li>
           <li>
-            <strong>Reports.</strong> The statistics and, for a premium report, the generated cards
-            stored on your account.
-          </li>
-          <li>
-            <strong>Payment data.</strong> Payments are processed by Stripe. We receive and store a
-            Stripe customer id, checkout session id, payment status, amount, currency, and whether
-            your account has the premium unlock. We do not see or store your full card number.
+            <strong>Reports.</strong> The statistics and the generated cards stored on your account.
+            Both kinds of report are available at no charge while the service is free.
           </li>
           <li>
             <strong>Technical data.</strong> Standard server logs kept by our hosting providers, such
@@ -58,8 +52,7 @@ const PrivacyPage: React.FC = () => {
           <li>
             <strong>Sign-in storage in your browser.</strong> We do not run an advertising or
             analytics cookie program. Supabase Auth keeps your session in browser storage so you
-            stay signed in. Stripe and our hosts may set cookies required to take a payment or
-            serve the site.
+            stay signed in. Our hosts may set cookies required to serve the site.
           </li>
         </ul>
       </section>
@@ -67,10 +60,10 @@ const PrivacyPage: React.FC = () => {
       <section>
         <h2>3. How we use it</h2>
         <p>
-          We use this information to run your account, turn an upload into a report, take the
-          one-time premium payment, prevent abuse, and answer support requests. We do not sell your
-          data. We do not use your uploaded conversations to advertise, and we do not use them to
-          train a model of our own.
+          We use this information to run your account, turn an upload into a report, prevent abuse,
+          and answer support requests. The service is currently free. We do not take payment. We do
+          not sell your data. We do not use your uploaded conversations to advertise, and we do not
+          use them to train a model of our own.
         </p>
         <p className="mt-3">
           The free basic report is a heuristic. It counts messages, words, and similar statistics in
@@ -97,10 +90,6 @@ const PrivacyPage: React.FC = () => {
             we use. This policy does not describe or promise Google’s retention or training
             practices.
           </li>
-          <li>
-            <strong>Stripe</strong> processes the one-time payment and related fraud checks under
-            Stripe’s own privacy policy.
-          </li>
         </ul>
         <p className="mt-3">
           These providers may process data in the United States and in other countries.
@@ -121,9 +110,9 @@ const PrivacyPage: React.FC = () => {
           within <LegalPlaceholder>{LEGAL.responseTime}</LegalPlaceholder>.
         </p>
         <p className="mt-3">
-          Payment records are kept as long as we need them for accounting, tax, and fraud or dispute
-          handling. Backups and logs held by our providers may remain for a limited time after you
-          delete something.
+          The service is currently free, so we are not collecting card numbers or payment records
+          through this app. Backups and logs held by our providers may remain for a limited time
+          after you delete something.
         </p>
       </section>
 
@@ -169,9 +158,8 @@ const PrivacyPage: React.FC = () => {
       <section>
         <h2>10. Changes</h2>
         <p>
-          We will post updates on this page and change the date above. The premium purchase described
-          in the <Link to="/terms">Terms</Link> is a one-time payment of {formatPremiumPriceLine()},
-          not a subscription.
+          We will post updates on this page and change the date above. The service is currently free.
+          If that changes, the <Link to="/terms">Terms</Link> will say so before a charge exists.
         </p>
       </section>
 
@@ -183,9 +171,6 @@ const PrivacyPage: React.FC = () => {
           <LegalPlaceholder>{LEGAL.address}</LegalPlaceholder>
           <br />
           <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>
-        </p>
-        <p className="mt-3">
-          Questions about a payment: see the <Link to="/refunds">Refund Policy</Link>.
         </p>
       </section>
     </LegalDocument>

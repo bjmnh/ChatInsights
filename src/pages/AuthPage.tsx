@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { config } from '../lib/config';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -233,41 +234,46 @@ export default function AuthPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Social Login Buttons */}
-            <div className="space-y-3 mb-6">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-              >
-                <GoogleIcon />
-                <span className="ml-2">Continue with Google</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleAppleLogin}
-                disabled={isLoading}
-              >
-                <AppleIcon />
-                <span className="ml-2">Continue with Apple</span>
-              </Button>
-            </div>
+            {(config.auth.google || config.auth.apple) && (
+              <>
+                <div className="space-y-3 mb-6">
+                  {config.auth.google && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleGoogleLogin}
+                      disabled={isLoading}
+                    >
+                      <GoogleIcon />
+                      <span className="ml-2">Continue with Google</span>
+                    </Button>
+                  )}
+                  {config.auth.apple && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleAppleLogin}
+                      disabled={isLoading}
+                    >
+                      <AppleIcon />
+                      <span className="ml-2">Continue with Apple</span>
+                    </Button>
+                  )}
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <Separator className="w-full" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or continue with email
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with email
-                </span>
-              </div>
-            </div>
-
-            <Tabs defaultValue="login" className="mt-6 w-full">
+            <Tabs defaultValue="login" className={`w-full ${config.auth.google || config.auth.apple ? 'mt-6' : ''}`}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Sign In</TabsTrigger>
                 <TabsTrigger value="register">Sign Up</TabsTrigger>
@@ -384,10 +390,8 @@ export default function AuthPage() {
         <p className="text-center text-sm text-muted-foreground mt-6">
           By signing up, you agree to our{' '}
           <a href="/terms" className="underline hover:text-primary">Terms of Service</a>
-          {', '}
+          {' and '}
           <a href="/privacy" className="underline hover:text-primary">Privacy Policy</a>
-          {', and '}
-          <a href="/refunds" className="underline hover:text-primary">Refund Policy</a>
         </p>
       </div>
     </div>

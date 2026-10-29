@@ -9,9 +9,9 @@ import DashboardPage from './pages/DashboardPage';
 import ReportPage from './pages/ReportPage';
 import AuthPage from './pages/AuthPage';
 import EmailConfirmationPage from './pages/EmailConfirmationPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
-import RefundPage from './pages/RefundPage';
 import ContactPage from './pages/ContactPage';
 import './App.css';
 
@@ -29,11 +29,11 @@ function Shell() {
           <Route path="/report/:fileId/:reportType" element={<ReportPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/confirm" element={<EmailConfirmationPage />} />
-                <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/refunds" element={<RefundPage />} />
-                <Route path="/contact" element={<ContactPage />} />
-                <Route path="/support" element={<ContactPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/support" element={<ContactPage />} />
         </Routes>
       </main>
       {!immersive && <Footer />}

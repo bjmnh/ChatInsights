@@ -28,7 +28,11 @@ import {
 import { motion } from 'framer-motion';
 import { FileService, type Report } from '../services/fileService';
 import { ReportCardDeck } from '../components/reports/ReportCardDeck';
+import { usePremium } from '../hooks/usePremium';
+import { startPremiumCheckout } from '../services/billingService';
+import { formatPremiumPrice } from '../config/pricing';
 import { toast } from 'sonner';
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const ReportPage: React.FC = () => {
   const { fileId, reportType } = useParams<{ fileId: string; reportType: 'basic' | 'premium' }>();
@@ -41,9 +45,9 @@ const ReportPage: React.FC = () => {
   const [showCardDeck, setShowCardDeck] = useState(false);
   const [selectedCardIndex, setSelectedCardIndex] = useState(0);
   const [isSampleReport, setIsSampleReport] = useState(false);
+  const { isPremium, loading: premiumLoading } = usePremium(user?.id);
 
   useEffect(() => {
-    // Check if this is a sample report
     if (fileId === 'sample' && reportType === 'premium' && location.state?.isSample) {
       setIsSampleReport(true);
       setReport({
@@ -54,6 +58,10 @@ const ReportPage: React.FC = () => {
         report_data: location.state.sampleReport,
         generated_at: new Date().toISOString()
       });
+      if (typeof location.state.cardIndex === 'number') {
+        setSelectedCardIndex(location.state.cardIndex);
+        setShowCardDeck(true);
+      }
       setLoading(false);
       return;
     }
@@ -73,7 +81,7 @@ const ReportPage: React.FC = () => {
       const targetReport = reports.find(r => r.report_type === reportType);
       
       if (!targetReport) {
-        setError(`${reportType === 'basic' ? 'Basic' : 'Premium'} report not found`);
+        setError(reportType === 'premium' ? 'Premium cards have not been generated yet.' : 'Basic report not found');
         return;
       }
 
@@ -102,7 +110,7 @@ const ReportPage: React.FC = () => {
     setShowCardDeck(true);
   };
 
-  if (loading) {
+  if (loading || (reportType === 'premium' && !isSampleReport && premiumLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <motion.div 
@@ -115,6 +123,10 @@ const ReportPage: React.FC = () => {
         </motion.div>
       </div>
     );
+  }
+
+  if (!report && reportType === 'premium' && !isSampleReport && !isPremium) {
+    return <PremiumLock onBack={() => navigate('/dashboard')} />;
   }
 
   if (error || !report) {
@@ -153,6 +165,40 @@ const ReportPage: React.FC = () => {
   }
 
   return <PremiumReportOverview reportData={reportData} onBack={handleBack} onCardSelect={handleCardSelect} isSample={isSampleReport} />;
+};
+
+const PremiumLock: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const [pending, setPending] = useState(false);
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#07080d] px-4 text-center">
+      <div className="max-w-lg">
+        <p className="text-xs uppercase tracking-[0.2em] text-primary">One-time unlock</p>
+        <p className="mt-3 font-display text-5xl text-white">{formatPremiumPrice()}</p>
+        <h1 className="mt-3 font-display text-4xl text-white">The posters stay on the server.</h1>
+        <p className="mt-4 text-white/70">
+          Premium cards are generated only after Stripe records a paid checkout on this account. One payment, no renewal.
+        </p>
+        <div className="mt-8 flex justify-center gap-3">
+          <Button variant="outline" onClick={onBack}>Back to studio</Button>
+          <Button
+            disabled={pending}
+            onClick={async () => {
+              setPending(true);
+              try {
+                await startPremiumCheckout();
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'Checkout failed');
+                setPending(false);
+              }
+            }}
+          >
+            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Unlock for {formatPremiumPrice()}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Premium Report Overview Component
@@ -268,8 +314,8 @@ const PremiumReportOverview: React.FC<{
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            {isSample ? 'Sample Premium Insights' : 'Your Premium Insights'}
+          <h1 className="font-display text-5xl text-white md:text-7xl">
+            {isSample ? 'Sample cards' : 'Your cards'}
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             {isSample 
@@ -418,8 +464,8 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: bo
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            {isSample ? 'Sample Conversation Analytics' : 'Your Conversation Analytics'}
+          <h1 className="font-display text-5xl text-white md:text-7xl">
+            {isSample ? 'Sample counts' : 'The counts'}
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
             Essential insights into your communication patterns and conversation data
@@ -453,6 +499,45 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: bo
             </motion.div>
           ))}
         </div>
+
+        {(report.activityByHourOfDay || report.activityByDayOfWeek) && (
+          <div className="mb-12 grid gap-6 lg:grid-cols-2">
+            {report.activityByHourOfDay && (
+              <Card className="border-white/10 bg-white/5">
+                <CardHeader>
+                  <CardTitle className="text-white">Hour of day</CardTitle>
+                </CardHeader>
+                <CardContent className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={report.activityByHourOfDay}>
+                      <XAxis dataKey="hour" hide />
+                      <YAxis hide />
+                      <Tooltip contentStyle={{ background: '#111', border: 'none', borderRadius: 12 }} />
+                      <Bar dataKey="messageCount" fill="#d6ff3f" radius={4} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+            {report.activityByDayOfWeek && (
+              <Card className="border-white/10 bg-white/5">
+                <CardHeader>
+                  <CardTitle className="text-white">Day of week</CardTitle>
+                </CardHeader>
+                <CardContent className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={report.activityByDayOfWeek}>
+                      <XAxis dataKey="day" tick={{ fill: '#d8d2c4', fontSize: 11 }} tickFormatter={(value) => String(value).slice(0, 3)} />
+                      <YAxis hide />
+                      <Tooltip contentStyle={{ background: '#111', border: 'none', borderRadius: 12 }} />
+                      <Bar dataKey="messageCount" fill="#ff3d8a" radius={4} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
 
         {/* Most Used Words */}
         {report.mostUsedUserWords && report.mostUsedUserWords.length > 0 && (
@@ -572,15 +657,18 @@ const BasicReportView: React.FC<{ report: any; onBack: () => void; isSample?: bo
               <CardContent className="p-8">
                 <h3 className="text-2xl font-bold text-white mb-4">Want Deeper Insights?</h3>
                 <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
-                  Upgrade to premium analysis for psychological profiling, personality insights, 
-                  linguistic fingerprinting, and much more detailed behavioral analysis.
+                  Unlock the posters for {formatPremiumPrice()}, paid once. No subscription and no renewal.
                 </p>
-                <Button 
-                  size="lg" 
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold px-8 py-3"
-                  onClick={onBack}
+                <Button
+                  size="lg"
+                  className="rounded-full px-8"
+                  onClick={() => {
+                    startPremiumCheckout().catch((error) => {
+                      toast.error(error instanceof Error ? error.message : 'Checkout failed');
+                    });
+                  }}
                 >
-                  Generate Premium Report
+                  Unlock for {formatPremiumPrice()}
                 </Button>
               </CardContent>
             </Card>

@@ -546,7 +546,7 @@ async function processConversationWithEnhancedAnalysis(conv: RawConversation): P
     
     try {
         const prompt = getEnhancedStage1Prompt(userText, conv.title);
-        const result = await callLlmForJson<any>(prompt, "powerful", 3072); // Use powerful model with higher token limit
+        const result = await callLlmForJson<Record<string, unknown>>(prompt, "powerful", 3072); // Use powerful model with higher token limit
         
         if (!result || typeof result !== 'object') {
             console.error(`Invalid result from LLM for conversation ${conv.id || 'N/A'}`);
@@ -765,7 +765,7 @@ async function generateEnhancedPremiumInsights(conversations: RawConversation[])
     
     generatedReports.forEach(report => {
         if (report && report.data) {
-            advancedResults[report.type as keyof AdvancedAnalysisResult] = report.data as any;
+            advancedResults[report.type as keyof AdvancedAnalysisResult] = report.data as AdvancedAnalysisResult[keyof AdvancedAnalysisResult];
         }
     });
 
@@ -979,7 +979,7 @@ serve(async (req) => {
     
     let conversations: RawConversation[];
     try {
-        let rawParsed: any = JSON.parse(await fileBlob.text());
+        let rawParsed: unknown = JSON.parse(await fileBlob.text());
         if (!Array.isArray(rawParsed)) {
             const potentialArray = Object.values(rawParsed).find(Array.isArray);
             if (potentialArray && potentialArray.length > 0) { 

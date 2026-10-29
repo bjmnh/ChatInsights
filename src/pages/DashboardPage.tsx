@@ -1,29 +1,27 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { useAuth } from '../contexts/AuthContext';
-import { usePremium } from '../hooks/usePremium';
 import { Button } from '../components/ui/button';
 import { FileService, type UploadedFile } from '../services/fileService';
-import { PremiumRequiredError, confirmPremiumCheckout, startPremiumCheckout } from '../services/billingService';
-import { conversationsFromExport, readExportFile, type ParsedConversation } from '../lib/parseConversations';
+import {
+  describeDetectedFormat,
+  parseConversationExport,
+  validateUploadFile,
+  type NormalizedConversation,
+} from '../lib/conversationParser';
 import ConversationSelector from '../components/ConversationSelector';
 import ExportDropzone, { type UploadStage } from '../components/upload/ExportDropzone';
 import { toast } from 'sonner';
 import { BarChart3, Crown, Loader2, Trash2 } from 'lucide-react';
-import { formatPremiumPrice } from '../config/pricing';
-
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const { isPremium, loading: premiumLoading, refresh } = usePremium(user?.id);
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [stage, setStage] = useState<UploadStage>('idle');
   const [processing, setProcessing] = useState<string | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [parsedConversations, setParsedConversations] = useState<ParsedConversation[]>([]);
+  const [parsedConversations, setParsedConversations] = useState<NormalizedConversation[]>([]);
   const [originalFilename, setOriginalFilename] = useState('');
   const [selectorOpen, setSelectorOpen] = useState(false);
 
@@ -47,55 +45,33 @@ const DashboardPage: React.FC = () => {
     fetchFiles();
   }, [user, navigate, fetchFiles]);
 
-  useEffect(() => {
-    const checkout = params.get('checkout');
-    const sessionId = params.get('session_id');
-    if (!user || !checkout) return;
-
-    if (checkout === 'cancel') {
-      toast.message('Checkout canceled. Premium stays locked.');
-      setParams({}, { replace: true });
-      return;
-    }
-
-    if (checkout === 'success' && sessionId) {
-      confirmPremiumCheckout(sessionId)
-        .then(async (unlocked) => {
-          if (unlocked) {
-            await refresh();
-            toast.success('Premium is unlocked. Generate a report card.');
-          } else {
-            toast.message('Payment is still processing. Refresh in a moment.');
-          }
-        })
-        .catch((error) => {
-          toast.error(error instanceof Error ? error.message : 'Could not confirm payment');
-        })
-        .finally(() => setParams({}, { replace: true }));
-    }
-  }, [params, refresh, setParams, user]);
-
   const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (!file || !user) return;
 
+    const validationError = validateUploadFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
     setStage('reading');
     try {
-      await pause(280);
-      const parsed = await readExportFile(file);
+      await pause(180);
       setStage('parsing');
-      await pause(220);
-      const conversations = conversationsFromExport(parsed);
+      const parsed = await parseConversationExport(file.name, new Uint8Array(await file.arrayBuffer()));
       setStage('counting');
-      await pause(280);
-      setParsedConversations(conversations);
+      await pause(180);
+      setParsedConversations(parsed.conversations);
       setOriginalFilename(file.name);
       setSelectorOpen(true);
-      toast.success(`${conversations.length} conversation${conversations.length === 1 ? '' : 's'} ready to choose`);
+      const noun = parsed.conversations.length === 1 ? 'conversation' : 'conversations';
+      toast.success(`${parsed.conversations.length} ${noun} ready in ${describeDetectedFormat(parsed.format)}`);
+      parsed.warnings.forEach((warning) => toast.message(warning));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not read that export');
+      toast.error(error instanceof Error ? error.message : 'Could not read that export', { duration: 8000 });
     } finally {
       setStage('idle');
     }
@@ -103,15 +79,30 @@ const DashboardPage: React.FC = () => {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected: (rejections) => {
+      const tooBig = rejections.some((rejection) => rejection.errors.some((error) => error.code === 'file-too-large'));
+      toast.error(tooBig
+        ? 'File size must be less than 200MB.'
+        : 'That file type is not supported. Upload a .json, .jsonl, .zip, .md, .txt, .csv, or Gemini .html export.');
+    },
     accept: {
       'application/json': ['.json'],
+      'application/x-ndjson': ['.jsonl'],
+      'application/jsonl': ['.jsonl'],
+      'text/plain': ['.txt', '.jsonl', '.md', '.csv'],
+      'text/markdown': ['.md', '.markdown'],
+      'text/csv': ['.csv'],
+      'application/csv': ['.csv'],
       'application/zip': ['.zip'],
+      'application/x-zip-compressed': ['.zip'],
+      'text/html': ['.html', '.htm'],
     },
     maxFiles: 1,
+    maxSize: 200 * 1024 * 1024,
     disabled: stage !== 'idle',
   });
 
-  const handleUploadSelected = async (selected: ParsedConversation[], filename: string) => {
+  const handleUploadSelected = async (selected: NormalizedConversation[], filename: string) => {
     if (!user) return;
     const uploaded = await FileService.uploadSelectedConversations(selected, user.id, filename);
     setFiles((current) => [uploaded, ...current]);
@@ -130,26 +121,7 @@ const DashboardPage: React.FC = () => {
     }
   };
 
-  const unlock = async () => {
-    setCheckoutLoading(true);
-    try {
-      const result = await startPremiumCheckout();
-      if (result.alreadyPremium) {
-        await refresh();
-        toast.success('Premium is already unlocked');
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not start checkout');
-    } finally {
-      setCheckoutLoading(false);
-    }
-  };
-
   const generate = async (fileId: string, reportType: 'basic' | 'premium') => {
-    if (reportType === 'premium' && !isPremium) {
-      await unlock();
-      return;
-    }
     setProcessing(`${fileId}:${reportType}`);
     try {
       if (reportType === 'basic') await FileService.generateBasicReport(fileId);
@@ -158,11 +130,6 @@ const DashboardPage: React.FC = () => {
       await fetchFiles();
       navigate(`/report/${fileId}/${reportType}`);
     } catch (error) {
-      if (error instanceof PremiumRequiredError) {
-        toast.message('Premium is locked on the server. Opening checkout.');
-        await unlock();
-        return;
-      }
       toast.error(error instanceof Error ? error.message : 'Report failed');
     } finally {
       setProcessing(null);
@@ -184,36 +151,12 @@ const DashboardPage: React.FC = () => {
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Studio</p>
-          <h1 className="font-display text-5xl">Bring the archive in.</h1>
-        </div>
-        <div className="rounded-full border border-white/10 px-4 py-2 text-sm">
-          {premiumLoading ? 'Checking unlock…' : isPremium ? 'Premium unlocked' : 'Free counts only'}
+          <h1 className="font-display text-5xl">Bring your LLM conversations in.</h1>
+          <p className="mt-2 max-w-xl text-muted-foreground">
+            Gemini, Claude, Grok, ChatGPT, or another assistant. Both reports are free for now.
+          </p>
         </div>
       </div>
-
-      {!isPremium && !premiumLoading && (
-        <section className="mb-8 grid gap-6 overflow-hidden rounded-[28px] bg-primary text-primary-foreground md:grid-cols-[1.4fr_0.8fr]">
-          <div className="p-6 sm:p-8">
-            <p className="text-xs uppercase tracking-[0.18em]">One-time unlock</p>
-            <h2 className="mt-2 font-display text-4xl">The seven cards stay locked until you pay once.</h2>
-            <p className="mt-3 max-w-xl text-sm sm:text-base">
-              Basic stats run free. Premium generation is refused by the server until Stripe records the purchase on your account.
-            </p>
-            <Button
-              onClick={unlock}
-              disabled={checkoutLoading}
-              className="mt-6 h-12 rounded-full bg-[#111] px-6 text-white hover:bg-black"
-            >
-              {checkoutLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
-              Unlock for {formatPremiumPrice()}
-            </Button>
-          </div>
-          <div className="hidden flex-col items-end justify-end p-8 md:flex">
-            <p className="font-display text-5xl leading-none">{formatPremiumPrice()}</p>
-            <p className="mt-2 text-sm">one-time</p>
-          </div>
-        </section>
-      )}
 
       <ExportDropzone
         isDragActive={isDragActive}
@@ -251,10 +194,10 @@ const DashboardPage: React.FC = () => {
                     <Button
                       size="sm"
                       disabled={processing === `${file.id}:premium`}
-                      onClick={() => file.has_premium_report && isPremium ? navigate(`/report/${file.id}/premium`) : generate(file.id, 'premium')}
+                      onClick={() => file.has_premium_report ? navigate(`/report/${file.id}/premium`) : generate(file.id, 'premium')}
                     >
                       {processing === `${file.id}:premium` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
-                      {file.has_premium_report && isPremium ? 'Premium cards' : isPremium ? 'Run premium' : 'Unlock premium'}
+                      {file.has_premium_report ? 'Premium cards' : 'Run premium'}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(file.id)} aria-label="Delete upload">
                       <Trash2 className="h-4 w-4" />

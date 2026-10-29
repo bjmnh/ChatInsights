@@ -4,8 +4,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { samplePremiumReportData } from '../lib/sampleReportData';
-import { config } from '../lib/config';
-import { formatPremiumPrice } from '../config/pricing';
+import DataPipeline from '../components/home/DataPipeline';
 import { ArrowUpRight } from 'lucide-react';
 
 const posters = [
@@ -45,10 +44,10 @@ const HomePage: React.FC = () => {
             Personal AI memory
           </p>
           <h1 className="font-display text-5xl leading-[0.95] text-balance sm:text-7xl">
-            Your chats already filed a report.
+            Your LLM conversations, read back to you.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-            Upload a ChatGPT or Grok export. Chat Insights turns the archive into seven cards worth screenshotting: a dossier, a persona, a fingerprint, and the conversations that mattered.
+            Upload your AI conversations from Gemini, Claude, Grok, or ChatGPT. Chat Insights turns the archive into seven cards: a dossier, a persona, a fingerprint, and the threads that stuck.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button onClick={start} className="h-12 rounded-full px-6 text-base">
@@ -74,9 +73,9 @@ const HomePage: React.FC = () => {
               <p className="text-xs uppercase tracking-[0.22em]">Behavioral dossier</p>
               <span className="rounded-full border border-[#1c140c] px-2 py-1 text-[10px] font-semibold uppercase">Confidential</span>
             </div>
-            <p className="mt-8 font-display text-5xl leading-none">The Catalyst</p>
+            <p className="mt-8 font-display text-5xl leading-none">Margin notes</p>
             <p className="mt-4 text-sm leading-relaxed text-[#1c140c]/80">
-              Accelerates systems, guards the alpha, and talks like the future is already late.
+              You ask a practical question, then rewrite the answer until it sounds like you.
             </p>
             <div className="mt-8 grid grid-cols-3 gap-3 text-center">
               {[
@@ -133,9 +132,9 @@ const HomePage: React.FC = () => {
       <section id="how" className="border-y border-white/10">
         <div className="mx-auto grid max-w-6xl gap-px bg-white/10 md:grid-cols-3">
           {[
-            ['01', 'Export', 'Download your ChatGPT data, or save a Grok history as JSON.'],
+            ['01', 'Export', 'Save your LLM conversations from Gemini, Claude, Grok, or ChatGPT. Instructions are just below.'],
             ['02', 'Choose threads', 'Drop the file. Pick the conversations that are actually you.'],
-            ['03', 'Get the cards', 'Basic counts are free. Premium unlocks the seven posters.'],
+            ['03', 'Get the cards', 'Both reports are free for now. Basic counts stay in our code. The seven cards are written by Gemini.'],
           ].map(([step, title, body]) => (
             <div key={step} className="bg-background px-6 py-10">
               <p className="font-display text-5xl text-primary">{step}</p>
@@ -146,29 +145,27 @@ const HomePage: React.FC = () => {
         </div>
       </section>
 
-      <section id="pricing" className="mx-auto grid max-w-6xl gap-6 px-4 py-20 lg:grid-cols-2">
-        <div className="rounded-[28px] border border-white/10 p-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Free</p>
-          <h3 className="mt-3 font-display text-5xl">The counts</h3>
-          <p className="mt-4 text-muted-foreground">Messages, vocabulary, the hour you usually show up, and the words you lean on.</p>
-          <Button variant="outline" className="mt-8 rounded-full" onClick={start}>Start free</Button>
-        </div>
-        <div className="rounded-[28px] bg-primary p-8 text-primary-foreground">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs uppercase tracking-[0.18em]">Premium · one time</p>
-            {config.stripe.testMode && <span className="rounded-full bg-black/10 px-2 py-1 text-[10px] font-semibold">Stripe test mode</span>}
-          </div>
-          <p className="mt-3 font-display text-6xl leading-none">{formatPremiumPrice()}</p>
-          <p className="mt-2 text-sm font-medium">One-time. No subscription and no renewal.</p>
-          <h3 className="mt-6 font-display text-4xl">The posters</h3>
-          <p className="mt-4">
-            Pay once. Generate the FBI report, reality-TV persona, doppelganger, fingerprint, safety compass, mirror, and top conversations on every upload.
-          </p>
-          <Button className="mt-8 rounded-full bg-[#111] text-white hover:bg-black" onClick={start}>
-            Unlock in the studio
-          </Button>
+      <section id="export" className="mx-auto max-w-6xl px-4 py-20">
+        <h2 className="font-display text-4xl sm:text-6xl">How to export</h2>
+        <p className="mt-4 max-w-2xl text-muted-foreground">
+          Bring your AI conversations from Gemini, Claude, Grok, or ChatGPT. Other assistants work too when the file is JSON, JSONL, Markdown, text, CSV, or a ZIP of those.
+        </p>
+        <div className="mt-8 grid gap-4 md:grid-cols-2">
+          {[
+            ['Gemini', 'Google Takeout → Gemini Apps. Download the archive and upload My Activity JSON or HTML, or the ZIP itself. Takeout often includes your prompts only.'],
+            ['Claude', 'Settings → Privacy → Export data. Upload conversations.json, or the ZIP that contains it.'],
+            ['Grok', 'Use the data export or a saved conversation JSON. Upload that file, or a ZIP that contains it.'],
+            ['ChatGPT', 'Settings → Data controls → Export data. When the email arrives, upload conversations.json or the whole ZIP.'],
+          ].map(([name, steps]) => (
+            <div key={name} className="rounded-[28px] border border-white/10 p-6">
+              <h3 className="font-display text-3xl">{name}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{steps}</p>
+            </div>
+          ))}
         </div>
       </section>
+
+      <DataPipeline />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 // @deno-types="npm:@types/deno"
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { parseConversationExport, type NormalizedConversation } from '../../../src/lib/conversationParser/index.ts';
 
 // --- Shared Types (for clarity within this function) ---
 interface WordFrequency {
@@ -34,24 +35,6 @@ interface BasicAnalysisResult {
   generatedAt: string;
 }
 
-// Simplified types for parsing conversation files
-interface RawConversation {
-  id?: string;
-  title?: string;
-  create_time?: number;
-  mapping?: { [messageId: string]: RawMessageContainer };
-}
-
-interface RawMessageContainer {
-  message?: RawMessage;
-}
-
-interface RawMessage {
-  author: { role: 'user' | 'assistant' | 'system' | 'tool' };
-  content: { parts: string[] };
-  create_time?: number;
-}
-
 // --- Text Processing Utilities ---
 const COMMON_STOP_WORDS = new Set([
   'i', 'me', 'my', 'we', 'our', 'you', 'your', 'he', 'him', 'his', 'she', 'her',
@@ -77,7 +60,14 @@ function getSentences(text: string): string[] {
 }
 
 // --- Core Analysis Function ---
-function performBasicAnalysis(conversations: RawConversation[]): BasicAnalysisResult {
+function messageTime(conversation: NormalizedConversation, timestamp: string | null): number {
+  const parsed = timestamp ? Date.parse(timestamp) : NaN;
+  if (!Number.isNaN(parsed)) return parsed;
+  const created = conversation.createdAt ? Date.parse(conversation.createdAt) : NaN;
+  return Number.isNaN(created) ? Date.now() : created;
+}
+
+function performBasicAnalysis(conversations: NormalizedConversation[]): BasicAnalysisResult {
   let totalMessages = 0, userMessagesCount = 0, aiMessagesCount = 0, totalUserCharacters = 0;
   const userWordFrequency: { [key: string]: number } = {};
   const allTimestamps: number[] = [];
@@ -92,24 +82,20 @@ function performBasicAnalysis(conversations: RawConversation[]): BasicAnalysisRe
 
   conversations.forEach((conv) => {
     let currentConversationMessageCount = 0;
-    const messagesInConversation: RawMessageContainer[] = conv.mapping ? Object.values(conv.mapping) : [];
-    messagesInConversation.sort((a, b) => (a.message?.create_time || 0) - (b.message?.create_time || 0));
 
-    messagesInConversation.forEach((msgContainer) => {
-      const msg = msgContainer.message;
-      if (!msg || !msg.author || !msg.content || !msg.content.parts) return;
-      const messageText = msg.content.parts.filter(p => typeof p === 'string').join(" ");
+    conv.messages.forEach((msg) => {
+      const messageText = msg.text;
       if (!messageText) return;
 
       totalMessages++;
       currentConversationMessageCount++;
-      const messageTimestamp = (msg.create_time || conv.create_time || Date.now()/1000) * 1000;
+      const messageTimestamp = messageTime(conv, msg.timestamp);
       allTimestamps.push(messageTimestamp);
       const dateObj = new Date(messageTimestamp);
       activityByHour[dateObj.getHours().toString().padStart(2, '0')]++;
       activityByDay[days[dateObj.getDay()]]++;
 
-      if (msg.author.role === 'user') {
+      if (msg.role === 'user') {
         userMessagesCount++;
         totalUserCharacters += messageText.length;
         const words = getWords(messageText);
@@ -189,29 +175,15 @@ serve(async (req) => {
     const { fileId } = await req.json();
     if (!fileId) throw new Error('File ID required');
 
-    const { data: fileData, error: fileError } = await supabase.from('uploaded_files').select('file_path').eq('id', fileId).eq('user_id', user.id).single();
+    const { data: fileData, error: fileError } = await supabase.from('uploaded_files').select('file_path, filename').eq('id', fileId).eq('user_id', user.id).single();
     if (fileError || !fileData) throw new Error('File not found or access denied');
 
-    // --- Download conversation file from Storage ---
-    // Assumes your bucket is named 'conversation-files'. Change if needed.
+    // Download the export and normalize ChatGPT plus every other supported format.
     const { data: fileBlob, error: downloadError } = await supabase.storage.from('conversation-files').download(fileData.file_path);
     if (downloadError) throw new Error(`Failed to download conversation file: ${downloadError.message}`);
-    const fileText = await fileBlob.text();
-    let conversations: RawConversation[];
-    try {
-        conversations = JSON.parse(fileText);
-        // Handle cases where the array is nested (common in exports)
-        if (!Array.isArray(conversations) && typeof conversations === 'object') {
-            const potentialArray = Object.values(conversations).find(Array.isArray);
-            if (potentialArray) {
-                conversations = potentialArray;
-            } else {
-                throw new Error("Parsed JSON is not an array and no conversation array found within.");
-            }
-        }
-    } catch(e) {
-        throw new Error(`JSON Parsing Error: ${e.message}`);
-    }
+    const filename = fileData.filename || fileData.file_path.split('/').pop() || 'export';
+    const parsed = await parseConversationExport(filename, new Uint8Array(await fileBlob.arrayBuffer()));
+    const conversations = parsed.conversations;
 
     // --- Generate REAL basic report ---
     const basicReportData = performBasicAnalysis(conversations);

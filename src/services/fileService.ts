@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { PremiumRequiredError } from './billingService';
 
 export interface UploadedFile {
   id: string;
@@ -17,14 +16,14 @@ export interface Report {
   user_id: string;
   file_id: string;
   report_type: 'basic' | 'premium';
-  report_data: any;
+  report_data: unknown;
   generated_at: string;
 }
 
 export class FileService {
   // Upload selected conversations as a new file
   static async uploadSelectedConversations(
-    conversations: any[], 
+    conversations: unknown[], 
     userId: string, 
     filename: string
   ): Promise<UploadedFile> {
@@ -174,15 +173,15 @@ export class FileService {
     }
   }
 
-  static async generateBasicReport(fileId: string): Promise<any> {
+  static async generateBasicReport(fileId: string): Promise<unknown> {
     return this.invokeReport('generate-basic-report', fileId);
   }
 
-  static async generatePremiumReport(fileId: string): Promise<any> {
+  static async generatePremiumReport(fileId: string): Promise<unknown> {
     return this.invokeReport('generate-premium-report', fileId);
   }
 
-  private static async invokeReport(name: string, fileId: string): Promise<any> {
+  private static async invokeReport(name: string, fileId: string): Promise<unknown> {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Sign in to generate a report');
 
@@ -196,7 +195,7 @@ export class FileService {
     });
 
     const text = await response.text();
-    let payload: { error?: string; code?: string; report?: any } = {};
+    let payload: { error?: string; code?: string; report?: unknown } = {};
     try {
       payload = text ? JSON.parse(text) : {};
     } catch {
@@ -204,9 +203,6 @@ export class FileService {
     }
 
     if (!response.ok) {
-      if (response.status === 402 || payload.code === 'PREMIUM_REQUIRED') {
-        throw new PremiumRequiredError();
-      }
       throw new Error(payload.error || 'Report generation failed');
     }
 

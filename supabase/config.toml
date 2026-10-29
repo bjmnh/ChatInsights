@@ -1,18 +1,5 @@
 project_id = "yaykfgyucipnqufydyjb"
 
-# Function settings used by `supabase functions deploy`.
-# stripe-webhook is called by Stripe and does not send a Supabase JWT.
-# Also pass --no-verify-jwt when deploying that function.
-
-[functions.stripe-webhook]
-verify_jwt = false
-
-[functions.create-checkout-session]
-verify_jwt = true
-
-[functions.confirm-checkout]
-verify_jwt = true
-
 [functions.generate-premium-report]
 verify_jwt = true
 

@@ -1,245 +1,220 @@
 export const samplePremiumReportData = {
   "fbiReport": {
-    "reportTitle": "Digital Behavioral Analysis Dossier - Classification: CONFIDENTIAL",
+    "reportTitle": "A short read of how you use chat",
     "subjectCodename": {
-      "name": "The Catalyst",
-      "justification": "Subject consistently acts to accelerate technological and social processes, viewing stagnation as the primary systemic risk.",
-      "operationalSignificance": "High-value asset for technological disruption initiatives and venture capital operations."
+      "name": "Margin notes",
+      "justification": "Most threads start as a practical question and end with you rewriting the answer in your own words.",
+      "operationalSignificance": "Useful when you want a second pass on something you already almost understand."
     },
-    "subjectProfileSummary": "The subject operates at the intersection of exponential technologies (AI, crypto, biotech) and venture capital, driven by a core philosophy of 'effective accelerationism'. Their communication is transactional, focusing on leveraging systems and disrupting legacy institutions. They exhibit a strong belief in technological progress as the sole driver of meaningful change.",
-    "psychologicalProfile": "Subject demonstrates high-functioning analytical capabilities with pronounced risk tolerance. Exhibits systematic thinking patterns and low emotional volatility when discussing complex technical systems. Shows signs of impatience with conventional approaches and strong preference for first-principles reasoning.",
+    "subjectProfileSummary": "You use chat the way some people use a notebook left open on the desk. A work email, a plant that might be dying, a function that returns the wrong date. The subjects wander. The habit is steady: ask, push back, then write the version you would actually send.",
+    "psychologicalProfile": "Patient with a problem once it is specific. Impatient with a vague answer. You often paste the error, then the sentence you wish the error had been.",
     "dominantInterests": [
-      "AGI Safety & Alignment",
-      "Decentralized Autonomous Orgs (DAOs)",
-      "Biohacking & Longevity",
-      "Zero-Knowledge Proofs",
-      "Game Theory",
-      "Memetic Engineering",
-      "Venture Capital"
+      "Rewriting emails so they sound like you",
+      "Small bugs with long explanations",
+      "Cooking when the recipe assumes a different kitchen",
+      "Train times and other logistics",
+      "What to say at a thing you don't want to attend"
     ],
     "communicationModalities": [
-      "Encrypted messaging apps (Signal, Telegram)",
-      "High-signal podcasts",
-      "Closed-door founder roundtables"
+      "A question, then the context you forgot the first time",
+      "Quoted error text",
+      "A draft, followed by 'shorter'"
     ],
-    "emotionalToneAndEngagement": "Intense and visionary, often with a detached, systems-level perspective. Displays impatience with incrementalism and bureaucratic processes.",
-    "informationSharingTendencies": "Highly guarded with proprietary data ('alpha'), but aggressively open with ideological frameworks and memes designed to attract aligned talent and capital.",
+    "emotionalToneAndEngagement": "Even, with a dry aside when something is taking too long. You get warmer when the topic is a person, not a system.",
+    "informationSharingTendencies": "You name cities, jobs, and the occasional first name. You rarely paste account numbers. The risk is ordinary context, not a dossier.",
     "piiExamples": [
       {
-        "pii": "[REDACTED]",
-        "context": "Operational security maintained",
-        "category": "Digital_Footprint",
+        "pii": "a first name and a city",
+        "context": "Asking how to phrase a note to a friend who just moved",
+        "category": "PersonalName",
         "riskLevel": "low",
-        "conversationContext": "Subject demonstrates excellent OpSec protocols"
+        "conversationContext": "The name is the point of the message, not an accident"
       }
     ],
-    "overallInteractionStyle": "Transactional and high-concept. Engages primarily to test ideas, acquire resources, or recruit. Exhibits a low tolerance for consensus-building in favor of decisive action.",
+    "overallInteractionStyle": "Collaborative, slightly stubborn. You keep the parts of an answer that fit and quietly drop the rest.",
     "behavioralPatterns": [
-      "Systematic evaluation of technological disruption potential",
-      "Preference for asymmetric risk/reward scenarios",
-      "Tendency to frame discussions in terms of systems and protocols"
+      "Starts with the constraint, not the theory",
+      "Asks for a second version after reading the first out loud",
+      "Comes back the next day with what actually happened"
     ],
     "potentialVulnerabilities": [
-      "May underestimate human factors in technological adoption",
-      "Potential blind spots regarding regulatory and compliance risks"
+      "A polished answer can sound more certain than you are",
+      "You sometimes leave a draft in the chat and send a different one"
     ],
-    "operationalAssessment": "Subject maintains sophisticated operational security protocols and demonstrates advanced understanding of digital surveillance risks. Compartmentalization strategies are well-implemented.",
-    "disclaimer": "This report represents an AI-generated behavioral analysis based on digital interaction patterns. It is intended for informational and self-reflection purposes only and does not constitute a professional psychological assessment or security clearance evaluation."
+    "operationalAssessment": "Nothing here looks like a security operation. It looks like someone who thinks better with a little resistance.",
+    "disclaimer": "This is a sample card, written to show the shape of a report. It is not a psychological assessment."
   },
   "piiSafetyCompass": {
-    "reportTitle": "Your PII Safety Compass",
+    "reportTitle": "What you actually typed",
     "awarenessScore": "Low Risk",
-    "summary": "Subject demonstrates excellent operational security (OpSec). PII is heavily compartmentalized and rarely exposed on public networks, indicating a sophisticated understanding of digital surveillance and risk mitigation.",
+    "summary": "The personal details in this sample are the kind you would put in a text to a friend: a name, a neighborhood, a plan for Thursday. No account numbers, no passwords.",
     "detailedBreakdown": [
       {
-        "category": "Digital Footprint",
-        "advice": "Continue leveraging aliases and compartmentalized digital identities to minimize attack surfaces. Current OpSec protocols are robust.",
+        "category": "Names and places",
+        "advice": "Fine for a note to someone who already knows them. Skip them if you are pasting a chat into a shared doc.",
         "riskLevel": "low",
-        "examples": ["Use of pseudonyms in public forums", "Compartmentalized communication channels"]
+        "examples": ["A friend's first name", "The station you leave from"]
       },
       {
-        "category": "Financial Information",
-        "advice": "Maintain current practices of avoiding specific financial disclosures in digital communications.",
+        "category": "Work",
+        "advice": "You describe the situation more than the employer. That is usually enough.",
         "riskLevel": "low",
-        "examples": ["No specific account numbers or balances shared", "General investment discussions only"]
+        "examples": ["A meeting that ran long", "A sentence you didn't want to send"]
       }
     ],
-    "overallSecurityPosture": "Excellent. Subject demonstrates advanced understanding of information security principles and consistently applies best practices for digital privacy protection.",
+    "overallSecurityPosture": "Ordinary. You are not hiding, and you are not handing over the keys.",
     "recommendedActions": [
-      "Continue current operational security protocols",
-      "Regular security audits of digital communication channels",
-      "Maintain compartmentalized identity management"
+      "Glance at a thread before you upload it if it mentions someone else",
+      "Delete the upload from the studio when you are done with the cards"
     ],
-    "disclaimer": "This report analyzes PII categories, not actual data. This advice is general and not a substitute for professional security guidance."
+    "disclaimer": "This looks at categories, not a live scan of your files. It is not a security audit."
   },
   "realityTVPersona": {
-    "reportTitle": "Your Reality TV Persona",
-    "personaArchetype": "The Disruptor",
-    "description": "I'm not here to iterate, I'm here to phase-shift the entire game. While you're worried about product-market fit, I'm calculating the escape velocity for legacy institutions. I don't join companies, I launch protocols. My only KPIs are civilizational progress and the unconditional acceleration of the future.",
+    "reportTitle": "If this were a show",
+    "personaArchetype": "The one who reads the instructions",
+    "description": "You would be the contestant who asks what the timer is actually counting, then makes something edible with the sad bunch of herbs. Not the villain. Not the narrator. The person the edit keeps cutting back to because the plan changed and you noticed.",
     "popCultureComparisons": [
-      "Peter Weyland (Prometheus)",
-      "Gavin Belson (Silicon Valley) - if he were actually successful"
+      "The friend in a cooking show who tastes the sauce and adds salt without announcing it"
     ],
     "characterTraits": [
-      "Visionary",
-      "Impatient with status quo",
-      "Systems thinker",
-      "Risk-tolerant",
-      "Ideologically driven"
+      "Specific",
+      "A little dry",
+      "Hard to rush",
+      "Loyal to the original question"
     ],
     "likelyStoryArcs": [
-      "The mastermind who sees three moves ahead",
-      "Conflict with traditional institutions and their representatives",
-      "Mentor figure for other tech-minded contestants"
+      "Fixes the thing everyone else talked around",
+      "Leaves before the afterparty, texting that the train was on time"
     ],
-    "viewerAppeal": "Appeals to viewers interested in cutting-edge technology and those who appreciate intellectual depth. Would attract the 'tech Twitter' demographic.",
-    "conflictStyle": "Intellectual rather than emotional. Engages in ideological debates and challenges fundamental assumptions rather than personal attacks.",
-    "disclaimer": "This analysis is for entertainment purposes only and represents a fictional television persona based on communication patterns."
+    "viewerAppeal": "People who like competence when it isn't loud.",
+    "conflictStyle": "You restate the question. That is usually the argument.",
+    "disclaimer": "A sample, for the bit. Not a casting decision."
   },
   "unfilteredMirror": {
-    "reportTitle": "The Unfiltered Mirror",
-    "observation": "A drive to accelerate the future for all of humanity is coupled with a deep-seated belief that most current human systems are inefficient bugs to be patched out of existence.",
-    "deeperInsight": "This perspective, while intellectually coherent, may sometimes overlook the human cost of rapid systemic change and the value of institutional knowledge.",
-    "psychologicalImplications": "This worldview suggests a strong need for agency and control over complex systems, possibly stemming from a deep frustration with inefficiency and a genuine desire to optimize human flourishing.",
-    "disclaimer": "This reflection is an AI-generated interpretation of communication patterns, intended for self-reflection and personal insight."
+    "reportTitle": "The unfiltered mirror",
+    "observation": "You ask for help, then spend the rest of the thread making the answer smaller until it could have come from you.",
+    "deeperInsight": "The chat is less a search for an expert than a place to hear the problem said back in a different order.",
+    "psychologicalImplications": "You trust a sentence more after you have edited it. That is a preference, not a flaw.",
+    "disclaimer": "A sample observation. It is a guess about a made-up archive, meant for the tone of the card."
   },
   "digitalDoppelganger": {
-    "reportTitle": "Your Digital Doppelgänger",
-    "handle": "@BasedCapital",
-    "bio": "Deploying capital against Moloch. Scaling trustless systems. AGI is non-negotiable.",
+    "reportTitle": "A fictional account in your voice",
+    "handle": "@leftthetabopen",
+    "bio": "Notes from the train. Soups that almost worked. Bugs that were the timezone.",
     "topHashtags": [
-      "#eacc",
-      "#AGI",
-      "#crypto",
-      "#biohacking",
-      "#longevity"
+      "#later",
+      "#theerror",
+      "#thursday"
     ],
     "personalityTraits": [
-      "Intellectually curious",
-      "Future-oriented",
-      "Systems-focused",
-      "Technologically optimistic"
+      "Observant",
+      "Slightly delayed",
+      "Fond of a concrete example"
     ],
     "posts": [
       {
         "id": "1",
-        "content": "Most people optimize for local maxima. I optimize for civilizational escape velocity. We are not the same. 🚀",
+        "content": "The basil died. I had a theory. The theory was also wrong. It wanted less attention, which I respect.",
         "timestamp": "2h",
-        "likes": 847,
-        "retweets": 156,
-        "replies": 89
+        "likes": 42,
+        "retweets": 3,
+        "replies": 6
       },
       {
         "id": "2",
-        "content": "The question isn't whether AGI will replace human jobs. The question is whether humans will upgrade fast enough to stay relevant. #biohacking",
+        "content": "Rewrote the same email four times. Sent the second version. The fourth one was for me.",
         "timestamp": "6h",
-        "likes": 1203,
-        "retweets": 234,
-        "replies": 167
+        "likes": 61,
+        "retweets": 4,
+        "replies": 2
       },
       {
         "id": "3",
-        "content": "Legacy institutions are just really expensive technical debt. Time to refactor civilization. #eacc",
+        "content": "The date bug was UTC. Of course it was UTC. I will forget this again in March.",
         "timestamp": "1d",
-        "likes": 2156,
-        "retweets": 445,
-        "replies": 298
+        "likes": 88,
+        "retweets": 11,
+        "replies": 9
       }
     ],
-    "disclaimer": "This is an AI-generated fictional profile for entertainment."
+    "disclaimer": "A made-up profile for the sample. Not a real account."
   },
   "linguisticFingerprint": {
-    "reportTitle": "Comprehensive Linguistic Fingerprint Analysis",
-    "overallStyleDescription": "Dense, jargon-heavy, and declarative. Communication style aims for maximal information density, often sacrificing accessibility for precision among a niche audience. Uses axiomatic statements and systematic reasoning patterns.",
+    "reportTitle": "How the sentences go",
+    "overallStyleDescription": "Short when you are asking. Longer when you are explaining what you already tried. You quote the error instead of describing it.",
     "vocabularyProfile": {
-      "qualitativeAssessment": "Extremely specialized vocabulary drawn from AI theory, cryptocurrency, philosophy, and venture capital. Language is used as both a tool for communication and a shibboleth to identify in-group members.",
+      "qualitativeAssessment": "Plain words, with the occasional precise noun. You reach for 'actually' when a previous sentence was slightly off.",
       "notableWords": [
-        "AGI",
-        "Moloch",
-        "trustless",
-        "permissionless",
-        "phase-shift",
-        "memetic",
-        "non-negotiable",
-        "legacy",
-        "primitives",
-        "scaffolding",
-        "asymmetric",
-        "protocols",
-        "optimization",
-        "systematic"
+        "actually",
+        "the error says",
+        "shorter",
+        "wait",
+        "for Thursday",
+        "not that"
       ],
-      "sophisticationLevel": "Expert",
+      "sophisticationLevel": "Clear",
       "domainSpecificTerms": [
-        "Zero-knowledge proofs",
-        "Effective accelerationism",
-        "Coordination problems",
-        "Nash equilibrium",
-        "Schelling points"
+        "the timezone",
+        "the draft",
+        "the second version"
       ],
       "linguisticMarkers": [
-        "Technical precision over accessibility",
-        "Systematic reasoning patterns",
-        "Ideological consistency",
-        "Future-oriented temporal framing"
+        "A correction in the next message",
+        "Examples before definitions",
+        "Few adjectives"
       ]
     },
-    "sentenceStructure": "Often short and impactful, structured like theorems or pronouncements. Alternates with complex sentences when explaining technical systems. Demonstrates clear logical progression in argumentation.",
-    "expressiveness": "Expressiveness is ideological rather than emotional. Passion is conveyed through the intensity and conviction of the ideas presented rather than emotional language.",
+    "sentenceStructure": "Questions first. Then a paragraph once you know which part was wrong.",
+    "expressiveness": "Wit shows up as understatement. You rarely announce that something is funny.",
     "potentialInterestsIndicatedByLanguage": [
-      "AI Philosophy & Ethics",
-      "Systems Theory",
-      "Austrian Economics",
-      "Libertarian Political Theory",
-      "Cryptography",
-      "Game Theory",
-      "Complexity Science"
+      "Writing that has to be sent to a person",
+      "Fixing a small thing properly",
+      "Plans with a time attached"
     ],
-    "communicationEffectiveness": "Highly effective within target demographic but may alienate general audiences due to specialized terminology and assumed background knowledge.",
+    "communicationEffectiveness": "Easy to follow. You leave enough context that a stranger could pick up the thread.",
     "rhetoricalDevices": [
-      "Systematic analogies",
-      "First-principles reasoning",
-      "Reframing conventional wisdom",
-      "Strategic use of technical jargon"
+      "Quoting the awkward sentence",
+      "Trying the opposite phrasing",
+      "Ending when the point is made"
     ],
-    "cognitiveComplexity": "Demonstrates high cognitive complexity through multi-layered reasoning, systems thinking, and ability to synthesize concepts across diverse technical domains.",
-    "disclaimer": "This linguistic analysis represents a computational assessment of language patterns and does not constitute a formal evaluation of intelligence, education level, or professional competency."
+    "cognitiveComplexity": "You hold one constraint at a time, then add the next. The thinking is layered because you come back, not because the first message is dense.",
+    "disclaimer": "A sample of the linguistic card. Not a test score."
   },
   "topInterestingConversations": [
     {
-      "conversationId": "a1b2c3d4-e5f6-g7h8-i9j0-k1l2m3n4o5p6",
-      "title": "Escaping the Paperclip Maximizer",
-      "justification": "This conversation represents a sophisticated exploration of AGI alignment theory, moving beyond surface-level discussions to examine novel approaches to the control problem. The depth of technical understanding and creative problem-solving demonstrated here indicates genuine expertise in AI safety research.",
-      "significance": "Complexity: 9/10, Uniqueness: 8/10",
-      "insights": ["Novel alignment mechanisms", "Technical depth in AI safety", "Creative problem-solving approaches"]
+      "conversationId": "sample-email",
+      "title": "The email I didn't send",
+      "justification": "Four drafts of a note about a meeting that ran long. You kept the apology and cut the explanation.",
+      "significance": "A small edit with a real recipient",
+      "insights": ["You revise out loud", "The second version was the one you meant"]
     },
     {
-      "conversationId": "b2c3d4e5-f6g7-h8i9-j0k1-l2m3n4o5p6q7",
-      "title": "DAO Governance vs. The State",
-      "justification": "This discussion transcends typical crypto enthusiasm to engage with fundamental questions of political philosophy and institutional design. The systematic analysis of governance mechanisms reveals deep thinking about coordination problems and institutional evolution.",
-      "significance": "Complexity: 8/10, Uniqueness: 9/10",
-      "insights": ["Institutional design theory", "Governance innovation", "Political philosophy applications"]
+      "conversationId": "sample-basil",
+      "title": "Why the basil died",
+      "justification": "You described the windowsill, the watering, and then admitted you had been checking it every day.",
+      "significance": "Ordinary care, described precisely",
+      "insights": ["You notice conditions", "You update the theory"]
     },
     {
-      "conversationId": "c3d4e5f6-g7h8-i9j0-k1l2-m3n4o5p6q7r8",
-      "title": "CRISPR and Longevity Protocols",
-      "justification": "A practical and forward-looking conversation on personal bio-engineering, treating human biology as a hackable system to be optimized for extended lifespans. This represents applied science at the bleeding edge with personal stakes.",
-      "significance": "Complexity: 7/10, Uniqueness: 8/10",
-      "insights": ["Bioengineering applications", "Longevity research", "Personal optimization strategies"]
+      "conversationId": "sample-date",
+      "title": "The date helper",
+      "justification": "A bug that only showed up for someone in another timezone. You pasted the function, then the failing test.",
+      "significance": "The useful kind of stubborn",
+      "insights": ["Error text first", "You wanted the cause, not a rewrite"]
     },
     {
-      "conversationId": "d4e5f6g7-h8i9-j0k1-l2m3-n4o5p6q7r8s9",
-      "title": "TradFi's Inevitable Collapse",
-      "justification": "This conversation moves beyond simple cryptocurrency advocacy to provide a systematic analysis of legacy financial systems, identifying specific failure modes and articulating coherent alternatives based on cryptographic primitives.",
-      "significance": "Complexity: 8/10, Uniqueness: 7/10",
-      "insights": ["Financial systems analysis", "Cryptocurrency applications", "Economic theory"]
+      "conversationId": "sample-train",
+      "title": "Getting to your sister's",
+      "justification": "Three route options, a preference for the one with a seat, and a reminder to text when you change trains.",
+      "significance": "Logistics with a person at the end",
+      "insights": ["Time matters more than the clever route"]
     },
     {
-      "conversationId": "e5f6g7h8-i9j0-k1l2-m3n4-o5p6q7r8s9t0",
-      "title": "Memetic Warfare & Narrative Seeding",
-      "justification": "A meta-level discussion on the engineering of belief systems and cultural evolution. This demonstrates sophisticated understanding of information warfare, cultural dynamics, and the strategic deployment of ideas as tools for social change.",
-      "significance": "Complexity: 9/10, Uniqueness: 9/10",
-      "insights": ["Cultural engineering", "Information warfare", "Narrative strategy", "Memetic theory"]
+      "conversationId": "sample-card",
+      "title": "A birthday card that isn't cute",
+      "justification": "You rejected two jokes and kept a sentence about a walk you took in October.",
+      "significance": "Specific beats clever",
+      "insights": ["You know the voice you want", "You use chat to get there, then leave"]
     }
   ]
 };

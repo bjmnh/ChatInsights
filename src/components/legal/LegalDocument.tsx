@@ -11,7 +11,6 @@ export const LegalPlaceholder: React.FC<{ children: string }> = ({ children }) =
 const links = [
   { to: '/privacy', label: 'Privacy' },
   { to: '/terms', label: 'Terms' },
-  { to: '/refunds', label: 'Refunds' },
   { to: '/contact', label: 'Contact' },
 ];
 

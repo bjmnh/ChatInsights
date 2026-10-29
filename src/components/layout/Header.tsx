@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { usePremium } from '../../hooks/usePremium';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
@@ -12,11 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { LogOut, Sparkles } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -35,17 +33,12 @@ const Header: React.FC = () => {
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           <a href="/#cards" className="hover:text-foreground">Cards</a>
           <a href="/#how" className="hover:text-foreground">How it works</a>
-          <a href="/#pricing" className="hover:text-foreground">Pricing</a>
+          <a href="/#data" className="hover:text-foreground">Your data</a>
         </nav>
 
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              {isPremium && (
-                <span className="hidden items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary sm:inline-flex">
-                  <Sparkles className="h-3 w-3" /> Unlocked
-                </span>
-              )}
               <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/dashboard')}>
                 Studio
               </Button>

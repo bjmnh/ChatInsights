@@ -6,15 +6,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { LegalDocument, LegalPlaceholder } from '../components/legal/LegalDocument';
 import { LEGAL } from '../config/legal';
-import { formatPremiumPriceLine } from '../config/pricing';
 
 const TermsPage: React.FC = () => {
-  const price = formatPremiumPriceLine();
-
   return (
     <LegalDocument
       title="Terms of Service"
-      lede="The rules for using Chat Insights, including the one-time premium unlock."
+      lede="The rules for using Chat Insights. The service is currently free."
     >
       <section>
         <h2>1. Acceptance and eligibility</h2>
@@ -48,15 +45,15 @@ const TermsPage: React.FC = () => {
             code. This report does not use a language model.
           </li>
           <li>
-            <strong>Premium unlock (paid once).</strong> A one-time purchase that lets this account
-            generate premium cards. Those cards are written by Google’s Gemini API from the message
-            text in the conversations you selected. Details of that processing are in the{' '}
+            <strong>Premium cards (currently free).</strong> Written by Google’s Gemini API from the
+            message text in the conversations you selected. There is no charge for generating them
+            while the service is free. Details of that processing are in the{' '}
             <Link to="/privacy">Privacy Policy</Link>.
           </li>
         </ul>
         <p className="mt-3">
-          The premium unlock applies to the account that paid. It is not limited to a single upload,
-          and it is not a subscription.
+          The service is currently free. These Terms do not describe a purchase, a subscription, or
+          a renewal, because none of those exist right now.
         </p>
       </section>
 
@@ -96,32 +93,11 @@ const TermsPage: React.FC = () => {
       </section>
 
       <section>
-        <h2>6. Payments</h2>
+        <h2>6. Price</h2>
         <p>
-          The premium unlock costs <strong>{price}</strong>. It is a single charge through Stripe
-          Checkout (payment mode), not a subscription. We do not auto-renew it, and we do not bill
-          you again for the same unlock. Any tax Stripe calculates at checkout is collected there.
-          We do not store your card number. Stripe does.
-        </p>
-        <p className="mt-3">
-          After Stripe records a successful payment, the unlock stays on this account for as long as
-          the account exists and we continue to offer premium reports. Closing the service, or
-          closing the account, ends access. The amount you pay is the one-time price shown in the
-          Service and on the Stripe Checkout page before you confirm.
-        </p>
-        <p className="mt-3">
-          We may change the price for future purchases. A price change does not convert your
-          completed purchase into a recurring charge and does not, by itself, remove an unlock you
-          already paid for.
-        </p>
-      </section>
-
-      <section>
-        <h2>7. Refunds</h2>
-        <p>
-          <strong>All sales are final.</strong> The premium unlock is a digital purchase, and we do
-          not offer refunds, except where the law requires one. The{' '}
-          <Link to="/refunds">Refund Policy</Link> is part of these Terms.
+          The service is currently free. We do not charge for an account, an upload, a basic report,
+          or the premium cards. If we introduce a charge later, we will update these Terms and say
+          so in the product before any payment is requested.
         </p>
       </section>
 
@@ -141,7 +117,7 @@ const TermsPage: React.FC = () => {
         <p>You agree not to:</p>
         <ul>
           <li>break the law, or upload content you do not have the right to process;</li>
-          <li>try to bypass the premium check, probe, or disrupt the Service or its providers;</li>
+          <li>probe or disrupt the Service or its providers;</li>
           <li>use the Service to harm, harass, or dox another person;</li>
           <li>resell access, or scrape the Service in a way that degrades it for others;</li>
           <li>misrepresent the reports as facts we have verified, or as our professional advice.</li>
@@ -160,7 +136,7 @@ const TermsPage: React.FC = () => {
         <p className="mt-3">
           We may suspend or end access if you break these Terms, if we must do so to comply with the
           law, or if continuing the Service becomes unlawful. Sections that should survive — including
-          ownership, disclaimers, liability limits, and refunds — survive.
+          ownership, disclaimers, and liability limits — survive.
         </p>
       </section>
 
@@ -177,8 +153,8 @@ const TermsPage: React.FC = () => {
           and its directors, employees, and suppliers will not be liable for indirect, incidental,
           special, consequential, or punitive damages, or for lost profits, data, or goodwill. Our
           total liability for claims arising out of the Service will not exceed the amount you paid
-          us for the premium unlock. Some places do not allow these limits. In those places, the
-          limits apply only as far as the law allows.
+          us. The service is currently free, so that amount is zero. Some places do not allow these
+          limits. In those places, the limits apply only as far as the law allows.
         </p>
       </section>
 
@@ -191,8 +167,8 @@ const TermsPage: React.FC = () => {
           the exclusive venue for disputes arising out of these Terms or the Service, except where
           the law gives you the right to bring a claim somewhere else. If a provision is held
           unenforceable, the rest of the Terms stay in effect. These Terms, the Privacy Policy, and
-          the Refund Policy are the entire agreement about the Service and replace earlier agreements
-          about it.
+          these Terms and the Privacy Policy are the entire agreement about the Service and replace
+          earlier agreements about it.
         </p>
       </section>
 
@@ -201,7 +177,7 @@ const TermsPage: React.FC = () => {
         <p>
           We may update these Terms by posting the new version on this page and changing the date
           above. If you keep using the Service after the update, you accept the new Terms. An update
-          will not turn a completed one-time purchase into a subscription or an auto-renewing charge.
+          will not, by itself, create a charge. The service is currently free.
         </p>
       </section>
 
@@ -215,8 +191,7 @@ const TermsPage: React.FC = () => {
           <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>
         </p>
         <p className="mt-3">
-          The current premium price is {price}. Questions: <Link to="/contact">Contact</Link>.
-          Payments: <Link to="/refunds">Refund Policy</Link>.
+          Questions: <Link to="/contact">Contact</Link>. The service is currently free.
         </p>
       </section>
     </LegalDocument>

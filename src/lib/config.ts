@@ -8,9 +8,9 @@ export const config = {
     url: import.meta.env.VITE_SUPABASE_URL,
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
   },
-  stripe: {
-    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
-    testMode: (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '').startsWith('pk_test_'),
+  auth: {
+    google: import.meta.env.VITE_ENABLE_GOOGLE_AUTH === 'true',
+    apple: import.meta.env.VITE_ENABLE_APPLE_AUTH === 'true',
   },
   // Helper to get the correct redirect URLs
   getRedirectUrl: (path: string) => {

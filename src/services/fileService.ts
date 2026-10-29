@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { PremiumRequiredError } from './billingService';
 
 export interface UploadedFile {
   id: string;
@@ -173,66 +174,43 @@ export class FileService {
     }
   }
 
-  // Generate basic report
   static async generateBasicReport(fileId: string): Promise<unknown> {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-basic-report`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ fileId }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Report generation failed: ${errorText}`);
-      }
-
-      const result = await response.json();
-      return result.report;
-    } catch (error) {
-      console.error('Error generating basic report:', error);
-      throw error;
-    }
+    return this.invokeReport('generate-basic-report', fileId);
   }
 
-  // Generate premium report
   static async generatePremiumReport(fileId: string): Promise<unknown> {
+    return this.invokeReport('generate-premium-report', fileId);
+  }
+
+  private static async invokeReport(name: string, fileId: string): Promise<unknown> {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Sign in to generate a report');
+
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fileId }),
+    });
+
+    const text = await response.text();
+    let payload: { error?: string; code?: string; report?: unknown } = {};
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        throw new Error('No active session');
-      }
-
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-premium-report`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ fileId }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Report generation failed: ${errorText}`);
-      }
-
-      const result = await response.json();
-      return result.report;
-    } catch (error) {
-      console.error('Error generating premium report:', error);
-      throw error;
+      payload = text ? JSON.parse(text) : {};
+    } catch {
+      payload = { error: text };
     }
+
+    if (!response.ok) {
+      if (response.status === 402 || payload.code === 'PREMIUM_REQUIRED') {
+        throw new PremiumRequiredError();
+      }
+      throw new Error(payload.error || 'Report generation failed');
+    }
+
+    return payload.report;
   }
 
   // Get reports for a file

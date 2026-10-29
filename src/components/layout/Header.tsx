@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { usePremium } from '../../hooks/usePremium';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
@@ -11,10 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { Brain, User, Settings, LogOut } from 'lucide-react';
+import { LogOut, Sparkles } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
+  const { isPremium } = usePremium(user?.id);
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -23,62 +25,62 @@ const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-          <Brain className="h-12 w-12 text-primary" />
-          <span className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            ChatInsights
-          </span>
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07080d]/80 backdrop-blur-xl">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+        <Link to="/" className="flex items-center gap-2">
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-sm font-bold text-primary-foreground">Ci</span>
+          <span className="font-display text-xl tracking-tight">Chat Insights</span>
         </Link>
 
-        <div className="flex items-center space-x-4">
+        <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+          <a href="/#cards" className="hover:text-foreground">Cards</a>
+          <a href="/#how" className="hover:text-foreground">How it works</a>
+          <a href="/#pricing" className="hover:text-foreground">Pricing</a>
+        </nav>
+
+        <div className="flex items-center gap-2">
           {user ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.user_metadata?.avatar_url} alt={user.user_metadata?.name} />
-                    <AvatarFallback>
-                      {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.user_metadata?.name || 'User'}</p>
-                    {user.email && (
-                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    )}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/dashboard')}>
-                  <User className="mr-2 h-4 w-4" />
-                  Dashboard
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              {isPremium && (
+                <span className="hidden items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary sm:inline-flex">
+                  <Sparkles className="h-3 w-3" /> Unlocked
+                </span>
+              )}
+              <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/dashboard')}>
+                Studio
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-10 w-10 rounded-full p-0">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={user.user_metadata?.avatar_url} alt="" />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {user.user_metadata?.name?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel className="font-normal">
+                    <p className="text-sm font-medium">{user.user_metadata?.name || 'Your account'}</p>
+                    {user.email && <p className="text-xs text-muted-foreground">{user.email}</p>}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>Studio</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" /> Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
-            <div className="flex items-center space-x-2">
-              <Button onClick={() => navigate('/auth')}>
-                Sign In
+            <>
+              <Button variant="ghost" onClick={() => navigate('/auth')}>Sign in</Button>
+              <Button onClick={() => navigate('/auth')} className="rounded-full px-4">
+                Open yours
               </Button>
-              <Button onClick={() => navigate('/auth')}>
-                Get Started
-              </Button>
-            </div>
+            </>
           )}
         </div>
       </div>

@@ -3,11 +3,14 @@ export const config = {
   app: {
     url: import.meta.env.VITE_APP_URL || 'http://localhost:5173',
     name: 'ChatInsights',
-    supportEmail: 'support@chatinsights.com',
   },
   supabase: {
     url: import.meta.env.VITE_SUPABASE_URL,
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+  },
+  stripe: {
+    publishableKey: import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '',
+    testMode: (import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '').startsWith('pk_test_'),
   },
   // Helper to get the correct redirect URLs
   getRedirectUrl: (path: string) => {

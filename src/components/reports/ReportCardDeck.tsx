@@ -101,6 +101,9 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
 
   return (
     <div className="relative min-h-screen">
+      <div className="pointer-events-none fixed right-4 top-4 z-50 rounded-full border border-white/20 bg-black/50 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/80 backdrop-blur">
+        Chat Insights
+      </div>
       {/* Navigation Controls */}
       <div className="fixed top-20 left-4 z-50">
         <Button

@@ -1,334 +1,147 @@
 # Chat Insights
 
-A React application that analyzes conversations from any AI assistant — ChatGPT, Claude, Gemini, Grok, Copilot, Perplexity, Mistral, DeepSeek, Cursor, and other LLM tools — to surface communication patterns, personality traits, and behavioral characteristics.
+Upload a conversation export from any AI assistant and get a visual read of it: free conversation counts, plus seven premium report cards (FBI Report, Reality TV Persona, Digital Doppelganger, Linguistic Fingerprint, PII Safety Compass, Unfiltered Mirror, Top 5 Conversations).
 
-## Features
+Stack: Vite, React, TypeScript, Tailwind, shadcn/ui, Supabase (auth, Postgres, storage, edge functions), Stripe Checkout.
 
-- **User Authentication**: Secure sign-up and login with Supabase Auth (Email, Google, Apple)
-- **File Upload**: Upload conversation exports as JSON, JSONL, Markdown, plain text, CSV, HTML, or ZIP
-- **Real-time Analysis**: Track analysis progress in real-time
-- **Free Insights**: Basic conversation analytics and patterns
-- **Premium Insights**: Advanced personality profiling and hidden pattern discovery
-- **Data Privacy**: Automatic deletion of raw conversation data after analysis
-- **Responsive Design**: Works on desktop and mobile devices
+## Why premium is a one-time purchase
 
-## Supported conversation exports
+A premium report is generated once from a finished export. There is no ongoing feed to subscribe to. Paying once unlocks premium generation for that account, including later uploads. Refunds recorded by the Stripe webhook remove the unlock when no other paid checkout remains.
 
-Uploads are normalized into one internal shape — conversations with messages that have a role, text, and a timestamp when the file includes one — before either report runs. ChatGPT `conversations.json` still works, including files uploaded before this change.
+The browser never decides who is paid. `generate-premium-report` reads `users.premium_status`, which only the service role can change.
+
+## Setup
+
+1. Install and configure the frontend:
+
+```bash
+npm install
+cp .env.example .env
+```
+
+Fill in `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL`, and `VITE_STRIPE_PUBLISHABLE_KEY`.
+
+2. Apply every file in `supabase/migrations` in timestamp order, including `20261020040306_premium_unlock.sql`. That migration restores premium billing columns, the `payments` table, and row-level rules that hide premium reports from unpaid accounts.
+
+3. Create a private Storage bucket named `conversation-files` and these policies:
+
+```sql
+CREATE POLICY "Users can upload own files" ON storage.objects
+FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can read own files" ON storage.objects
+FOR SELECT TO authenticated
+USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+CREATE POLICY "Users can delete own files" ON storage.objects
+FOR DELETE TO authenticated
+USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
+```
+
+4. In Authentication → URL configuration, set the site URL and add redirect URLs for `/auth/confirm` and `/dashboard`.
+
+5. Start the app:
+
+```bash
+npm run dev
+```
+
+## Stripe test mode
+
+Create the product in the [Stripe Dashboard](https://dashboard.stripe.com/test/products) while **Test mode** is on.
+
+1. Add a product named `Chat Insights Premium`.
+2. Add one price. Choose **One time**, not recurring, for **$9.99 USD**. That display amount lives in `src/config/pricing.ts` (`PREMIUM_UNLOCK`). Change the constant and the Stripe Price together. The Price ID is not stored in the repo.
+3. Copy the price id (`price_...`).
+
+API keys (Developers → API keys):
+
+| Secret | Where it lives | Example |
+| --- | --- | --- |
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Frontend `.env` | `pk_test_...` |
+| `STRIPE_SECRET_KEY` | Supabase edge secret | `sk_test_...` |
+| `STRIPE_PRICE_ID` | Supabase edge secret | `price_...` |
+| `STRIPE_WEBHOOK_SECRET` | Supabase edge secret | `whsec_...` |
+| `APP_URL` | Supabase edge secret | `http://localhost:5173` or your public site |
+| `ALLOWED_ORIGINS` | Supabase edge secret | optional comma-separated return origins |
+| `GEMINI_API_KEY` | Supabase edge secret | required by premium generation |
+
+`STRIPE_PRICE_ID` stays on the server so the browser cannot swap in a different price. Set secrets with the Supabase dashboard or:
+
+```bash
+supabase secrets set \
+  STRIPE_SECRET_KEY=sk_test_... \
+  STRIPE_WEBHOOK_SECRET=whsec_... \
+  STRIPE_PRICE_ID=price_... \
+  APP_URL=http://localhost:5173 \
+  GEMINI_API_KEY=...
+```
+
+Deploy the functions after the migration is applied. Do not skip `--no-verify-jwt` on the webhook; Stripe does not send a Supabase JWT. `supabase/config.toml` also sets `verify_jwt = false` for that function.
+
+```bash
+supabase functions deploy create-checkout-session
+supabase functions deploy confirm-checkout
+supabase functions deploy stripe-webhook --no-verify-jwt
+supabase functions deploy generate-basic-report
+supabase functions deploy generate-premium-report
+```
+
+Webhook endpoint:
+
+```text
+https://yaykfgyucipnqufydyjb.supabase.co/functions/v1/stripe-webhook
+```
+
+In Stripe → Developers → Webhooks → Add endpoint, subscribe to:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+- `charge.refunded`
+
+Copy the signing secret into `STRIPE_WEBHOOK_SECRET`.
+
+For local webhook forwarding:
+
+```bash
+stripe listen --forward-to http://localhost:54321/functions/v1/stripe-webhook
+```
+
+Use the signing secret that command prints. Pay with test card `4242 4242 4242 4242`, any future expiry, and any CVC.
+
+What happens on a successful payment:
+
+1. The studio calls `create-checkout-session`, which opens Stripe Checkout in `payment` mode.
+2. Stripe posts the event to `stripe-webhook`. The function checks the `Stripe-Signature` header, then writes a `payments` row and sets `users.premium_status`.
+3. The return URL calls `confirm-checkout`, which reads the same session from Stripe and records it again if the webhook has not landed yet. The checkout session id is unique, so this is safe to repeat.
+4. `generate-premium-report` returns HTTP 402 until `premium_status` is true. A refund sets the payment to `refunded` and clears the unlock when nothing paid remains.
+
+`ALLOWED_ORIGINS` is optional. Comma-separate extra return URLs (a preview deploy and localhost) if `APP_URL` alone is not enough. Checkout will only redirect to `APP_URL` or a listed origin.
+
+## Uploads
+
+Exports are normalized into conversations of messages with a role, text, and a timestamp when the file has one. Both report functions read that shape. An older ChatGPT `conversations.json` still works.
 
 | Export | Recognition |
 | --- | --- |
 | ChatGPT `conversations.json` | Message tree in `mapping` |
 | Claude `conversations.json` | `chat_messages` |
-| Gemini / Google Takeout | My Activity JSON or HTML. Takeout often has your prompts only, so those reports are based on what you wrote. |
-| Grok | `grok_conversations`, `conversation_items`, turn pairs, or messages sent by Grok |
-| Generic JSON | An array of `{role, content}` messages, `{messages:[...]}`, or a list of those conversations |
-| JSONL | One message or one conversation per line |
-| Markdown or plain text | Transcripts labeled `User:` / `Assistant:` (also Human, AI, You, Model, and similar labels) |
+| Gemini / Google Takeout | My Activity JSON or HTML. Takeout often has prompts only, so those reports use what you wrote. |
+| Grok | `grok_conversations`, `conversation_items`, turn pairs, or a Grok sender |
+| Generic JSON | `{role, content}` messages, `{messages:[...]}`, or a list of those conversations |
+| JSONL | One message or conversation per line |
+| Markdown or plain text | `User:` / `Assistant:` transcripts, plus Human, AI, You, Model, and similar labels |
 | CSV | `role` and `content` columns, with optional timestamp, conversation id, and title |
 | ZIP | An archive containing any of the above |
 
-Copilot, Perplexity, Mistral, DeepSeek, Cursor, and similar tools are best-effort: they work when the export is generic JSON, JSONL, Markdown, CSV, or a ZIP of those files. There is no separate parser for every vendor's private schema. If a file cannot be recognized, the upload screen lists the formats above.
+Copilot, Perplexity, Mistral, DeepSeek, Cursor, and similar tools work when the file is one of those shapes. After parsing, you pick which threads to store. Files must be under 200MB.
 
-## Tech Stack
+## Scripts
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS
-- **UI Components**: shadcn/ui, Radix UI
-- **Backend**: Supabase (Database, Auth, Storage, Real-time)
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Animations**: Framer Motion
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ and npm
-- A Supabase project
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd chat-insights
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Set up environment variables:
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your Supabase credentials:
-```
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_APP_URL=http://localhost:5173
-```
-
-4. Set up the database:
-   - Go to your Supabase project dashboard
-   - Navigate to the SQL Editor
-   - Run the migration files in order:
-     - `supabase/migrations/20250615044735_dark_coast.sql`
-     - `supabase/migrations/20250616090703_velvet_river.sql`
-
-5. **CRITICAL: Set up Storage Bucket:**
-   
-   **This step is required before file uploads will work:**
-   
-   - Go to your Supabase project dashboard
-   - Navigate to **Storage** in the left sidebar
-   - Click **"New bucket"**
-   - Create a bucket with the following settings:
-     - **Name**: `conversation-files` (exactly this name)
-     - **Public**: Leave unchecked (private bucket)
-     - **File size limit**: 500MB (optional)
-     - **Allowed MIME types**: `application/json`, `text/plain`, `text/csv`, `text/markdown`, `text/html`, `application/zip` (optional)
-   
-   **Set up Storage Policies:**
-   
-   After creating the bucket, you need to set up Row Level Security policies:
-   
-   - Go to **Storage** → **Policies**
-   - Click **"New Policy"** for the `conversation-files` bucket
-   - Create the following policies:
-   
-   **Policy 1: Allow authenticated users to upload their own files**
-   ```sql
-   CREATE POLICY "Users can upload own files" ON storage.objects
-   FOR INSERT TO authenticated
-   WITH CHECK (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-   ```
-   
-   **Policy 2: Allow authenticated users to read their own files**
-   ```sql
-   CREATE POLICY "Users can read own files" ON storage.objects
-   FOR SELECT TO authenticated
-   USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-   ```
-   
-   **Policy 3: Allow authenticated users to delete their own files**
-   ```sql
-   CREATE POLICY "Users can delete own files" ON storage.objects
-   FOR DELETE TO authenticated
-   USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-   ```
-
-6. Configure Supabase Authentication:
-   
-   **Basic Setup:**
-   - Go to Authentication → URL Configuration in your Supabase dashboard
-   - Set **Site URL** to: `http://localhost:5173` (for development)
-   - Add **Redirect URLs**:
-     - `http://localhost:5173/auth/confirm`
-     - `http://localhost:5173/auth/reset-password`
-
-   **Google OAuth Setup (Optional - Currently Disabled):**
-   - Go to Authentication → Providers → Google
-   - Enable Google provider
-   - Add your Google OAuth credentials:
-     - **Client ID**: Get from [Google Cloud Console](https://console.cloud.google.com/)
-     - **Client Secret**: Get from Google Cloud Console
-   - Set **Authorized redirect URIs** in Google Cloud Console:
-     - `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
-
-   **Apple OAuth Setup (Optional - Currently Disabled):**
-   - Go to Authentication → Providers → Apple
-   - Enable Apple provider
-   - Add your Apple OAuth credentials:
-     - **Services ID**: Get from [Apple Developer](https://developer.apple.com/)
-     - **Team ID**: Your Apple Developer Team ID
-     - **Key ID**: Your Apple Sign In Key ID
-     - **Private Key**: Your Apple Sign In private key
-   - Set **Return URLs** in Apple Developer Console:
-     - `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
-
-7. Start the development server:
 ```bash
 npm run dev
+npm run build
+npm run lint
+npm test
 ```
-
-## Troubleshooting
-
-### "Bucket not found" Error
-
-If you encounter a "Bucket not found" error when uploading files:
-
-1. **Verify the bucket exists:**
-   - Go to your Supabase dashboard → Storage
-   - Ensure a bucket named `conversation-files` exists
-   - If not, create it following step 5 above
-
-2. **Check bucket policies:**
-   - Go to Storage → Policies
-   - Ensure the three policies listed in step 5 are created
-   - Verify the policy names and SQL match exactly
-
-3. **Test bucket access:**
-   - Try uploading a test file through the Supabase dashboard
-   - If that fails, check your project permissions
-
-### Authentication Issues
-
-If authentication isn't working:
-
-1. **Check environment variables:**
-   - Verify `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are correct
-   - Ensure no trailing slashes in the URL
-
-2. **Verify Site URL:**
-   - In Supabase dashboard → Authentication → URL Configuration
-   - Site URL should match your development URL exactly
-
-## OAuth Provider Setup Guide
-
-### Google OAuth Setup
-
-1. **Create Google Cloud Project:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing one
-
-2. **Enable Google+ API:**
-   - Go to APIs & Services → Library
-   - Search for "Google+ API" and enable it
-
-3. **Create OAuth Credentials:**
-   - Go to APIs & Services → Credentials
-   - Click "Create Credentials" → "OAuth 2.0 Client IDs"
-   - Choose "Web application"
-   - Add authorized redirect URI: `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
-
-4. **Configure in Supabase:**
-   - Copy Client ID and Client Secret to Supabase Auth settings
-
-### Apple OAuth Setup
-
-1. **Apple Developer Account:**
-   - You need an active Apple Developer account ($99/year)
-
-2. **Create App ID:**
-   - Go to [Apple Developer](https://developer.apple.com/)
-   - Certificates, Identifiers & Profiles → Identifiers
-   - Create new App ID with Sign In with Apple capability
-
-3. **Create Services ID:**
-   - Create new Services ID
-   - Enable Sign In with Apple
-   - Configure return URL: `https://yaykfgyucipnqufydyjb.supabase.co/auth/v1/callback`
-
-4. **Create Private Key:**
-   - Go to Keys section
-   - Create new key with Sign In with Apple capability
-   - Download the .p8 file
-
-5. **Configure in Supabase:**
-   - Add Services ID, Team ID, Key ID, and Private Key content
-
-## Production Deployment
-
-### Environment Configuration
-
-For production deployment, update your environment variables:
-
-```bash
-# Production .env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_APP_URL=https://yourdomain.com
-```
-
-### Supabase Configuration for Production
-
-1. **Update Site URL** in Supabase Dashboard:
-   - Go to Authentication → URL Configuration
-   - Set **Site URL** to: `https://yourdomain.com`
-
-2. **Update Redirect URLs**:
-   - `https://yourdomain.com/auth/confirm`
-   - `https://yourdomain.com/auth/reset-password`
-
-3. **Update OAuth Provider Settings:**
-   - **Google**: Update authorized redirect URIs in Google Cloud Console
-   - **Apple**: Update return URLs in Apple Developer Console
-
-4. **Deploy Steps**:
-   ```bash
-   npm run build
-   ```
-   Deploy the `dist` folder to your hosting platform (Vercel, Netlify, etc.)
-
-### Hosting Platform Setup
-
-The app is configured to work seamlessly with:
-- **Vercel**: Zero-config deployment
-- **Netlify**: Automatic builds and deploys
-- **Any static hosting**: Just upload the `dist` folder
-
-## Database Schema
-
-The application uses the following main tables:
-
-- **users**: User profiles and premium status
-- **jobs**: Analysis job tracking and progress
-- **user_reports**: Generated insights and reports
-- **payments**: Payment history (for future Stripe integration)
-
-## Features Overview
-
-### Free Tier
-- Basic conversation analytics
-- Activity patterns and timing
-- Topic distribution
-- Communication style analysis
-- Up to 3 analyses
-
-### Premium Tier
-- **The Digital Mirror**: AI personality profiling
-- **Hidden Patterns**: Unconscious theme discovery
-- **The Revelation Map**: Cross-conversation connections
-- Unlimited analyses
-- Advanced behavioral insights
-
-## Privacy & Security
-
-- Raw conversation data is automatically deleted after analysis
-- All data is encrypted in transit and at rest
-- Row Level Security (RLS) ensures users can only access their own data
-- GDPR compliant with full data export and deletion capabilities
-
-## Development
-
-### Project Structure
-```
-src/
-├── components/          # Reusable UI components
-├── contexts/           # React contexts (Auth, Theme)
-├── lib/               # Utilities and configurations
-├── pages/             # Page components
-├── services/          # API service layers
-└── hooks/             # Custom React hooks
-```
-
-### Key Services
-- **AuthContext**: Manages user authentication state with social providers
-- **JobService**: Handles analysis job operations
-- **ReportService**: Manages insight reports
-- **StorageService**: File upload and management
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.

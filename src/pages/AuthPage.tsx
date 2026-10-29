@@ -6,9 +6,8 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { Alert, AlertDescription } from '../components/ui/alert';
 import { Separator } from '../components/ui/separator';
-import { Loader2, Info, Brain } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // Social provider icons (using simple SVGs for better performance)
@@ -164,13 +163,10 @@ export default function AuthPage() {
 
   if (showResetPassword) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
-              <Brain className="h-12 w-12 text-primary" />
-            </div>
-            <h1 className="text-2xl font-bold">Reset Password</h1>
+          <div className="mb-8 text-center">
+            <h1 className="font-display text-4xl">Reset password</h1>
             <p className="text-muted-foreground">We'll send you a reset link</p>
           </div>
 
@@ -222,16 +218,11 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Brain className="h-12 w-12 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            Welcome to ChatInsights
-          </h1>
-          <p className="text-muted-foreground">Sign in to analyze conversations from any AI assistant</p>
+        <div className="mb-8 text-center">
+          <h1 className="font-display text-5xl">Sign in to the studio</h1>
+          <p className="mt-2 text-muted-foreground">Sign in to analyze an export from any AI assistant.</p>
         </div>
 
         <Card>
@@ -276,15 +267,7 @@ export default function AuthPage() {
               </div>
             </div>
 
-            <Alert className="my-6">
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                If you're having trouble with email validation, please ensure you're using a valid email format. 
-                For registration issues, check your email for a confirmation link.
-              </AlertDescription>
-            </Alert>
-
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs defaultValue="login" className="mt-6 w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Sign In</TabsTrigger>
                 <TabsTrigger value="register">Sign Up</TabsTrigger>
@@ -401,8 +384,10 @@ export default function AuthPage() {
         <p className="text-center text-sm text-muted-foreground mt-6">
           By signing up, you agree to our{' '}
           <a href="/terms" className="underline hover:text-primary">Terms of Service</a>
-          {' '}and{' '}
+          {', '}
           <a href="/privacy" className="underline hover:text-primary">Privacy Policy</a>
+          {', and '}
+          <a href="/refunds" className="underline hover:text-primary">Refund Policy</a>
         </p>
       </div>
     </div>

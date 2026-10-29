@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { config } from '../lib/config';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -130,10 +130,10 @@ const EmailConfirmationPage: React.FC = () => {
         {status === 'error' && (
           <div className="mt-6 text-center text-sm text-muted-foreground">
             <p>
-              If you continue to have problems, please contact support at{' '}
-              <a href={`mailto:${config.app.supportEmail}`} className="text-primary hover:underline">
-                {config.app.supportEmail}
-              </a>
+              If you continue to have problems, please{' '}
+              <Link to="/contact" className="text-primary hover:underline">
+                contact support
+              </Link>
             </p>
           </div>
         )}

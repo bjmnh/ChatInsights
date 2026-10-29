@@ -772,11 +772,11 @@ export async function parseConversationExport(
 }
 
 export const ACCEPTED_UPLOAD_EXTENSIONS = ['.json', '.jsonl', '.ndjson', '.zip', '.md', '.markdown', '.txt', '.csv', '.html', '.htm'];
-export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 
 export function validateUploadFile(file: { name: string; size: number }): string | null {
   if (file.size <= 0) return 'That file is empty.';
-  if (file.size > MAX_UPLOAD_BYTES) return 'File size must be less than 100MB.';
+  if (file.size > MAX_UPLOAD_BYTES) return 'File size must be less than 200MB.';
   const extension = extensionOf(file.name);
   if (!ACCEPTED_UPLOAD_EXTENSIONS.includes(extension)) {
     return `Unsupported file type "${extension || 'unknown'}". Upload a .json, .jsonl, .zip, .md, .txt, .csv, or Gemini .html export.`;

@@ -9,6 +9,10 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
@@ -57,6 +61,14 @@ export default {
         },
       },
       keyframes: {
+        marquee: {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
+        scan: {
+          '0%': { top: '8%' },
+          '100%': { top: '88%' },
+        },
         'accordion-down': {
           from: {
             height: '0',
@@ -75,6 +87,8 @@ export default {
         },
       },
       animation: {
+        marquee: 'marquee 32s linear infinite',
+        scan: 'scan 1.6s ease-in-out infinite',
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
       },

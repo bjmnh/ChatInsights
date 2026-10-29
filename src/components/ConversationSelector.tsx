@@ -128,7 +128,7 @@ const ConversationSelector: React.FC<ConversationSelectorProps> = ({
       toast.success(`Successfully uploaded ${selectedConvs.length} conversations!`);
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to upload selected conversations');
+      toast.error(error instanceof Error ? error.message : 'Failed to upload selected conversations');
     } finally {
       setUploading(false);
     }

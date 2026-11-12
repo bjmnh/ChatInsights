@@ -158,6 +158,13 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
   };
 }
 
+function prose(value: string | undefined): string | undefined {
+  const text = value?.trim();
+  if (!text) return undefined;
+  if (text.split(/\s+/).length < 6) return undefined;
+  return text;
+}
+
 function disclaimer(file: CaseFile): string {
   const state = file.coverage.partial ? 'Partial report.' : 'Complete report.';
   return `${state} ${file.model.provider} · ${file.model.id} · ${file.coverage.depth}. Read ${file.coverage.read} of ${file.coverage.conversations} conversations.`;
@@ -174,14 +181,8 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   const peopleLine = file.people.slice(0, 6).map((person) => (
     person.relationship ? `${person.name} (${person.relationship})` : person.name
   ));
-  const codename = file.subject.nameGuess?.v
-    || file.subject.occupation?.v
-    || file.subject.location?.v
-    || 'Your chats';
-  const where = [
-    file.subject.location ? `Location: ${file.subject.location.v}` : '',
-    file.subject.occupation ? `Work: ${file.subject.occupation.v}` : '',
-  ].filter(Boolean).join('. ');
+  const codename = file.narrative.codename;
+  const codenameReason = file.narrative.codename_reason;
 
   const report: PremiumReportShape = {};
 
@@ -190,11 +191,11 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       reportTitle: 'A read of your chats',
       subjectCodename: {
         name: codename,
-        justification: where || cover,
+        justification: codenameReason,
         operationalSignificance: titlesOf(file.narrative.ev, titles) || undefined,
       },
       subjectProfileSummary: cover,
-      psychologicalProfile: file.beliefs.map((item) => item.v).join(' ') || file.worries.map((item) => item.v).join(' ') || undefined,
+      psychologicalProfile: prose(file.beliefs.map((item) => item.v).join(' ')) || prose(file.worries.map((item) => item.v).join(' ')),
       dominantInterests: interestLines.length ? interestLines : file.coverage.topics.map((topic) => topic.topic).filter(Boolean),
       communicationModalities: [
         `${file.style.wordsPerMessage} words per message you sent`,

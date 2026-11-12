@@ -67,7 +67,13 @@ export interface CaseFile {
   style: LocalReport['style'];
   usage: LocalReport['usage'];
   notable: Array<LocalReport['notable'][number] & { modelRead: boolean }>;
-  narrative: { cover: string; blurbs: Record<string, string>; ev: string[] };
+  narrative: {
+    cover: string;
+    blurbs: Record<string, string>;
+    ev: string[];
+    codename: string;
+    codename_reason: string;
+  };
   supportNote?: string;
   cardStatus: Record<CardId, CardState>;
 }
@@ -114,6 +120,34 @@ function depthLabel(depth: DepthId): string {
   if (depth === 'standard') return 'Standard';
   if (depth === 'deep') return 'Deep';
   return 'Forensic';
+}
+
+export const NEUTRAL_CODENAME = 'Open notebook';
+export const NEUTRAL_CODENAME_REASON = 'A short name for this file, not a fact copied from one chat.';
+
+export function settleCodename(
+  draft: { codename?: string; codename_reason?: string } | null | undefined,
+  banned: string[],
+): { codename: string; codename_reason: string } {
+  const foldedBan = banned.map((item) => item.trim().toLowerCase()).filter((item) => item.length > 2);
+  const leaks = (value: string) => foldedBan.some((item) => value.toLowerCase().includes(item));
+  const name = draft?.codename?.trim() ?? '';
+  const words = name.split(/\s+/).filter(Boolean);
+  const nameOk = words.length >= 2
+    && words.length <= 4
+    && !leaks(name)
+    && !/[@\d]/.test(name)
+    && toneOk(name);
+  const reason = draft?.codename_reason?.trim() ?? '';
+  const reasonOk = reason.length >= 24
+    && reason.length <= 220
+    && reason !== name
+    && !leaks(reason)
+    && toneOk(reason);
+  return {
+    codename: nameOk ? name : NEUTRAL_CODENAME,
+    codename_reason: nameOk && reasonOk ? reason : NEUTRAL_CODENAME_REASON,
+  };
 }
 
 export function templateCover(input: {
@@ -384,6 +418,12 @@ export function buildCaseFile(input: {
       cover,
       blurbs: safeBlurbs,
       ev: input.narrative?.ev ?? read.slice(0, 5),
+      ...settleCodename(input.narrative, [
+        ...input.local.exposure.emails,
+        ...input.local.exposure.phones,
+        ...input.local.conversations.flatMap((item) => [...item.people, ...item.places, ...item.orgs]),
+        ...kept.map((fact) => fact.v),
+      ]),
     },
     supportNote: input.local.distress ? SUPPORT_NOTE : undefined,
     cardStatus: cardStates(input.depth),

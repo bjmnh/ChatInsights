@@ -6,7 +6,7 @@ import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
 import { runLocalPass } from './localPass.ts';
 import { cardPreviews, hydratePremiumReport, reportSubtitle } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, isComplete, reportLabel } from './merge.ts';
+import { buildCaseFile, computeConfidence, isComplete, NEUTRAL_CODENAME, reportLabel, settleCodename } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -306,6 +306,13 @@ describe('demo pipeline', () => {
     expect(previews.reality).not.toMatch(/You mention Dana as your sister/);
     expect(previews.mirror).not.toMatch(/You mention Dana as your sister/);
     expect(reportSubtitle(result)).toBe(`Deep read · ${result.coverage.read} of ${result.coverage.conversations} conversations · Demo extractor`);
+    expect(result.narrative.codename).toBe('Checklist weather');
+    expect(result.narrative.codename_reason).toMatch(/rewrite it until it sounds/);
+    expect(premium.fbiReport?.subjectCodename.name).toBe('Checklist weather');
+    expect(premium.fbiReport?.subjectCodename.justification).toBe(result.narrative.codename_reason);
+    expect(premium.fbiReport?.subjectCodename.name).not.toMatch(/engineer|Phoenix|Dana/i);
+    expect(premium.fbiReport?.psychologicalProfile).toMatch(/rewriting the launch checklist/);
+    expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
   });
 });
 

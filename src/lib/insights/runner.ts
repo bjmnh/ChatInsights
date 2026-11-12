@@ -9,6 +9,7 @@ import {
   parseNarrativePayload,
   parseVerifyPayload,
   type Fact,
+  type NarrativeDraft,
 } from './schema.ts';
 import { selectConversations, type DepthId } from './depth.ts';
 import type { LocalReport } from './localPass.ts';
@@ -182,7 +183,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   }
 
   let narrativeStatus: NarrativeStatus = input.depth === 'quick' ? 'not-in-depth' : 'templated';
-  let narrative: { cover: string; blurbs: Record<string, string>; ev: string[] } | null = null;
+  let narrative: NarrativeDraft | null = null;
   const unreadPlanned = selection.chosenIds.filter((id) => !topics.some((topic) => topic.c === id) || failed.has(id));
   const extractIncomplete = unreadPlanned.length > 0 || failed.size > 0 || Boolean(stopReason);
 
@@ -291,7 +292,7 @@ async function writeNarrative(
   facts: Fact[],
   topics: { c: string; topic: string }[],
   sleep: (ms: number) => Promise<void>,
-): Promise<{ narrative: CaseFile['narrative'] | null; status: NarrativeStatus; viaProxy: boolean }> {
+): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean }> {
   const request: CompleteRequest = {
     system: NARRATIVE_SYSTEM,
     user: JSON.stringify({ topics, facts: facts.slice(0, 80) }),
@@ -318,7 +319,7 @@ async function writeNarrative(
     }
     if (!parsed.ok) return { narrative: null, status: 'templated', viaProxy };
     return {
-      narrative: { cover: parsed.value.cover, blurbs: parsed.value.blurbs, ev: parsed.value.ev },
+      narrative: parsed.value,
       status: 'written',
       viaProxy,
     };

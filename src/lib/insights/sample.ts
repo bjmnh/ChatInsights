@@ -79,6 +79,8 @@ export function createDemoAdapter(options?: { latencyMs?: number; sleep?: (ms: n
               file: 'The flagged chats cover family, work, rent, and a running injury.',
             },
             ev: ['c_sister', 'c_work', 'c_money'],
+            codename: 'Checklist weather',
+            codename_reason: 'You keep a list open and rewrite it until it sounds like something you would send.',
           }),
           viaProxy: false,
           usage: { input: 200, output: 80 },
@@ -116,7 +118,7 @@ export function createDemoAdapter(options?: { latencyMs?: number; sleep?: (ms: n
         }
         if (user.includes('launch deadline')) {
           topic = 'launch worry';
-          facts.push({ c: id, k: 'worry', v: 'launch deadline', d: 'keeps rewriting the checklist', t: '2026-04', q: 'worried about the launch deadline' });
+          facts.push({ c: id, k: 'worry', v: 'You keep rewriting the launch checklist because the deadline is close.', d: 'stated in the chat, not inferred', t: '2026-04', q: 'worried about the launch deadline' });
         }
         convs.push({ c: id, topic });
       }

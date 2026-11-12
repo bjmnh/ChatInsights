@@ -68,6 +68,8 @@ export const narrativeSchema = z
     cover: z.string().trim().min(1),
     blurbs: z.record(z.string(), z.string()).optional().default({}),
     ev: z.array(z.string()).optional().default([]),
+    codename: z.string().trim().min(1).optional(),
+    codename_reason: z.string().trim().min(1).optional(),
   })
   .strip();
 
@@ -124,8 +126,10 @@ export const NARRATIVE_JSON_SCHEMA: Record<string, unknown> = {
     cover: { type: 'string' },
     blurbs: { type: 'object', additionalProperties: { type: 'string' } },
     ev: { type: 'array', items: { type: 'string' } },
+    codename: { type: 'string', description: 'Two to four playful words. No names, places, jobs, or other personal details.' },
+    codename_reason: { type: 'string', description: 'One sentence saying why the alias fits, without repeating a raw fact.' },
   },
-  required: ['cover', 'blurbs', 'ev'],
+  required: ['cover', 'blurbs', 'ev', 'codename', 'codename_reason'],
 };
 
 export const VERIFY_JSON_SCHEMA: Record<string, unknown> = {

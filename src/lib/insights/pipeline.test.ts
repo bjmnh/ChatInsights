@@ -313,16 +313,16 @@ describe('demo pipeline', () => {
     expect(premium.realityTVPersona?.personaArchetype).toBe('The producer who rewrites the call sheet');
     expect(previews.mirror).not.toMatch(/You mention Dana as your sister/);
     expect(reportSubtitle(result)).toBe(`Deep read · ${result.coverage.read} of ${result.coverage.conversations} conversations · Demo extractor`);
-    expect(result.narrative.codename).toBe('Checklist weather');
-    expect(result.narrative.codename_reason).toMatch(/rewrite it until it sounds/);
-    expect(premium.fbiReport?.subjectCodename.name).toBe('Checklist weather');
+    expect(result.narrative.codename).toBe('Night Ledger');
+    expect(result.narrative.codename_reason).toMatch(/careful private notes late at night/);
+    expect(premium.fbiReport?.subjectCodename.name).toBe('Night Ledger');
     expect(premium.fbiReport?.subjectCodename.justification).toBe(result.narrative.codename_reason);
     expect(premium.fbiReport?.subjectCodename.name).not.toMatch(/engineer|Phoenix|Dana/i);
     expect(premium.fbiReport?.psychologicalProfile).toMatch(/rewriting the launch checklist/);
-    expect(caseFileNumber('Checklist weather|demo-extractor|8')).toMatch(/^CI-\d{4}$/);
-    expect(caseFileNumber('Checklist weather|demo-extractor|8')).toBe(caseFileNumber('Checklist weather|demo-extractor|8'));
+    expect(caseFileNumber('Night Ledger|demo-extractor|8')).toMatch(/^CI-\d{4}$/);
+    expect(caseFileNumber('Night Ledger|demo-extractor|8')).toBe(caseFileNumber('Night Ledger|demo-extractor|8'));
     expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
-    expect(settleArchetype('backend engineer, moved into team lead', 'Checklist weather', ['backend engineer, moved into team lead'])).toBe('Cast as Checklist weather');
+    expect(settleArchetype('backend engineer, moved into team lead', 'Night Ledger', ['backend engineer, moved into team lead'])).toBe('Cast as Night Ledger');
   });
 });
 

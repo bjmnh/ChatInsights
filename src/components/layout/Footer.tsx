@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import DonateLink from '../insights/DonateLink';
 
 const Footer: React.FC = () => {
   return (
@@ -8,14 +9,14 @@ const Footer: React.FC = () => {
         <div>
           <Link to="/" className="font-display text-2xl">Chat Insights</Link>
           <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-            A personal read of conversations from any AI assistant.
+            A read of your exported AI chats. You bring the model. You choose how deep to look.
           </p>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
           <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
           <Link to="/terms" className="hover:text-foreground">Terms</Link>
           <Link to="/contact" className="hover:text-foreground">Contact</Link>
-          <a href="/#data" className="hover:text-foreground">Your data</a>
+          <DonateLink className="hover:text-foreground" />
         </div>
       </div>
     </footer>

@@ -83,7 +83,8 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
           variant="ghost"
           size="sm"
           onClick={prevSlide}
-          className="text-white hover:text-yellow-400 bg-black/20 hover:bg-black/40"
+          aria-label="Previous conversation"
+          className="text-white hover:text-yellow-400 bg-black/20 hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-yellow-300"
           disabled={currentSlide === 0}
         >
           <ChevronLeft className="h-6 w-6" />
@@ -95,7 +96,8 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
           variant="ghost"
           size="sm"
           onClick={nextSlide}
-          className="text-white hover:text-yellow-400 bg-black/20 hover:bg-black/40"
+          aria-label="Next conversation"
+          className="text-white hover:text-yellow-400 bg-black/20 hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-yellow-300"
           disabled={currentSlide === data.length - 1}
         >
           <ChevronRight className="h-6 w-6" />
@@ -108,8 +110,9 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
           <button
             key={index}
             onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full transition-colors ${
-              index === currentSlide ? 'bg-yellow-400' : 'bg-white/30'
+            aria-label={`Conversation ${index + 1}`}
+            className={`h-3 w-3 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300 ${
+              index === currentSlide ? 'bg-yellow-400' : 'bg-white/50'
             }`}
           />
         ))}
@@ -117,7 +120,8 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
 
       {/* Header */}
       <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20 text-center">
-        <h1 className="text-2xl font-serif font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+        <p className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-yellow-200">Priority Threads</p>
+        <h1 className="text-2xl font-serif font-bold text-white mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
           Your Most Fascinating Conversations
         </h1>
         <div className="w-24 h-px bg-yellow-400 mx-auto" />
@@ -159,7 +163,7 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4, duration: 0.8 }}
-              className="text-4xl md:text-6xl font-serif font-bold text-white mb-8 leading-tight"
+              className="text-3xl sm:text-5xl md:text-6xl font-serif font-bold text-white mb-8 leading-tight text-balance break-words"
               style={{ fontFamily: 'Playfair Display, serif' }}
             >
               {data[currentSlide]?.title || `Conversation ${currentSlide + 1}`}

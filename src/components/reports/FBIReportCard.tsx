@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
 import { Brain, Shield, Eye, EyeOff, AlertTriangle, FileText } from 'lucide-react';
+import { EvidenceChips } from './reportPolish';
 
 interface FBIReportData {
   reportTitle: string;
@@ -111,7 +112,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
       />
 
       {/* Main Document Container */}
-      <div className="max-w-5xl mx-auto p-8 relative z-10">
+      <div className="max-w-5xl mx-auto p-4 sm:p-8 relative z-10">
         {/* Manila Folder Tab */}
         <div className="relative mb-4">
           <motion.div 
@@ -194,8 +195,9 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
               transition={{ delay: 0.7 }}
               className="text-center mb-10 border-b-4 border-amber-600 pb-8"
             >
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.22em] text-red-800">Behavioral Profile</p>
               <h1 
-                className="font-mono text-3xl font-bold text-amber-900 mb-4 tracking-wide"
+                className="font-mono text-2xl sm:text-3xl font-bold text-amber-900 mb-2 tracking-wide text-balance"
                 style={{
                   fontFamily: 'Courier Prime, Courier New, monospace',
                   textShadow: '1px 1px 0px rgba(139, 69, 19, 0.2)'
@@ -203,11 +205,12 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
               >
                 {data.reportTitle}
               </h1>
+              <p className="font-mono text-xs tracking-wide text-amber-800">Digital Behavioral Analysis</p>
               <div className="font-mono text-xs text-amber-700 tracking-widest">
                 CLASSIFICATION: CONFIDENTIAL • DISTRIBUTION: RESTRICTED • EYES ONLY
               </div>
               <div className="font-mono text-xs text-amber-600 mt-2">
-                DOCUMENT ID: {Math.random().toString(36).substr(2, 9).toUpperCase()} • DATE: {new Date().toLocaleDateString()}
+                DOCUMENT ID: {data.reportTitle.replace(/\s+/g, '').slice(0, 9).toUpperCase() || 'CASEFILE'} • DATE: {new Date().toLocaleDateString()}
               </div>
             </motion.div>
 
@@ -242,7 +245,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
                     SUBJECT CODENAME:
                   </div>
                   <div 
-                    className="text-5xl font-black tracking-wider"
+                    className="text-3xl sm:text-5xl font-black tracking-wide break-words"
                     style={{
                       fontFamily: 'Impact, Arial Black, sans-serif',
                       letterSpacing: '0.1em'
@@ -347,6 +350,9 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
               >
                 PRIMARY AREAS OF INTEREST
               </h2>
+              {data.dominantInterests.length === 0 && (
+                <p className="font-mono text-sm text-amber-800">Nothing specific turned up in the chats that were read.</p>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {data.dominantInterests.map((interest, index) => (
                   <motion.div 
@@ -408,7 +414,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
                           variant="ghost"
                           size="sm"
                           onClick={() => togglePIIReveal(index)}
-                          className="font-mono text-xs h-7 px-3 bg-amber-200 hover:bg-amber-300 text-amber-900 border border-amber-400"
+                          className="font-mono text-xs h-7 px-3 bg-amber-200 hover:bg-amber-300 text-amber-900 border border-amber-400 focus-visible:ring-2 focus-visible:ring-amber-800"
                         >
                           {revealedPII.has(index) ? (
                             <>
@@ -456,8 +462,9 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
                       </div>
                       
                       {pii.conversationContext && (
-                        <div className="font-mono text-xs text-amber-600 mb-2">
-                          <strong>Conversation Context:</strong> {pii.conversationContext}
+                        <div className="font-mono text-xs text-amber-800 mb-2">
+                          <strong>From</strong>
+                          <EvidenceChips labels={pii.conversationContext.split(',')} />
                         </div>
                       )}
                       

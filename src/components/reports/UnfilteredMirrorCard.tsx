@@ -115,9 +115,11 @@ export const UnfilteredMirrorCard: React.FC<UnfilteredMirrorCardProps> = ({
         >
           <div className="flex items-center justify-center mb-4">
             <Eye className="h-8 w-8 text-white/60 mr-3" />
+            <p className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-red-200">Psychological Assessment</p>
             <h1 className="text-2xl font-light text-white/80 tracking-wider">
               {data.reportTitle}
             </h1>
+            <p className="font-mono text-xs text-white/50">The Unfiltered Mirror</p>
             <Eye className="h-8 w-8 text-white/60 ml-3" />
           </div>
           <div className="w-32 h-px bg-white/30 mx-auto" />
@@ -134,7 +136,7 @@ export const UnfilteredMirrorCard: React.FC<UnfilteredMirrorCardProps> = ({
             {/* Glow Effect */}
             <div className="absolute inset-0 bg-white/5 blur-3xl rounded-full" />
             
-            <p className="relative text-3xl md:text-4xl lg:text-5xl font-light text-white leading-relaxed tracking-wide">
+            <p className="relative text-2xl sm:text-4xl lg:text-5xl font-light text-white leading-relaxed tracking-wide text-balance">
               <span className="relative">
                 {currentText}
                 {textVisible && currentText.length < fullText.length && (

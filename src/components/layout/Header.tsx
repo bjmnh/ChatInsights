@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { LogOut } from 'lucide-react';
+import DonateLink from '../insights/DonateLink';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -31,16 +32,17 @@ const Header: React.FC = () => {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-          <a href="/#cards" className="hover:text-foreground">Cards</a>
+          <Link to="/read" className="hover:text-foreground">Read</Link>
           <a href="/#how" className="hover:text-foreground">How it works</a>
-          <a href="/#data" className="hover:text-foreground">Your data</a>
+          <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
+          <DonateLink className="hover:text-foreground" />
         </nav>
 
         <div className="flex items-center gap-2">
           {user ? (
             <>
-              <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/dashboard')}>
-                Studio
+              <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/read')}>
+                Read
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -59,7 +61,7 @@ const Header: React.FC = () => {
                     {user.email && <p className="text-xs text-muted-foreground">{user.email}</p>}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>Studio</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>Saved reports</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" /> Log out
@@ -70,8 +72,8 @@ const Header: React.FC = () => {
           ) : (
             <>
               <Button variant="ghost" onClick={() => navigate('/auth')}>Sign in</Button>
-              <Button onClick={() => navigate('/auth')} className="rounded-full px-4">
-                Open yours
+              <Button onClick={() => navigate('/read')} className="rounded-full px-4">
+                Read an export
               </Button>
             </>
           )}

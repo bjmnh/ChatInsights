@@ -5,6 +5,7 @@ import { donationHref } from './donation.ts';
 import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
 import { runLocalPass } from './localPass.ts';
+import { hydratePremiumReport } from './hydratePremium.ts';
 import { buildCaseFile, computeConfidence, isComplete, reportLabel } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
@@ -292,6 +293,12 @@ describe('demo pipeline', () => {
     const conf = computeConfidence({ support: 1, corroborated: true, recent: true, hasQuote: true });
     expect(conf).not.toBe(0.99);
     expect(result.people.find((person) => person.name === 'Dana')?.conf).toBeLessThan(0.99);
+    const premium = hydratePremiumReport(result, new Map(conversations.map((conversation) => [conversation.id, conversation.title])));
+    expect(premium.fbiReport?.subjectProfileSummary).toMatch(/Dana|Phoenix|rent/i);
+    expect(premium.piiSafetyCompass?.summary).toMatch(/email/i);
+    expect(premium.linguisticFingerprint?.overallStyleDescription).toMatch(/words per message/);
+    expect(JSON.stringify(premium.digitalDoppelganger?.posts)).not.toMatch(/cognitive flexibility/);
+    expect(premium.topInterestingConversations?.length).toBeGreaterThan(0);
   });
 });
 

@@ -26,6 +26,7 @@ import {
   Target
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { samplePremiumReportData } from '../lib/sampleReportData';
 import { FileService, type Report } from '../services/fileService';
 import { ReportCardDeck } from '../components/reports/ReportCardDeck';
 import { toast } from 'sonner';
@@ -72,17 +73,17 @@ const ReportPage: React.FC = () => {
   const [isSampleReport, setIsSampleReport] = useState(false);
 
   useEffect(() => {
-    if (fileId === 'sample' && reportType === 'premium' && location.state?.isSample) {
+    if (fileId === 'sample' && reportType === 'premium') {
       setIsSampleReport(true);
       setReport({
         id: 'sample',
         user_id: 'sample',
         file_id: 'sample',
         report_type: 'premium',
-        report_data: location.state.sampleReport,
+        report_data: location.state?.isSample ? location.state.sampleReport : samplePremiumReportData,
         generated_at: new Date().toISOString()
       });
-      if (typeof location.state.cardIndex === 'number') {
+      if (typeof location.state?.cardIndex === 'number') {
         setSelectedCardIndex(location.state.cardIndex);
         setShowCardDeck(true);
       }

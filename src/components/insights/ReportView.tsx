@@ -1,69 +1,123 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Brain,
+  Calendar,
+  Eye,
+  FileText,
+  Globe,
+  MapPin,
+  Shield,
+  Tv,
+  Users,
+} from 'lucide-react';
 import type { NormalizedConversation } from '../../lib/conversationParser/types';
 import { cardStateLabel } from '../../lib/insights/depth';
-import type { CardId, CardState } from '../../lib/insights/depth';
+import type { CardId } from '../../lib/insights/depth';
+import { hydratePremiumReport, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { reportLabel, type CaseFile, type Cited } from '../../lib/insights/merge';
+import { ReportCardDeck } from '../reports/ReportCardDeck';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
-const TITLES: Record<CardId, string> = {
-  file: 'The file on you',
-  people: 'People in your chats',
-  places: 'Places and organizations',
-  timeline: 'Your timeline',
-  interests: 'What you keep coming back to',
-  decisions: 'Decisions and changes of mind',
-  loops: 'Questions you haven’t settled',
-  mind: 'What’s been on your mind',
-  sensitive: 'Sensitive things you shared',
-  style: 'Your writing fingerprint',
-  usage: 'How and when you use these tools',
-  notable: 'Conversations worth rereading',
-  stranger: 'What a stranger would conclude',
-};
+type OriginalId = 'fbi' | 'linguistic' | 'top5' | 'reality' | 'mirror' | 'pii' | 'doppelganger';
 
-function Evidence({ ids, titles }: { ids: string[]; titles: Map<string, string> }) {
-  if (!ids.length) return null;
+const ORIGINAL: Array<{
+  id: OriginalId;
+  card: CardId;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+  iconBg: string;
+  textColor: string;
+  borderColor: string;
+  hoverBorder: string;
+  key: keyof PremiumReportShape;
+}> = [
+  { id: 'fbi', card: 'file', title: 'Digital Behavioral Analysis', icon: Brain, gradient: 'from-amber-500 via-orange-500 to-red-500', iconBg: 'bg-gradient-to-br from-amber-400 to-orange-600', textColor: 'text-amber-100', borderColor: 'border-amber-500/30', hoverBorder: 'hover:border-amber-400', key: 'fbiReport' },
+  { id: 'linguistic', card: 'style', title: 'Linguistic Fingerprint', icon: FileText, gradient: 'from-blue-500 via-cyan-500 to-teal-500', iconBg: 'bg-gradient-to-br from-blue-400 to-cyan-600', textColor: 'text-blue-100', borderColor: 'border-blue-500/30', hoverBorder: 'hover:border-blue-400', key: 'linguisticFingerprint' },
+  { id: 'top5', card: 'notable', title: 'Most Fascinating Conversations', icon: Users, gradient: 'from-purple-500 via-violet-500 to-indigo-500', iconBg: 'bg-gradient-to-br from-purple-400 to-indigo-600', textColor: 'text-purple-100', borderColor: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', key: 'topInterestingConversations' },
+  { id: 'reality', card: 'stranger', title: 'Reality TV Persona', icon: Tv, gradient: 'from-pink-500 via-rose-500 to-red-500', iconBg: 'bg-gradient-to-br from-pink-400 to-rose-600', textColor: 'text-pink-100', borderColor: 'border-pink-500/30', hoverBorder: 'hover:border-pink-400', key: 'realityTVPersona' },
+  { id: 'mirror', card: 'stranger', title: 'The Unfiltered Mirror', icon: Eye, gradient: 'from-gray-700 via-slate-600 to-gray-800', iconBg: 'bg-gradient-to-br from-gray-600 to-slate-800', textColor: 'text-gray-100', borderColor: 'border-gray-500/30', hoverBorder: 'hover:border-gray-400', key: 'unfilteredMirror' },
+  { id: 'pii', card: 'sensitive', title: 'PII Safety Compass', icon: Shield, gradient: 'from-green-500 via-emerald-500 to-teal-500', iconBg: 'bg-gradient-to-br from-green-400 to-emerald-600', textColor: 'text-green-100', borderColor: 'border-green-500/30', hoverBorder: 'hover:border-green-400', key: 'piiSafetyCompass' },
+  { id: 'doppelganger', card: 'usage', title: 'Digital Doppelgänger', icon: Globe, gradient: 'from-indigo-500 via-blue-500 to-cyan-500', iconBg: 'bg-gradient-to-br from-indigo-400 to-blue-600', textColor: 'text-indigo-100', borderColor: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', key: 'digitalDoppelganger' },
+];
+
+const EXTRA: Array<{
+  id: CardId;
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+  iconBg: string;
+  textColor: string;
+  borderColor: string;
+  hoverBorder: string;
+}> = [
+  { id: 'people', title: 'People in your chats', icon: Users, gradient: 'from-amber-500 via-yellow-500 to-orange-500', iconBg: 'bg-gradient-to-br from-amber-400 to-yellow-600', textColor: 'text-amber-100', borderColor: 'border-amber-500/30', hoverBorder: 'hover:border-amber-400' },
+  { id: 'places', title: 'Places and organizations', icon: MapPin, gradient: 'from-teal-500 via-emerald-500 to-green-500', iconBg: 'bg-gradient-to-br from-teal-400 to-emerald-600', textColor: 'text-teal-100', borderColor: 'border-teal-500/30', hoverBorder: 'hover:border-teal-400' },
+  { id: 'timeline', title: 'Your timeline', icon: Calendar, gradient: 'from-orange-500 via-amber-500 to-yellow-500', iconBg: 'bg-gradient-to-br from-orange-400 to-amber-600', textColor: 'text-orange-100', borderColor: 'border-orange-500/30', hoverBorder: 'hover:border-orange-400' },
+  { id: 'decisions', title: 'Decisions and changes of mind', icon: Brain, gradient: 'from-rose-500 via-pink-500 to-fuchsia-500', iconBg: 'bg-gradient-to-br from-rose-400 to-pink-600', textColor: 'text-rose-100', borderColor: 'border-rose-500/30', hoverBorder: 'hover:border-rose-400' },
+  { id: 'loops', title: 'Questions you haven’t settled', icon: FileText, gradient: 'from-violet-500 via-purple-500 to-indigo-500', iconBg: 'bg-gradient-to-br from-violet-400 to-purple-600', textColor: 'text-violet-100', borderColor: 'border-violet-500/30', hoverBorder: 'hover:border-violet-400' },
+  { id: 'mind', title: 'What’s been on your mind', icon: Eye, gradient: 'from-slate-500 via-slate-600 to-slate-700', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-700', textColor: 'text-slate-100', borderColor: 'border-slate-500/30', hoverBorder: 'hover:border-slate-400' },
+];
+
+function previewLine(file: CaseFile, card: CardId, hydrated: PremiumReportShape): string {
+  const state = file.cardStatus[card];
+  const label = cardStateLabel(state, file.model.depth);
+  if (state === 'not-searched') return label || 'Not searched at this depth.';
+  if (card === 'file') return hydrated.fbiReport?.subjectProfileSummary || 'No cover yet.';
+  if (card === 'style') return hydrated.linguisticFingerprint?.overallStyleDescription || '';
+  if (card === 'notable') return `${file.notable.length} conversations scored locally.`;
+  if (card === 'stranger') return hydrated.realityTVPersona?.description || file.narrative.cover;
+  if (card === 'sensitive') return hydrated.piiSafetyCompass?.summary || '';
+  if (card === 'usage') return hydrated.digitalDoppelganger?.bio || '';
+  if (card === 'people') return file.people.length ? file.people.slice(0, 3).map((person) => person.name).join(', ') : 'No names stood out.';
+  if (card === 'places') return [...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ') || 'None extracted.';
+  if (card === 'timeline') return file.timeline[0]?.v || file.projects[0]?.v || 'No dated events came back.';
+  if (card === 'decisions') return file.decisions[0] ? `${file.decisions[0].question}: ${file.decisions[0].v}` : 'None extracted.';
+  if (card === 'loops') return file.open_loops[0]?.v || 'None extracted.';
+  if (card === 'mind') return file.worries[0]?.v || file.beliefs[0]?.v || 'None extracted.';
+  return label || '';
+}
+
+function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> }) {
+  const from = item.ev.map((id) => titles.get(id) || id).filter(Boolean);
   return (
-    <p className="mt-2 text-xs text-[#1c140c]/60">
-      From {ids.map((id) => titles.get(id) || id).join(', ')}
-    </p>
+    <div className="rounded-xl border border-orange-400/20 bg-orange-400/10 p-4">
+      <p className="text-white">{item.v}</p>
+      {item.quote && <p className="mt-2 text-sm text-slate-300">“{item.quote}”</p>}
+      <p className="mt-2 text-xs uppercase tracking-wide text-orange-300">Confidence {item.conf.toFixed(2)} · {item.src}</p>
+      {from.length > 0 && <p className="mt-1 text-sm text-orange-200">From {from.join(', ')}</p>}
+    </div>
   );
 }
 
-function FactLine({ item, titles }: { item: Cited; titles: Map<string, string> }) {
-  return (
-    <li className="border-t border-[#1c140c]/10 py-3 first:border-t-0">
-      <p>{item.v}{item.quote ? '' : ''}</p>
-      {item.quote && <p className="mt-1 text-sm text-[#1c140c]/70">“{item.quote}”</p>}
-      <p className="mt-1 text-xs uppercase tracking-wide text-[#1c140c]/50">
-        Confidence {item.conf.toFixed(2)} · {item.src}
-      </p>
-      <Evidence ids={item.ev} titles={titles} />
-    </li>
-  );
-}
-
-function Shell({
-  id,
-  state,
-  depth,
+function ExtraScreen({
+  title,
+  note,
+  onBack,
   children,
 }: {
-  id: CardId;
-  state: CardState;
-  depth: CaseFile['model']['depth'];
-  children?: React.ReactNode;
+  title: string;
+  note?: string | null;
+  onBack: () => void;
+  children: React.ReactNode;
 }) {
-  const note = cardStateLabel(state, depth);
-  const quiet = state === 'not-searched';
-  return (
-    <article className={`rounded-3xl p-5 ${quiet ? 'bg-white/5 text-muted-foreground' : 'bg-[#f3ead7] text-[#1c140c]'}`} data-testid={`card-${id}`}>
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-display text-2xl">{TITLES[id]}</h3>
-        {state === 'not-searched' && <span className="text-xs uppercase tracking-wide">Not searched</span>}
+    return (
+    <div className="fixed inset-0 z-[60] overflow-y-auto bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
+      <Button variant="ghost" onClick={onBack} className="bg-black/50 text-white hover:bg-black/70 border border-white/20">
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back to Overview
+      </Button>
+      <div className="mx-auto mt-16 max-w-4xl">
+        <h1 className="font-display text-5xl text-white md:text-6xl">{title}</h1>
+        {note && <p className="mt-4 text-lg text-orange-300">{note}</p>}
+        <div className="mt-8 space-y-4">{children}</div>
       </div>
-      {note && <p className={`mt-2 text-sm ${quiet ? '' : 'text-[#1c140c]/70'}`}>{note}</p>}
-      {state === 'not-searched' ? null : <div className="mt-4">{children}</div>}
-    </article>
+    </div>
   );
 }
 
@@ -74,182 +128,221 @@ const ReportView: React.FC<{
   onSave?: () => void;
   saveMessage?: string;
 }> = ({ caseFile, conversations, onDownload, onSave, saveMessage }) => {
-  const titles = new Map(conversations.map((conversation) => [conversation.id, conversation.title]));
+  const titles = useMemo(() => new Map(conversations.map((conversation) => [conversation.id, conversation.title])), [conversations]);
+  const hydrated = useMemo(() => hydratePremiumReport(caseFile, titles), [caseFile, titles]);
+  const [deckIndex, setDeckIndex] = useState<number | null>(null);
+  const [extra, setExtra] = useState<CardId | null>(null);
+  const [blockedTitle, setBlockedTitle] = useState<string | null>(null);
   const label = reportLabel(caseFile);
-  const { coverage } = caseFile;
-  const depthNote = coverage.depth === 'standard'
-    ? `Read ${coverage.read} of ${coverage.conversations} conversations (flagged only).`
-    : `Read ${coverage.read} of ${coverage.conversations} conversations.`;
+  const codename = hydrated.fbiReport?.subjectCodename.name;
+
+  const originalAvailable = ORIGINAL.filter((item) => Boolean(hydrated[item.key]));
+
+  if (deckIndex != null) {
+    return (
+      <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950">
+        <ReportCardDeck
+          reportData={hydrated}
+          onBack={() => setDeckIndex(null)}
+          initialCardIndex={deckIndex}
+        />
+      </div>
+    );
+  }
+
+  if (blockedTitle) {
+    return (
+      <ExtraScreen title={blockedTitle} note="Not searched at this depth." onBack={() => setBlockedTitle(null)}>
+        <p className="text-gray-300">This depth did not send the chats this card needs.</p>
+      </ExtraScreen>
+    );
+  }
+
+  if (extra) {
+    const state = caseFile.cardStatus[extra];
+    const note = cardStateLabel(state, caseFile.model.depth);
+    const title = EXTRA.find((item) => item.id === extra)?.title || extra;
+    if (state === 'not-searched') {
+      return (
+        <ExtraScreen title={title} note="Not searched at this depth." onBack={() => setExtra(null)}>
+          <p className="text-gray-300">This depth did not send the chats this card needs. Pick Deep or Forensic if you want it filled.</p>
+        </ExtraScreen>
+      );
+    }
+    const blocks = extraFacts(caseFile, extra);
+    return (
+      <ExtraScreen title={title} note={note} onBack={() => setExtra(null)}>
+        {blocks.length === 0 && <p className="text-gray-400">None extracted.</p>}
+        {blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
+      </ExtraScreen>
+    );
+  }
 
   return (
-    <div data-testid="report" className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm uppercase tracking-[0.16em] text-muted-foreground">{label} report</p>
-          <h2 className="mt-2 font-display text-4xl sm:text-5xl">Case file</h2>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
-            {caseFile.model.provider} · {caseFile.model.id} · {coverage.depth}. {depthNote}
-          </p>
+    <div data-testid="report" className="fixed inset-0 z-[60] overflow-y-auto bg-gradient-to-br from-slate-950 via-gray-900 to-slate-950">
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={onDownload} className="bg-blue-600 hover:bg-blue-700 text-white">Download JSON</Button>
+            {onSave && (
+              <Button variant="outline" onClick={onSave} className="border-white/20 text-white hover:bg-white/10">Save to account</Button>
+            )}
+          </div>
+          <Badge variant="outline" className={label === 'Partial' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={label === 'Partial' ? 'partial-banner' : 'complete-banner'}>
+            {label} report
+          </Badge>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={onDownload} className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-            Download JSON
-          </button>
-          {onSave && (
-            <button type="button" onClick={onSave} className="rounded-full border border-white/15 px-4 py-2 text-sm">
-              Save to account
-            </button>
-          )}
-        </div>
-      </div>
 
-      {label === 'Partial' && (
-        <div className="mt-6 rounded-2xl border border-amber-300/40 bg-amber-200/10 px-4 py-3 text-sm" data-testid="partial-banner">
-          Partial report. This depth did not finish{coverage.partialReason ? ` (${coverage.partialReason})` : ''}. Unread conversations: {Math.max(0, coverage.planned - coverage.read)}. It is not marked complete.
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12 text-center">
+          <h1 className="font-display text-5xl text-white md:text-7xl">Your cards</h1>
+          <p className="mx-auto max-w-2xl text-xl text-gray-300">
+            {caseFile.model.provider} · {caseFile.model.id} · {caseFile.coverage.depth}. Read {caseFile.coverage.read} of {caseFile.coverage.conversations} conversations{caseFile.coverage.depth === 'standard' ? ' (flagged only)' : ''}.
+          </p>
+          <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-gradient-to-r from-blue-400 to-purple-600" />
+        </motion.div>
+
+        {label === 'Partial' && (
+          <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-100" data-testid="partial-banner">
+            Partial report{caseFile.coverage.partialReason ? ` (${caseFile.coverage.partialReason})` : ''}. Unread conversations: {Math.max(0, caseFile.coverage.planned - caseFile.coverage.read)}. This is not saved as a complete success.
+          </div>
+        )}
+        {caseFile.coverage.viaProxy && (
+          <p className="mb-6 text-sm text-gray-300">At least one batch passed through Chat Insights’ server because the browser could not call the provider. It was not stored.</p>
+        )}
+        {caseFile.supportNote && (
+          <p className="mb-8 rounded-xl border border-slate-600 bg-slate-800/60 px-4 py-3 text-sm text-slate-200" data-testid="support-note">{caseFile.supportNote}</p>
+        )}
+        {saveMessage && <p className="mb-6 text-sm text-gray-400">{saveMessage}</p>}
+
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {ORIGINAL.map((insight, index) => {
+            const state = caseFile.cardStatus[insight.card];
+            const quiet = state === 'not-searched' || !hydrated[insight.key];
+            return (
+              <Tile
+                key={insight.id}
+                index={index}
+                title={insight.title}
+                description={previewLine(caseFile, insight.card, hydrated)}
+                icon={insight.icon}
+                iconBg={insight.iconBg}
+                textColor={insight.textColor}
+                borderColor={insight.borderColor}
+                hoverBorder={insight.hoverBorder}
+                quiet={quiet}
+                badge={quiet ? 'Not searched at this depth' : state === 'partial' ? 'Partial' : state === 'local' ? 'Local pass' : codename && insight.id === 'fbi' ? `Codename: ${codename}` : undefined}
+                onClick={() => {
+                  if (quiet) {
+                    setBlockedTitle(insight.title);
+                    return;
+                  }
+                  const deckAt = originalAvailable.findIndex((item) => item.id === insight.id);
+                  if (deckAt >= 0) setDeckIndex(deckAt);
+                }}
+              />
+            );
+          })}
+          {EXTRA.map((insight, index) => {
+            const state = caseFile.cardStatus[insight.id];
+            const quiet = state === 'not-searched';
+            return (
+              <Tile
+                key={insight.id}
+                index={ORIGINAL.length + index}
+                title={insight.title}
+                description={previewLine(caseFile, insight.id, hydrated)}
+                icon={insight.icon}
+                iconBg={insight.iconBg}
+                textColor={insight.textColor}
+                borderColor={insight.borderColor}
+                hoverBorder={insight.hoverBorder}
+                quiet={quiet}
+                badge={quiet ? 'Not searched at this depth' : state === 'partial' ? 'Partial' : state === 'local' ? 'Local pass' : undefined}
+                onClick={() => setExtra(insight.id)}
+              />
+            );
+          })}
         </div>
-      )}
-      {coverage.viaProxy && (
-        <p className="mt-4 text-sm text-muted-foreground">
-          At least one batch went through Chat Insights’ server because the browser could not call the provider directly. It was not stored.
+
+        <p className="mt-12 text-center text-sm text-gray-400">
+          Click a card to open it. The seven original cards use the same layouts as before. Cards this depth did not search stay on the grid and say so.
         </p>
-      )}
-      {caseFile.supportNote && (
-        <p className="mt-4 rounded-2xl border border-white/10 px-4 py-3 text-sm" data-testid="support-note">{caseFile.supportNote}</p>
-      )}
-      {saveMessage && <p className="mt-4 text-sm text-muted-foreground">{saveMessage}</p>}
-
-      <p className="mt-8 max-w-3xl text-lg">{caseFile.narrative.cover}</p>
-
-      <div className="mt-8 grid gap-4 lg:grid-cols-2">
-        <Shell id="file" state={caseFile.cardStatus.file} depth={coverage.depth}>
-          <ul className="space-y-2 text-sm">
-            {caseFile.subject.location && <li>Location: {caseFile.subject.location.v}</li>}
-            {caseFile.subject.occupation && <li>Work: {caseFile.subject.occupation.v}</li>}
-            {caseFile.subject.nameGuess && <li>Name: {caseFile.subject.nameGuess.v}</li>}
-            {!caseFile.subject.location && !caseFile.subject.occupation && <li>No subject lines were extracted.</li>}
-          </ul>
-          {caseFile.narrative.blurbs.file && <p className="mt-3 text-sm">{caseFile.narrative.blurbs.file}</p>}
-        </Shell>
-
-        <Shell id="people" state={caseFile.cardStatus.people} depth={coverage.depth}>
-          <ul>
-            {caseFile.people.length === 0 && <li className="text-sm">No names stood out.</li>}
-            {caseFile.people.map((person) => (
-              <li key={person.id} className="border-t border-[#1c140c]/10 py-3 first:border-t-0">
-                <p className="font-medium">{person.name}{person.relationship ? ` · ${person.relationship}` : ''}</p>
-                <p className="text-sm text-[#1c140c]/70">{person.mentions} mentions · confidence {person.conf.toFixed(2)}</p>
-                <Evidence ids={person.ev} titles={titles} />
-              </li>
-            ))}
-          </ul>
-        </Shell>
-
-        <Shell id="places" state={caseFile.cardStatus.places} depth={coverage.depth}>
-          <ul>
-            {[...caseFile.places, ...caseFile.orgs].map((item) => (
-              <FactLine key={`${item.v}-${item.ev[0]}`} item={item} titles={titles} />
-            ))}
-            {caseFile.places.length + caseFile.orgs.length === 0 && <li className="text-sm">None extracted.</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="timeline" state={caseFile.cardStatus.timeline} depth={coverage.depth}>
-          <ul>
-            {caseFile.timeline.map((item) => <FactLine key={`${item.v}-${item.first}`} item={item} titles={titles} />)}
-            {caseFile.projects.map((item) => <FactLine key={item.v} item={item} titles={titles} />)}
-            {caseFile.timeline.length + caseFile.projects.length === 0 && <li className="text-sm">No dated events came back.</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="interests" state={caseFile.cardStatus.interests} depth={coverage.depth}>
-          <ul>
-            {caseFile.interests.map((item) => <FactLine key={item.v} item={item} titles={titles} />)}
-            {caseFile.interests.length === 0 && <li className="text-sm">None extracted.</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="decisions" state={caseFile.cardStatus.decisions} depth={coverage.depth}>
-          <ul>
-            {caseFile.decisions.map((item) => (
-              <li key={item.question} className="border-t border-[#1c140c]/10 py-3 first:border-t-0">
-                <p>{item.question}</p>
-                <p className="text-sm">{item.v}{item.reversed ? ` · earlier: ${item.reversed.v}` : ''}</p>
-                <Evidence ids={item.ev} titles={titles} />
-              </li>
-            ))}
-            {caseFile.contradictions.map((item) => (
-              <li key={item.field} className="border-t border-[#1c140c]/10 py-3">
-                <p>{item.field}: {item.earlier.v} → {item.later.v}</p>
-              </li>
-            ))}
-            {caseFile.decisions.length === 0 && caseFile.contradictions.length === 0 && <li className="text-sm">None extracted.</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="loops" state={caseFile.cardStatus.loops} depth={coverage.depth}>
-          <ul>
-            {caseFile.open_loops.map((item) => <FactLine key={item.v} item={item} titles={titles} />)}
-            {caseFile.open_loops.length === 0 && <li className="text-sm">None extracted.</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="mind" state={caseFile.cardStatus.mind} depth={coverage.depth}>
-          <ul>
-            {[...caseFile.worries, ...caseFile.beliefs].map((item) => <FactLine key={`${item.v}-${item.ev[0]}`} item={item} titles={titles} />)}
-            {caseFile.worries.length + caseFile.beliefs.length === 0 && <li className="text-sm">None extracted.</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="sensitive" state={caseFile.cardStatus.sensitive} depth={coverage.depth}>
-          <p className="text-sm">
-            You shared {caseFile.exposure.emails.length} email {caseFile.exposure.emails.length === 1 ? 'address' : 'addresses'}, {caseFile.exposure.phones.length} phone {caseFile.exposure.phones.length === 1 ? 'number' : 'numbers'}, and {caseFile.exposure.cardLike} card-like {caseFile.exposure.cardLike === 1 ? 'number' : 'numbers'}.
-          </p>
-          <ul className="mt-3 text-sm">
-            {caseFile.exposure.emails.map((email) => <li key={email}>{email}</li>)}
-            {caseFile.exposure.phones.map((phone) => <li key={phone}>{phone}</li>)}
-          </ul>
-          <p className="mt-3 text-xs text-[#1c140c]/60">Card-like numbers are counted, not printed. Emails and phones were masked before any model call.</p>
-          <ul className="mt-3">
-            {[...caseFile.health, ...caseFile.money].map((item) => <FactLine key={`${item.v}-${item.ev[0]}`} item={item} titles={titles} />)}
-          </ul>
-        </Shell>
-
-        <Shell id="style" state={caseFile.cardStatus.style} depth={coverage.depth}>
-          <ul className="text-sm">
-            <li>{caseFile.style.wordsPerMessage} words per message you sent</li>
-            <li>Question share {Math.round(caseFile.style.questionShare * 100)}%</li>
-            <li>Vocabulary ratio {caseFile.style.vocabulary}</li>
-            {caseFile.style.topPhrases.length > 0 && <li>Phrases: {caseFile.style.topPhrases.join(', ')}</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="usage" state={caseFile.cardStatus.usage} depth={coverage.depth}>
-          <ul className="text-sm">
-            <li>{coverage.conversations} conversations · {caseFile.style.userMessages} messages from you</li>
-            <li>Peak hours (UTC): {caseFile.routines.peakHours.length ? caseFile.routines.peakHours.join(', ') : 'no timestamps'}</li>
-            <li>Late-night share: {Math.round(caseFile.routines.lateNightShare * 100)}%</li>
-            <li>Longest day streak: {caseFile.routines.longestStreak}</li>
-          </ul>
-        </Shell>
-
-        <Shell id="notable" state={caseFile.cardStatus.notable} depth={coverage.depth}>
-          <ul>
-            {caseFile.notable.map((item) => (
-              <li key={item.id} className="border-t border-[#1c140c]/10 py-3 first:border-t-0 text-sm">
-                <p className="font-medium">{item.title}</p>
-                <p className="text-[#1c140c]/70">Score {item.score}{item.reasons.length ? ` · ${item.reasons.join(', ')}` : ''}{item.modelRead ? '' : ' · not model-read'}</p>
-              </li>
-            ))}
-            {caseFile.notable.length === 0 && <li className="text-sm">Nothing scored above the floor.</li>}
-          </ul>
-        </Shell>
-
-        <Shell id="stranger" state={caseFile.cardStatus.stranger} depth={coverage.depth}>
-          <p className="text-sm">{caseFile.narrative.blurbs.stranger || caseFile.narrative.cover}</p>
-        </Shell>
       </div>
     </div>
   );
 };
+
+function extraFacts(file: CaseFile, id: CardId): Cited[] {
+  if (id === 'people') {
+    return file.people.map((person) => ({
+      v: person.relationship ? `${person.name} · ${person.relationship}` : person.name,
+      conf: person.conf,
+      ev: person.ev,
+      src: person.src,
+      first: person.first,
+      last: person.last,
+      quote: person.quote,
+    }));
+  }
+  if (id === 'places') return [...file.places, ...file.orgs];
+  if (id === 'timeline') return [...file.timeline, ...file.projects];
+  if (id === 'decisions') {
+    return file.decisions.map((item) => ({
+      ...item,
+      v: `${item.question}: ${item.v}${item.reversed ? ` (earlier: ${item.reversed.v})` : ''}`,
+    }));
+  }
+  if (id === 'loops') return file.open_loops;
+  if (id === 'mind') return [...file.worries, ...file.beliefs];
+  return [];
+}
+
+function Tile({
+  index, title, description, icon: Icon, iconBg, textColor, borderColor, hoverBorder, quiet, badge, onClick,
+}: {
+  index: number;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  iconBg: string;
+  textColor: string;
+  borderColor: string;
+  hoverBorder: string;
+  quiet: boolean;
+  badge?: string;
+  onClick: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index, 8) * 0.05, duration: 0.6 }}
+      whileHover={quiet ? undefined : { scale: 1.02, y: -8 }}
+      className={`group ${quiet ? 'cursor-default opacity-70' : 'cursor-pointer'}`}
+      onClick={onClick}
+    >
+      <Card className={`h-full border bg-gradient-to-br from-slate-800/50 to-slate-900/50 ${borderColor} ${quiet ? '' : hoverBorder} backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:shadow-white/10`}>
+        <CardHeader className="pb-4">
+          <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg ${iconBg} ${quiet ? '' : 'transition-transform duration-300 group-hover:scale-110'}`}>
+            <Icon className={`h-10 w-10 ${textColor}`} />
+          </div>
+          <CardTitle className="mb-4 text-2xl text-white">{title}</CardTitle>
+          {badge && (
+            <Badge variant="outline" className="mb-4 w-fit border-white/20 bg-white/10 text-gray-200">{badge}</Badge>
+          )}
+        </CardHeader>
+        <CardContent>
+          <p className="mb-6 text-base leading-relaxed text-gray-300">{description}</p>
+          {!quiet && (
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-white/80">Explore Insight</div>
+              <ArrowRight className="h-5 w-5 text-gray-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-white" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
 
 export default ReportView;

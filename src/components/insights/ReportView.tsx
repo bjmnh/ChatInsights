@@ -16,7 +16,7 @@ import {
 import type { NormalizedConversation } from '../../lib/conversationParser/types';
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
-import { hydratePremiumReport, type PremiumReportShape } from '../../lib/insights/hydratePremium';
+import { cardPreviews, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { reportLabel, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { ReportCardDeck } from '../reports/ReportCardDeck';
 import { Badge } from '../ui/badge';
@@ -35,15 +35,16 @@ const ORIGINAL: Array<{
   textColor: string;
   borderColor: string;
   hoverBorder: string;
+  badgeClass: string;
   key: keyof PremiumReportShape;
 }> = [
-  { id: 'fbi', card: 'file', title: 'Digital Behavioral Analysis', icon: Brain, gradient: 'from-amber-500 via-orange-500 to-red-500', iconBg: 'bg-gradient-to-br from-amber-400 to-orange-600', textColor: 'text-amber-100', borderColor: 'border-amber-500/30', hoverBorder: 'hover:border-amber-400', key: 'fbiReport' },
-  { id: 'linguistic', card: 'style', title: 'Linguistic Fingerprint', icon: FileText, gradient: 'from-blue-500 via-cyan-500 to-teal-500', iconBg: 'bg-gradient-to-br from-blue-400 to-cyan-600', textColor: 'text-blue-100', borderColor: 'border-blue-500/30', hoverBorder: 'hover:border-blue-400', key: 'linguisticFingerprint' },
-  { id: 'top5', card: 'notable', title: 'Most Fascinating Conversations', icon: Users, gradient: 'from-purple-500 via-violet-500 to-indigo-500', iconBg: 'bg-gradient-to-br from-purple-400 to-indigo-600', textColor: 'text-purple-100', borderColor: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', key: 'topInterestingConversations' },
-  { id: 'reality', card: 'stranger', title: 'Reality TV Persona', icon: Tv, gradient: 'from-pink-500 via-rose-500 to-red-500', iconBg: 'bg-gradient-to-br from-pink-400 to-rose-600', textColor: 'text-pink-100', borderColor: 'border-pink-500/30', hoverBorder: 'hover:border-pink-400', key: 'realityTVPersona' },
-  { id: 'mirror', card: 'stranger', title: 'The Unfiltered Mirror', icon: Eye, gradient: 'from-gray-700 via-slate-600 to-gray-800', iconBg: 'bg-gradient-to-br from-gray-600 to-slate-800', textColor: 'text-gray-100', borderColor: 'border-gray-500/30', hoverBorder: 'hover:border-gray-400', key: 'unfilteredMirror' },
-  { id: 'pii', card: 'sensitive', title: 'PII Safety Compass', icon: Shield, gradient: 'from-green-500 via-emerald-500 to-teal-500', iconBg: 'bg-gradient-to-br from-green-400 to-emerald-600', textColor: 'text-green-100', borderColor: 'border-green-500/30', hoverBorder: 'hover:border-green-400', key: 'piiSafetyCompass' },
-  { id: 'doppelganger', card: 'usage', title: 'Digital Doppelgänger', icon: Globe, gradient: 'from-indigo-500 via-blue-500 to-cyan-500', iconBg: 'bg-gradient-to-br from-indigo-400 to-blue-600', textColor: 'text-indigo-100', borderColor: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', key: 'digitalDoppelganger' },
+  { id: 'fbi', card: 'file', title: 'Digital Behavioral Analysis', icon: Brain, gradient: 'from-amber-500 via-orange-500 to-red-500', iconBg: 'bg-gradient-to-br from-amber-400 to-orange-600', textColor: 'text-amber-100', borderColor: 'border-amber-500/30', hoverBorder: 'hover:border-amber-400', badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30', key: 'fbiReport' },
+  { id: 'linguistic', card: 'style', title: 'Linguistic Fingerprint', icon: FileText, gradient: 'from-blue-500 via-cyan-500 to-teal-500', iconBg: 'bg-gradient-to-br from-blue-400 to-cyan-600', textColor: 'text-blue-100', borderColor: 'border-blue-500/30', hoverBorder: 'hover:border-blue-400', badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/30', key: 'linguisticFingerprint' },
+  { id: 'top5', card: 'notable', title: 'Most Fascinating Conversations', icon: Users, gradient: 'from-purple-500 via-violet-500 to-indigo-500', iconBg: 'bg-gradient-to-br from-purple-400 to-indigo-600', textColor: 'text-purple-100', borderColor: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/30', key: 'topInterestingConversations' },
+  { id: 'reality', card: 'stranger', title: 'Reality TV Persona', icon: Tv, gradient: 'from-pink-500 via-rose-500 to-red-500', iconBg: 'bg-gradient-to-br from-pink-400 to-rose-600', textColor: 'text-pink-100', borderColor: 'border-pink-500/30', hoverBorder: 'hover:border-pink-400', badgeClass: 'bg-pink-500/20 text-pink-300 border-pink-500/30', key: 'realityTVPersona' },
+  { id: 'mirror', card: 'stranger', title: 'The Unfiltered Mirror', icon: Eye, gradient: 'from-gray-700 via-slate-600 to-gray-800', iconBg: 'bg-gradient-to-br from-gray-600 to-slate-800', textColor: 'text-gray-100', borderColor: 'border-gray-500/30', hoverBorder: 'hover:border-gray-400', badgeClass: 'bg-slate-500/20 text-slate-200 border-slate-400/40', key: 'unfilteredMirror' },
+  { id: 'pii', card: 'sensitive', title: 'PII Safety Compass', icon: Shield, gradient: 'from-green-500 via-emerald-500 to-teal-500', iconBg: 'bg-gradient-to-br from-green-400 to-emerald-600', textColor: 'text-green-100', borderColor: 'border-green-500/30', hoverBorder: 'hover:border-green-400', badgeClass: 'bg-green-500/20 text-green-300 border-green-500/30', key: 'piiSafetyCompass' },
+  { id: 'doppelganger', card: 'usage', title: 'Digital Doppelgänger', icon: Globe, gradient: 'from-indigo-500 via-blue-500 to-cyan-500', iconBg: 'bg-gradient-to-br from-indigo-400 to-blue-600', textColor: 'text-indigo-100', borderColor: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30', key: 'digitalDoppelganger' },
 ];
 
 const EXTRA: Array<{
@@ -55,33 +56,15 @@ const EXTRA: Array<{
   textColor: string;
   borderColor: string;
   hoverBorder: string;
+  badgeClass: string;
 }> = [
-  { id: 'people', title: 'People in your chats', icon: Users, gradient: 'from-amber-500 via-yellow-500 to-orange-500', iconBg: 'bg-gradient-to-br from-amber-400 to-yellow-600', textColor: 'text-amber-100', borderColor: 'border-amber-500/30', hoverBorder: 'hover:border-amber-400' },
-  { id: 'places', title: 'Places and organizations', icon: MapPin, gradient: 'from-teal-500 via-emerald-500 to-green-500', iconBg: 'bg-gradient-to-br from-teal-400 to-emerald-600', textColor: 'text-teal-100', borderColor: 'border-teal-500/30', hoverBorder: 'hover:border-teal-400' },
-  { id: 'timeline', title: 'Your timeline', icon: Calendar, gradient: 'from-orange-500 via-amber-500 to-yellow-500', iconBg: 'bg-gradient-to-br from-orange-400 to-amber-600', textColor: 'text-orange-100', borderColor: 'border-orange-500/30', hoverBorder: 'hover:border-orange-400' },
-  { id: 'decisions', title: 'Decisions and changes of mind', icon: Brain, gradient: 'from-rose-500 via-pink-500 to-fuchsia-500', iconBg: 'bg-gradient-to-br from-rose-400 to-pink-600', textColor: 'text-rose-100', borderColor: 'border-rose-500/30', hoverBorder: 'hover:border-rose-400' },
-  { id: 'loops', title: 'Questions you haven’t settled', icon: FileText, gradient: 'from-violet-500 via-purple-500 to-indigo-500', iconBg: 'bg-gradient-to-br from-violet-400 to-purple-600', textColor: 'text-violet-100', borderColor: 'border-violet-500/30', hoverBorder: 'hover:border-violet-400' },
-  { id: 'mind', title: 'What’s been on your mind', icon: Eye, gradient: 'from-slate-500 via-slate-600 to-slate-700', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-700', textColor: 'text-slate-100', borderColor: 'border-slate-500/30', hoverBorder: 'hover:border-slate-400' },
+  { id: 'people', title: 'People in your chats', icon: Users, gradient: 'from-amber-500 via-yellow-500 to-orange-500', iconBg: 'bg-gradient-to-br from-amber-400 to-yellow-600', textColor: 'text-amber-100', borderColor: 'border-amber-500/30', hoverBorder: 'hover:border-amber-400', badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
+  { id: 'places', title: 'Places and organizations', icon: MapPin, gradient: 'from-teal-500 via-emerald-500 to-green-500', iconBg: 'bg-gradient-to-br from-teal-400 to-emerald-600', textColor: 'text-teal-100', borderColor: 'border-teal-500/30', hoverBorder: 'hover:border-teal-400', badgeClass: 'bg-teal-500/20 text-teal-300 border-teal-500/30' },
+  { id: 'timeline', title: 'Your timeline', icon: Calendar, gradient: 'from-orange-500 via-amber-500 to-yellow-500', iconBg: 'bg-gradient-to-br from-orange-400 to-amber-600', textColor: 'text-orange-100', borderColor: 'border-orange-500/30', hoverBorder: 'hover:border-orange-400', badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/30' },
+  { id: 'decisions', title: 'Decisions and changes of mind', icon: Brain, gradient: 'from-rose-500 via-pink-500 to-fuchsia-500', iconBg: 'bg-gradient-to-br from-rose-400 to-pink-600', textColor: 'text-rose-100', borderColor: 'border-rose-500/30', hoverBorder: 'hover:border-rose-400', badgeClass: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  { id: 'loops', title: 'Questions you haven’t settled', icon: FileText, gradient: 'from-violet-500 via-purple-500 to-indigo-500', iconBg: 'bg-gradient-to-br from-violet-400 to-purple-600', textColor: 'text-violet-100', borderColor: 'border-violet-500/30', hoverBorder: 'hover:border-violet-400', badgeClass: 'bg-violet-500/20 text-violet-300 border-violet-500/30' },
+  { id: 'mind', title: 'What’s been on your mind', icon: Eye, gradient: 'from-slate-500 via-slate-600 to-slate-700', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-700', textColor: 'text-slate-100', borderColor: 'border-slate-500/30', hoverBorder: 'hover:border-slate-400', badgeClass: 'bg-slate-500/20 text-slate-200 border-slate-400/40' },
 ];
-
-function previewLine(file: CaseFile, card: CardId, hydrated: PremiumReportShape): string {
-  const state = file.cardStatus[card];
-  const label = cardStateLabel(state, file.model.depth);
-  if (state === 'not-searched') return label || 'Not searched at this depth.';
-  if (card === 'file') return hydrated.fbiReport?.subjectProfileSummary || 'No cover yet.';
-  if (card === 'style') return hydrated.linguisticFingerprint?.overallStyleDescription || '';
-  if (card === 'notable') return `${file.notable.length} conversations scored locally.`;
-  if (card === 'stranger') return hydrated.realityTVPersona?.description || file.narrative.cover;
-  if (card === 'sensitive') return hydrated.piiSafetyCompass?.summary || '';
-  if (card === 'usage') return hydrated.digitalDoppelganger?.bio || '';
-  if (card === 'people') return file.people.length ? file.people.slice(0, 3).map((person) => person.name).join(', ') : 'No names stood out.';
-  if (card === 'places') return [...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ') || 'None extracted.';
-  if (card === 'timeline') return file.timeline[0]?.v || file.projects[0]?.v || 'No dated events came back.';
-  if (card === 'decisions') return file.decisions[0] ? `${file.decisions[0].question}: ${file.decisions[0].v}` : 'None extracted.';
-  if (card === 'loops') return file.open_loops[0]?.v || 'None extracted.';
-  if (card === 'mind') return file.worries[0]?.v || file.beliefs[0]?.v || 'None extracted.';
-  return label || '';
-}
 
 function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> }) {
   const from = item.ev.map((id) => titles.get(id) || id).filter(Boolean);
@@ -130,6 +113,7 @@ const ReportView: React.FC<{
 }> = ({ caseFile, conversations, onDownload, onSave, saveMessage }) => {
   const titles = useMemo(() => new Map(conversations.map((conversation) => [conversation.id, conversation.title])), [conversations]);
   const hydrated = useMemo(() => hydratePremiumReport(caseFile, titles), [caseFile, titles]);
+  const previews = useMemo(() => cardPreviews(caseFile, hydrated), [caseFile, hydrated]);
   const [deckIndex, setDeckIndex] = useState<number | null>(null);
   const [extra, setExtra] = useState<CardId | null>(null);
   const [blockedTitle, setBlockedTitle] = useState<string | null>(null);
@@ -196,7 +180,7 @@ const ReportView: React.FC<{
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-12 text-center">
           <h1 className="font-display text-5xl text-white md:text-7xl">Your cards</h1>
           <p className="mx-auto max-w-2xl text-xl text-gray-300">
-            {caseFile.model.provider} · {caseFile.model.id} · {caseFile.coverage.depth}. Read {caseFile.coverage.read} of {caseFile.coverage.conversations} conversations{caseFile.coverage.depth === 'standard' ? ' (flagged only)' : ''}.
+            {reportSubtitle(caseFile)}
           </p>
           <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-gradient-to-r from-blue-400 to-purple-600" />
         </motion.div>
@@ -223,12 +207,14 @@ const ReportView: React.FC<{
                 key={insight.id}
                 index={index}
                 title={insight.title}
-                description={previewLine(caseFile, insight.card, hydrated)}
+                description={previews[insight.id]}
                 icon={insight.icon}
                 iconBg={insight.iconBg}
                 textColor={insight.textColor}
                 borderColor={insight.borderColor}
                 hoverBorder={insight.hoverBorder}
+                gradient={insight.gradient}
+                badgeClass={insight.badgeClass}
                 quiet={quiet}
                 badge={quiet ? 'Not searched at this depth' : state === 'partial' ? 'Partial' : state === 'local' ? 'Local pass' : codename && insight.id === 'fbi' ? `Codename: ${codename}` : undefined}
                 onClick={() => {
@@ -250,12 +236,14 @@ const ReportView: React.FC<{
                 key={insight.id}
                 index={ORIGINAL.length + index}
                 title={insight.title}
-                description={previewLine(caseFile, insight.id, hydrated)}
+                description={previews[insight.id]}
                 icon={insight.icon}
                 iconBg={insight.iconBg}
                 textColor={insight.textColor}
                 borderColor={insight.borderColor}
                 hoverBorder={insight.hoverBorder}
+                gradient={insight.gradient}
+                badgeClass={insight.badgeClass}
                 quiet={quiet}
                 badge={quiet ? 'Not searched at this depth' : state === 'partial' ? 'Partial' : state === 'local' ? 'Local pass' : undefined}
                 onClick={() => setExtra(insight.id)}
@@ -298,7 +286,7 @@ function extraFacts(file: CaseFile, id: CardId): Cited[] {
 }
 
 function Tile({
-  index, title, description, icon: Icon, iconBg, textColor, borderColor, hoverBorder, quiet, badge, onClick,
+  index, title, description, icon: Icon, iconBg, textColor, borderColor, hoverBorder, gradient, badgeClass, quiet, badge, onClick,
 }: {
   index: number;
   title: string;
@@ -308,6 +296,8 @@ function Tile({
   textColor: string;
   borderColor: string;
   hoverBorder: string;
+  gradient: string;
+  badgeClass: string;
   quiet: boolean;
   badge?: string;
   onClick: () => void;
@@ -328,14 +318,16 @@ function Tile({
           </div>
           <CardTitle className="mb-4 text-2xl text-white">{title}</CardTitle>
           {badge && (
-            <Badge variant="outline" className="mb-4 w-fit border-white/20 bg-white/10 text-gray-200">{badge}</Badge>
+            <Badge variant="outline" className={`mb-4 w-fit ${badgeClass}`}>{badge}</Badge>
           )}
         </CardHeader>
         <CardContent>
           <p className="mb-6 text-base leading-relaxed text-gray-300">{description}</p>
           {!quiet && (
             <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-white/80">Explore Insight</div>
+              <div className={`bg-gradient-to-r ${gradient} bg-clip-text text-sm font-medium text-transparent transition-transform duration-300 group-hover:scale-105`}>
+                Explore Insight
+              </div>
               <ArrowRight className="h-5 w-5 text-gray-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-white" />
             </div>
           )}

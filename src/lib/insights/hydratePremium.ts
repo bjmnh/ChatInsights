@@ -70,6 +70,92 @@ function titlesOf(ids: string[], titles: Map<string, string>): string {
   return names.length ? names.join(', ') : '';
 }
 
+export const ORIGINAL_CARD_COPY: Record<string, string> = {
+  fbi: 'A comprehensive behavioral profile with psychological insights and operational assessment.',
+  linguistic: 'Advanced analysis of your language patterns, vocabulary, and communication style.',
+  top5: 'Your 5 most intellectually unique and engaging conversation topics.',
+  reality: 'Your personality archetype and how you\'d appear on reality television.',
+  mirror: 'A profound, unvarnished observation about your inner patterns and motivations.',
+  pii: 'Analysis of your information sharing patterns and privacy security recommendations.',
+  doppelganger: 'Your hypothetical social media profile based on your communication patterns.',
+  people: 'Names that come up, and how you describe them.',
+  places: 'Places and organizations that show up in the chats.',
+  timeline: 'Dated events and projects pulled from the chats that were read.',
+  decisions: 'Choices you wrote down, and the ones you later changed.',
+  loops: 'Questions you asked more than once and have not closed.',
+  mind: 'Worries and beliefs you stated in your own words.',
+};
+
+function distinct(value: string | undefined, shared: string[]): string | undefined {
+  const text = value?.trim();
+  if (!text) return undefined;
+  if (shared.some((item) => item.trim() === text)) return undefined;
+  return text;
+}
+
+export function reportSubtitle(file: CaseFile): string {
+  const depth = file.model.depth === 'quick'
+    ? 'Quick scan'
+    : file.model.depth === 'deep'
+      ? 'Deep read'
+      : file.model.depth === 'forensic'
+        ? 'Forensic read'
+        : 'Standard read';
+  const model = file.model.id === 'demo-extractor' ? 'Demo extractor' : file.model.id;
+  return `${depth} · ${file.coverage.read} of ${file.coverage.conversations} conversations · ${model}`;
+}
+
+export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Record<string, string> {
+  const cover = file.narrative.cover.trim();
+  const shared = [cover, 'From the chats that were read', 'No cover was written for this read.'];
+  const pick = (...values: Array<string | undefined>) => {
+    for (const value of values) {
+      const text = distinct(value, shared);
+      if (text) return text;
+    }
+    return '';
+  };
+  const notSearched = 'Not searched at this depth.';
+  const fbi = hydrated.fbiReport;
+  const reality = hydrated.realityTVPersona;
+  const mirror = hydrated.unfilteredMirror;
+  return {
+    fbi: file.cardStatus.file === 'not-searched'
+      ? notSearched
+      : pick(fbi?.subjectCodename.justification, fbi?.psychologicalProfile, fbi?.dominantInterests[0]) || ORIGINAL_CARD_COPY.fbi,
+    linguistic: pick(hydrated.linguisticFingerprint?.overallStyleDescription) || ORIGINAL_CARD_COPY.linguistic,
+    top5: file.cardStatus.notable === 'not-searched'
+      ? notSearched
+      : pick(hydrated.topInterestingConversations?.[0]?.title, hydrated.topInterestingConversations?.[0]?.justification) || ORIGINAL_CARD_COPY.top5,
+    reality: file.cardStatus.stranger === 'not-searched'
+      ? notSearched
+      : pick(reality?.personaArchetype, reality?.viewerAppeal, reality?.likelyStoryArcs?.[0]) || ORIGINAL_CARD_COPY.reality,
+    mirror: file.cardStatus.stranger === 'not-searched'
+      ? notSearched
+      : pick(mirror?.observation, mirror?.deeperInsight, mirror?.psychologicalImplications) || ORIGINAL_CARD_COPY.mirror,
+    pii: pick(hydrated.piiSafetyCompass?.summary) || ORIGINAL_CARD_COPY.pii,
+    doppelganger: pick(hydrated.digitalDoppelganger?.bio, hydrated.digitalDoppelganger?.handle) || ORIGINAL_CARD_COPY.doppelganger,
+    people: file.cardStatus.people === 'not-searched'
+      ? notSearched
+      : pick(file.people.slice(0, 3).map((person) => person.name).join(', ')) || ORIGINAL_CARD_COPY.people,
+    places: file.cardStatus.places === 'not-searched'
+      ? notSearched
+      : pick([...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ')) || ORIGINAL_CARD_COPY.places,
+    timeline: file.cardStatus.timeline === 'not-searched'
+      ? notSearched
+      : pick(file.timeline[0]?.v, file.projects[0]?.v) || ORIGINAL_CARD_COPY.timeline,
+    decisions: file.cardStatus.decisions === 'not-searched'
+      ? notSearched
+      : pick(file.decisions[0] ? `${file.decisions[0].question}: ${file.decisions[0].v}` : undefined) || ORIGINAL_CARD_COPY.decisions,
+    loops: file.cardStatus.loops === 'not-searched'
+      ? notSearched
+      : pick(file.open_loops[0]?.v) || ORIGINAL_CARD_COPY.loops,
+    mind: file.cardStatus.mind === 'not-searched'
+      ? notSearched
+      : pick(file.worries[0]?.v, file.beliefs[0]?.v) || ORIGINAL_CARD_COPY.mind,
+  };
+}
+
 function disclaimer(file: CaseFile): string {
   const state = file.coverage.partial ? 'Partial report.' : 'Complete report.';
   return `${state} ${file.model.provider} · ${file.model.id} · ${file.coverage.depth}. Read ${file.coverage.read} of ${file.coverage.conversations} conversations.`;
@@ -175,8 +261,10 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   if (searched(file, 'stranger')) {
     report.realityTVPersona = {
       reportTitle: 'What a stranger would conclude',
-      personaArchetype: file.subject.occupation?.v || file.narrative.blurbs.stranger || 'From the chats that were read',
-      description: file.narrative.blurbs.stranger || cover,
+      personaArchetype: file.subject.occupation?.v || peopleLine[0] || 'From the chats that were read',
+      description: [file.narrative.blurbs.stranger, file.decisions[0] ? `${file.decisions[0].question}: ${file.decisions[0].v}.` : '']
+        .filter((line) => line && line.trim() !== cover)
+        .join(' ') || file.subject.location?.v || cover,
       popCultureComparisons: interestLines.slice(0, 4),
       characterTraits: peopleLine.slice(0, 4),
       likelyStoryArcs: file.decisions.slice(0, 3).map((item) => `${item.question}: ${item.v}`),
@@ -188,7 +276,9 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     };
     report.unfilteredMirror = {
       reportTitle: 'The unfiltered mirror',
-      observation: cover,
+      observation: file.worries[0]?.quote
+        ? `“${file.worries[0].quote}”`
+        : file.worries[0]?.v || file.beliefs[0]?.v || cover,
       deeperInsight: file.beliefs.map((item) => item.v).join(' ') || undefined,
       psychologicalImplications: file.worries.map((item) => item.v).join(' ') || undefined,
       disclaimer: note,

@@ -5,7 +5,7 @@ import { donationHref } from './donation.ts';
 import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
 import { runLocalPass } from './localPass.ts';
-import { hydratePremiumReport } from './hydratePremium.ts';
+import { cardPreviews, hydratePremiumReport, reportSubtitle } from './hydratePremium.ts';
 import { buildCaseFile, computeConfidence, isComplete, reportLabel } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
@@ -299,6 +299,13 @@ describe('demo pipeline', () => {
     expect(premium.linguisticFingerprint?.overallStyleDescription).toMatch(/words per message/);
     expect(JSON.stringify(premium.digitalDoppelganger?.posts)).not.toMatch(/cognitive flexibility/);
     expect(premium.topInterestingConversations?.length).toBeGreaterThan(0);
+    const previews = cardPreviews(result, premium);
+    expect(previews.fbi).not.toBe(previews.reality);
+    expect(previews.fbi).not.toBe(previews.mirror);
+    expect(previews.reality).not.toBe(previews.mirror);
+    expect(previews.reality).not.toMatch(/You mention Dana as your sister/);
+    expect(previews.mirror).not.toMatch(/You mention Dana as your sister/);
+    expect(reportSubtitle(result)).toBe(`Deep read · ${result.coverage.read} of ${result.coverage.conversations} conversations · Demo extractor`);
   });
 });
 

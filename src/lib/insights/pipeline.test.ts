@@ -313,16 +313,16 @@ describe('demo pipeline', () => {
     expect(premium.realityTVPersona?.personaArchetype).toBe('The producer who rewrites the call sheet');
     expect(previews.mirror).not.toMatch(/You mention Dana as your sister/);
     expect(reportSubtitle(result)).toBe(`Deep read · ${result.coverage.read} of ${result.coverage.conversations} conversations · Demo extractor`);
-    expect(result.narrative.codename).toBe('Night Ledger');
-    expect(result.narrative.codename_reason).toMatch(/careful private notes late at night/);
-    expect(premium.fbiReport?.subjectCodename.name).toBe('Night Ledger');
+    expect(result.narrative.codename).toBe('Second Draft');
+    expect(result.narrative.codename_reason).toMatch(/rewrite things until they sound right before sending/);
+    expect(premium.fbiReport?.subjectCodename.name).toBe('Second Draft');
     expect(premium.fbiReport?.subjectCodename.justification).toBe(result.narrative.codename_reason);
     expect(premium.fbiReport?.subjectCodename.name).not.toMatch(/engineer|Phoenix|Dana/i);
     expect(premium.fbiReport?.psychologicalProfile).toMatch(/rewriting the launch checklist/);
-    expect(caseFileNumber('Night Ledger|demo-extractor|8')).toMatch(/^CI-\d{4}$/);
-    expect(caseFileNumber('Night Ledger|demo-extractor|8')).toBe(caseFileNumber('Night Ledger|demo-extractor|8'));
+    expect(caseFileNumber('Second Draft|demo-extractor|8')).toMatch(/^CI-\d{4}$/);
+    expect(caseFileNumber('Second Draft|demo-extractor|8')).toBe(caseFileNumber('Second Draft|demo-extractor|8'));
     expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
-    expect(settleArchetype('backend engineer, moved into team lead', 'Night Ledger', ['backend engineer, moved into team lead'])).toBe('Cast as Night Ledger');
+    expect(settleArchetype('backend engineer, moved into team lead', 'Second Draft', ['backend engineer, moved into team lead'])).toBe('Cast as Second Draft');
   });
 });
 

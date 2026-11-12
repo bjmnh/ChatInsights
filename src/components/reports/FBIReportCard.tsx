@@ -195,8 +195,9 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
               transition={{ delay: 0.7 }}
               className="text-center mb-10 border-b-4 border-amber-600 pb-8"
             >
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.22em] text-red-800">Behavioral Profile</p>
               <h1 
-                className="font-mono text-2xl sm:text-3xl font-bold text-amber-900 mb-4 tracking-wide text-balance"
+                className="font-mono text-2xl sm:text-3xl font-bold text-amber-900 mb-2 tracking-wide text-balance"
                 style={{
                   fontFamily: 'Courier Prime, Courier New, monospace',
                   textShadow: '1px 1px 0px rgba(139, 69, 19, 0.2)'
@@ -204,6 +205,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
               >
                 {data.reportTitle}
               </h1>
+              <p className="font-mono text-xs tracking-wide text-amber-800">Digital Behavioral Analysis</p>
               <div className="font-mono text-xs text-amber-700 tracking-widest">
                 CLASSIFICATION: CONFIDENTIAL • DISTRIBUTION: RESTRICTED • EYES ONLY
               </div>

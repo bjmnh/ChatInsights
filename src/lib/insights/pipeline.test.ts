@@ -5,6 +5,7 @@ import { donationHref } from './donation.ts';
 import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
 import { runLocalPass } from './localPass.ts';
+import { caseFileNumber } from './caseNumber.ts';
 import { cardPreviews, hydratePremiumReport, reportSubtitle } from './hydratePremium.ts';
 import { buildCaseFile, computeConfidence, isComplete, NEUTRAL_CODENAME, reportLabel, settleCodename } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
@@ -312,6 +313,8 @@ describe('demo pipeline', () => {
     expect(premium.fbiReport?.subjectCodename.justification).toBe(result.narrative.codename_reason);
     expect(premium.fbiReport?.subjectCodename.name).not.toMatch(/engineer|Phoenix|Dana/i);
     expect(premium.fbiReport?.psychologicalProfile).toMatch(/rewriting the launch checklist/);
+    expect(caseFileNumber('Checklist weather|demo-extractor|8')).toMatch(/^CI-\d{4}$/);
+    expect(caseFileNumber('Checklist weather|demo-extractor|8')).toBe(caseFileNumber('Checklist weather|demo-extractor|8'));
     expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
   });
 });

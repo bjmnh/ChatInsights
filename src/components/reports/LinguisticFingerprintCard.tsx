@@ -115,9 +115,11 @@ export const LinguisticFingerprintCard: React.FC<LinguisticFingerprintCardProps>
           transition={{ delay: 0.2 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl font-bold text-white mb-4 tracking-wide">
+          <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.22em] text-orange-300">Language Trace</p>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-wide">
             {data.reportTitle}
           </h1>
+          <p className="mb-4 font-mono text-xs text-slate-400">Linguistic Fingerprint</p>
           <div className="w-32 h-1 bg-gradient-to-r from-orange-400 to-orange-600 mx-auto rounded-full" />
         </motion.div>
 

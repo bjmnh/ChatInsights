@@ -117,7 +117,7 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     }
     return '';
   };
-  const notSearched = 'Not searched at this depth. A deeper pass would look here.';
+  const notSearched = 'NO RECORDS FOUND AT THIS DEPTH';
   const fbi = hydrated.fbiReport;
   const reality = hydrated.realityTVPersona;
   const mirror = hydrated.unfilteredMirror;

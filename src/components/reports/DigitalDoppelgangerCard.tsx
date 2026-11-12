@@ -106,8 +106,9 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="sticky top-0 bg-black/80 backdrop-blur-sm border-b border-gray-800 p-4 z-40"
+          className="sticky top-9 bg-black/80 backdrop-blur-sm border-b border-gray-800 p-4 z-30"
         >
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-sky-300">Cover Identity</p>
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-bold">{data.reportTitle}</h1>
             <MoreHorizontal className="h-5 w-5 text-gray-500" />

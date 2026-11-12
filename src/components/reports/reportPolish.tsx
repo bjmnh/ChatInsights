@@ -6,7 +6,7 @@ export function EvidenceChips({ labels }: { labels: string[] }) {
       {items.map((label) => (
         <span
           key={label}
-          className="rounded-full border border-current/30 bg-black/10 px-2.5 py-1 text-xs font-medium tracking-wide"
+          className="rounded-sm border border-current/40 bg-black/20 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide"
         >
           {label}
         </span>
@@ -22,7 +22,7 @@ export function ConfidenceMeter({ value, tone = 'light' }: { value: number; tone
   const ink = tone === 'dark' ? 'text-amber-900' : 'text-slate-300';
   return (
     <div className="mt-2">
-      <div className={`mb-1 flex justify-between text-[11px] uppercase tracking-wide ${ink}`}>
+      <div className={`mb-1 flex justify-between font-mono text-[11px] uppercase tracking-[0.16em] ${ink}`}>
         <span>Confidence</span>
         <span>{width}%</span>
       </div>

@@ -120,7 +120,8 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
 
       {/* Header */}
       <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-20 text-center">
-        <h1 className="text-2xl font-serif font-bold text-white mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+        <p className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-yellow-200">Priority Threads</p>
+        <h1 className="text-2xl font-serif font-bold text-white mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
           Your Most Fascinating Conversations
         </h1>
         <div className="w-24 h-px bg-yellow-400 mx-auto" />

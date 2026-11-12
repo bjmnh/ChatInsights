@@ -114,7 +114,7 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
 
   return (
     <div className="relative min-h-screen">
-      <div className="pointer-events-none fixed right-4 top-4 z-50 rounded-full border border-white/20 bg-black/50 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/80 backdrop-blur">
+      <div className="pointer-events-none fixed right-4 top-12 z-50 rounded-full border border-white/20 bg-black/50 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/80 backdrop-blur">
         Chat Insights
       </div>
       {/* Navigation Controls */}
@@ -154,7 +154,7 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
 
       {/* Card Indicators */}
       {availableCards.length > 1 && (
-        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 flex space-x-2">
+        <div className="fixed bottom-14 left-1/2 z-50 flex -translate-x-1/2 space-x-2">
           {availableCards.map((_, index) => (
             <button
               key={index}
@@ -171,7 +171,7 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
 
       {/* Card Counter */}
       {availableCards.length > 1 && (
-        <div className="fixed bottom-16 left-1/2 transform -translate-x-1/2 z-50 text-white/60 text-sm">
+        <div className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 font-mono text-xs tracking-widest text-white/70">
           {currentCardIndex + 1} of {availableCards.length}
         </div>
       )}

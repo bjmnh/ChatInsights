@@ -122,6 +122,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
               >
                 {data.reportTitle}
               </motion.h1>
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-purple-700">Subject Archetype · Reality TV Persona</p>
               <div className="flex justify-center items-center space-x-2">
                 <Tv className="h-6 w-6 text-purple-600" />
                 <span className="text-purple-600 font-bold text-lg">REALITY TV CASTING PROFILE</span>

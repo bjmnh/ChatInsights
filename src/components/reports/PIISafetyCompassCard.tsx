@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
 import { Shield, Lock, AlertTriangle, CheckCircle, Info, Gauge } from 'lucide-react';
+import { Redaction } from './dossier';
 
 interface PIIBreakdown {
   category: string;
@@ -94,9 +95,11 @@ export const PIISafetyCompassCard: React.FC<PIISafetyCompassCardProps> = ({
         >
           <div className="flex items-center justify-center mb-4">
             <Shield className="h-8 w-8 text-blue-400 mr-3" />
+            <p className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-red-200">Sensitive Holdings</p>
             <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-wide text-balance">
               {data.reportTitle}
             </h1>
+            <p className="mt-1 font-mono text-xs tracking-wide text-slate-400">PII Safety Compass</p>
             <Shield className="h-8 w-8 text-blue-400 ml-3" />
           </div>
           <div className="w-32 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 mx-auto rounded-full" />
@@ -203,9 +206,7 @@ export const PIISafetyCompassCard: React.FC<PIISafetyCompassCardProps> = ({
                       <h4 className="text-white font-medium mb-2 text-sm">Examples to watch for:</h4>
                       <div className="flex flex-wrap gap-2">
                         {item.examples.map((example) => (
-                          <span key={example} className="rounded-full border border-blue-400/40 bg-blue-400/10 px-2.5 py-1 text-xs text-blue-100">
-                            {example}
-                          </span>
+                          <Redaction key={example} text={example} />
                         ))}
                       </div>
                     </div>

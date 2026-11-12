@@ -78,6 +78,48 @@ export interface Database {
         }
         Relationships: []
       }
+      case_files: {
+        Row: {
+          id: string
+          user_id: string
+          export_fingerprint: string
+          filename: string | null
+          case_file: Json
+          partial: boolean
+          depth: string
+          model_provider: string | null
+          model_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          export_fingerprint: string
+          filename?: string | null
+          case_file: Json
+          partial?: boolean
+          depth: string
+          model_provider?: string | null
+          model_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          export_fingerprint?: string
+          filename?: string | null
+          case_file?: Json
+          partial?: boolean
+          depth?: string
+          model_provider?: string | null
+          model_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           id: string

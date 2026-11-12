@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Stateless pass-through for provider hosts that block browser CORS.
+# Set PROVIDER_PROXY_ALLOWLIST to a comma-separated host list when you need
+# a host that is not in the built-in allowlist. Do not add localhost or
+# private addresses; the function refuses those even if they are listed.
+[[edge_functions]]
+  function = "provider-proxy"
+  path = "/api/provider-proxy"

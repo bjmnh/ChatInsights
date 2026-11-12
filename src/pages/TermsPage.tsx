@@ -11,7 +11,7 @@ const TermsPage: React.FC = () => {
   return (
     <LegalDocument
       title="Terms of Service"
-      lede="The rules for using Chat Insights. The service is currently free."
+      lede="The rules for using Chat Insights. A read is free. You pay your own model provider."
     >
       <section>
         <h2>1. Acceptance and eligibility</h2>
@@ -29,31 +29,21 @@ const TermsPage: React.FC = () => {
         <p className="mt-3">
           By creating an account or using the Service, you agree to these Terms and to the{' '}
           <Link to="/privacy">Privacy Policy</Link>. If you do not agree, do not use the Service.
-          You must be at least 13 years old, or at least 16 if you live somewhere that requires the
-          higher age (including parts of the EEA and the UK).
+          You must be 18 or older. The read asks you to confirm that before it starts.
         </p>
       </section>
 
       <section>
         <h2>2. The Service</h2>
         <p>
-          You upload a chat export and choose which conversations to keep. The Service then offers:
+          You drop a chat export in the browser. A local pass can show counts with no model call.
+          If you continue, you supply your own API key, pick a model, and pick a depth. The browser
+          sends packed text to the provider you chose. You can download the case file, and you can
+          save it to an account. Details are in the <Link to="/privacy">Privacy Policy</Link>.
         </p>
-        <ul>
-          <li>
-            <strong>Basic report (free).</strong> Counts and other statistics computed in our own
-            code. This report does not use a language model.
-          </li>
-          <li>
-            <strong>Premium cards (currently free).</strong> Written by Google’s Gemini API from the
-            message text in the conversations you selected. There is no charge for generating them
-            while the service is free. Details of that processing are in the{' '}
-            <Link to="/privacy">Privacy Policy</Link>.
-          </li>
-        </ul>
         <p className="mt-3">
-          The service is currently free. These Terms do not describe a purchase, a subscription, or
-          a renewal, because none of those exist right now.
+          The read is free. These Terms do not describe a purchase or a subscription. A donation
+          link, if one is shown, is optional and is not required to use the Service.
         </p>
       </section>
 
@@ -70,45 +60,47 @@ const TermsPage: React.FC = () => {
       <section>
         <h2>4. Your content</h2>
         <p>
-          You keep ownership of the chat export you upload and of the reports we store for you. You
-          grant us a limited, non-exclusive license to host, copy, and process that export and to
-          create the reports, only so we can provide the Service to you. The license ends for a given
-          file when you delete that file and its reports, except for copies our providers keep in
-          short-lived backups or logs as described in the Privacy Policy.
+          You keep ownership of the chat export and of any case file we store for you. You grant us
+          a limited license to store a case file you choose to save, only so we can show it back to
+          you. We do not take a license to the raw export, because the read does not upload it. The
+          license for a saved case file lasts until you ask us to delete it. Self-serve deletion is
+          not available yet.
         </p>
         <p className="mt-3">
-          You confirm that you have the rights needed to upload the export, including any messages
-          from other people that appear in it, and that the upload does not break the law or anyone
-          else’s rights. Do not upload unlawful content.
+          You confirm that you have the rights needed to process the export, including any messages
+          from other people that appear in it, and that using it here does not break the law or
+          anyone else’s rights. Do not process unlawful content.
         </p>
       </section>
 
       <section>
         <h2>5. Language-model processing</h2>
         <p>
-          Premium cards are produced by Google Gemini, and only when you generate a premium report.
-          The basic report is heuristic and is not sent to a language model. We do not operate the
-          model. Output can be wrong, incomplete, or surprising. See section 8.
+          The model is the one you pick, billed by your provider, with your key. We do not operate
+          that model and we do not promise that every model will extract equally well. Output can be
+          wrong, incomplete, or partial when a budget or a depth stops the read. See section 8.
         </p>
       </section>
 
       <section>
         <h2>6. Price</h2>
         <p>
-          The service is currently free. We do not charge for an account, an upload, a basic report,
-          or the premium cards. If we introduce a charge later, we will update these Terms and say
-          so in the product before any payment is requested.
+          We do not charge for an account or a read. The API bill is between you and the provider
+          whose key you use. A donation link, if configured, is optional. If we introduce a charge
+          later, we will update these Terms and say so in the product before any payment is
+          requested.
         </p>
       </section>
 
       <section>
         <h2>8. Reports are not advice</h2>
         <p>
-          Reports, including premium cards, are for entertainment and self-reflection. They may be
-          inaccurate. They are not medical, psychological, legal, financial, or other professional
+          Reports are for self-reflection. They may be inaccurate, and a partial report is labeled
+          partial. They are not medical, psychological, legal, financial, or other professional
           advice, and you should not rely on them as a complete picture of you or of anyone else.
-          Privacy-related cards are not a security audit. Do not treat them as proof that personal
-          data is or is not present in an export.
+          The exposure card is not a security audit. Do not treat it as proof that personal data is
+          or is not present in an export. If a report mentions distress, the support line is not
+          crisis care.
         </p>
       </section>
 
@@ -127,10 +119,10 @@ const TermsPage: React.FC = () => {
       <section>
         <h2>10. Stopping and suspension</h2>
         <p>
-          You may stop using the Service at any time. You can delete an upload and its reports from
-          the dashboard. That deletion is under your control. We do not delete uploads automatically
-          after a report is generated, and the app does not include a control that closes the whole
-          account. To ask us to close your account, email{' '}
+          You may stop using the Service at any time. You can forget a key stored on this device
+          from the setup screen. A saved case file does not yet have a self-serve delete control,
+          and the app does not include a control that closes the whole account. To ask us to delete
+          a saved case file or close your account, email{' '}
           <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>.
         </p>
         <p className="mt-3">

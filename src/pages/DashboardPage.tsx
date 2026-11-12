@@ -1,231 +1,68 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDropzone } from 'react-dropzone';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Button } from '../components/ui/button';
-import { FileService, type UploadedFile } from '../services/fileService';
-import {
-  describeDetectedFormat,
-  parseConversationExport,
-  validateUploadFile,
-  type NormalizedConversation,
-} from '../lib/conversationParser';
-import ConversationSelector from '../components/ConversationSelector';
-import ExportDropzone, { type UploadStage } from '../components/upload/ExportDropzone';
-import { toast } from 'sonner';
-import { BarChart3, Crown, Loader2, Trash2 } from 'lucide-react';
+import { listCaseFiles, type SavedCaseSummary } from '../services/caseFileService';
+import { loadCheckpoint, type LocalCheckpoint } from '../lib/insights/browserStore';
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [rows, setRows] = useState<SavedCaseSummary[]>([]);
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [stage, setStage] = useState<UploadStage>('idle');
-  const [processing, setProcessing] = useState<string | null>(null);
-  const [parsedConversations, setParsedConversations] = useState<NormalizedConversation[]>([]);
-  const [originalFilename, setOriginalFilename] = useState('');
-  const [selectorOpen, setSelectorOpen] = useState(false);
-
-  const fetchFiles = useCallback(async () => {
-    if (!user) return;
-    try {
-      setFiles(await FileService.getUserFiles(user.id));
-    } catch (error) {
-      console.error(error);
-      toast.error('Could not load your uploads');
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+  const [checkpoint, setCheckpoint] = useState<LocalCheckpoint | null>(null);
 
   useEffect(() => {
     if (!user) {
       navigate('/auth');
       return;
     }
-    fetchFiles();
-  }, [user, navigate, fetchFiles]);
-
-  const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file || !user) return;
-
-    const validationError = validateUploadFile(file);
-    if (validationError) {
-      toast.error(validationError);
-      return;
-    }
-
-    setStage('reading');
-    try {
-      await pause(180);
-      setStage('parsing');
-      const parsed = await parseConversationExport(file.name, new Uint8Array(await file.arrayBuffer()));
-      setStage('counting');
-      await pause(180);
-      setParsedConversations(parsed.conversations);
-      setOriginalFilename(file.name);
-      setSelectorOpen(true);
-      const noun = parsed.conversations.length === 1 ? 'conversation' : 'conversations';
-      toast.success(`${parsed.conversations.length} ${noun} ready in ${describeDetectedFormat(parsed.format)}`);
-      parsed.warnings.forEach((warning) => toast.message(warning));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not read that export', { duration: 8000 });
-    } finally {
-      setStage('idle');
-    }
-  }, [user]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    onDropRejected: (rejections) => {
-      const tooBig = rejections.some((rejection) => rejection.errors.some((error) => error.code === 'file-too-large'));
-      toast.error(tooBig
-        ? 'File size must be less than 200MB.'
-        : 'That file type is not supported. Upload a .json, .jsonl, .zip, .md, .txt, .csv, or Gemini .html export.');
-    },
-    accept: {
-      'application/json': ['.json'],
-      'application/x-ndjson': ['.jsonl'],
-      'application/jsonl': ['.jsonl'],
-      'text/plain': ['.txt', '.jsonl', '.md', '.csv'],
-      'text/markdown': ['.md', '.markdown'],
-      'text/csv': ['.csv'],
-      'application/csv': ['.csv'],
-      'application/zip': ['.zip'],
-      'application/x-zip-compressed': ['.zip'],
-      'text/html': ['.html', '.htm'],
-    },
-    maxFiles: 1,
-    maxSize: 200 * 1024 * 1024,
-    disabled: stage !== 'idle',
-  });
-
-  const handleUploadSelected = async (selected: NormalizedConversation[], filename: string) => {
-    if (!user) return;
-    const uploaded = await FileService.uploadSelectedConversations(selected, user.id, filename);
-    setFiles((current) => [uploaded, ...current]);
-    setParsedConversations([]);
-    setOriginalFilename('');
-  };
-
-  const handleDelete = async (fileId: string) => {
-    if (!window.confirm('Delete this upload and its reports?')) return;
-    try {
-      await FileService.deleteFile(fileId);
-      setFiles((current) => current.filter((file) => file.id !== fileId));
-      toast.success('Deleted');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not delete that file');
-    }
-  };
-
-  const generate = async (fileId: string, reportType: 'basic' | 'premium') => {
-    setProcessing(`${fileId}:${reportType}`);
-    try {
-      if (reportType === 'basic') await FileService.generateBasicReport(fileId);
-      else await FileService.generatePremiumReport(fileId);
-      toast.success(reportType === 'basic' ? 'Basic report is ready' : 'Premium cards are ready');
-      await fetchFiles();
-      navigate(`/report/${fileId}/${reportType}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Report failed');
-    } finally {
-      setProcessing(null);
-    }
-  };
-
-  if (!user) return null;
-
-  if (loading) {
-    return (
-      <div className="grid min-h-[50vh] place-items-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+    loadCheckpoint().then(setCheckpoint).catch(() => undefined);
+    listCaseFiles(user.id)
+      .then(setRows)
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : 'Could not load saved reports');
+      })
+      .finally(() => setLoading(false));
+  }, [user, navigate]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
-      <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <div className="mx-auto max-w-3xl px-4 py-12">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Studio</p>
-          <h1 className="font-display text-5xl">Bring your LLM conversations in.</h1>
-          <p className="mt-2 max-w-xl text-muted-foreground">
-            Gemini, Claude, Grok, ChatGPT, or another assistant. Both reports are free for now.
-          </p>
+          <h1 className="font-display text-4xl">Saved reports</h1>
+          <p className="mt-2 text-muted-foreground">Case files you chose to keep. Not the API key, and not the raw export.</p>
         </div>
+        <Link to="/read" className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Read an export</Link>
       </div>
-
-      <ExportDropzone
-        isDragActive={isDragActive}
-        stage={stage}
-        rootProps={getRootProps()}
-        inputProps={getInputProps()}
-      />
-      <section className="mt-12">
-        <h2 className="font-display text-3xl">Library</h2>
-        {files.length === 0 ? (
-          <p className="mt-4 max-w-lg text-muted-foreground">
-            Nothing uploaded yet. After you drop a file, you choose which conversations to keep. The raw export is stored only so a report can be generated.
-          </p>
-        ) : (
-          <ul className="mt-5 space-y-3">
-            {files.map((file) => (
-              <li key={file.id} className="rounded-[24px] border border-white/10 p-4 sm:p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{file.filename}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {formatFileSize(file.file_size)} · {new Date(file.uploaded_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={processing === `${file.id}:basic`}
-                      onClick={() => file.has_basic_report ? navigate(`/report/${file.id}/basic`) : generate(file.id, 'basic')}
-                    >
-                      {processing === `${file.id}:basic` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BarChart3 className="mr-2 h-4 w-4" />}
-                      {file.has_basic_report ? 'Basic report' : 'Run basic'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={processing === `${file.id}:premium`}
-                      onClick={() => file.has_premium_report ? navigate(`/report/${file.id}/premium`) : generate(file.id, 'premium')}
-                    >
-                      {processing === `${file.id}:premium` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crown className="mr-2 h-4 w-4" />}
-                      {file.has_premium_report ? 'Premium cards' : 'Run premium'}
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(file.id)} aria-label="Delete upload">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <ConversationSelector
-        isOpen={selectorOpen}
-        onClose={() => setSelectorOpen(false)}
-        conversations={parsedConversations}
-        originalFilename={originalFilename}
-        onUploadSelected={handleUploadSelected}
-      />
+      {checkpoint?.caseFile && (
+        <p className="mt-6 text-sm text-muted-foreground">
+          This browser still has the last read. <Link to="/read" className="text-primary underline">Open it</Link>.
+        </p>
+      )}
+      {loading && <p className="mt-8 text-sm text-muted-foreground">Loading…</p>}
+      {error && (
+        <p className="mt-8 text-sm text-muted-foreground">
+          {error}. Saving needs the case file table from the migration in this repo. It is not applied to the live project from this branch. You can still download a report as JSON.
+        </p>
+      )}
+      {!loading && !error && rows.length === 0 && (
+        <p className="mt-8 text-sm text-muted-foreground">No saved case files yet.</p>
+      )}
+      <ul className="mt-6 space-y-3">
+        {rows.map((row) => (
+          <li key={row.id}>
+            <Link to={`/saved/${row.id}`} className="block rounded-2xl border border-white/10 px-4 py-3 hover:border-white/30">
+              <span className="font-medium">{row.filename || 'Export'}</span>
+              <span className="mt-1 block text-sm text-muted-foreground">
+                {row.partial ? 'Partial' : 'Complete'} · {row.depth} · {row.model_provider} {row.model_id}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
-
-function formatFileSize(bytes: number) {
-  if (!bytes) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
-}
 
 export default DashboardPage;

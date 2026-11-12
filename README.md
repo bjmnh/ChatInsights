@@ -1,61 +1,45 @@
 # Chat Insights
 
-Upload your LLM conversations — from Gemini, Claude, Grok, ChatGPT, or another assistant — and get a visual read: conversation counts, plus seven report cards (FBI Report, Reality TV Persona, Digital Doppelganger, Linguistic Fingerprint, PII Safety Compass, Unfiltered Mirror, Top 5 Conversations).
+Read an export of your AI chats (ChatGPT, Claude, Gemini, Grok, and the other shapes the parser accepts) and turn it into a case file. You bring your own API key and pick how deep the read goes. Calls go from the browser to the provider. The site does not pay the API bill.
 
-Both reports are free for now. Any signed-in user can generate them. Checkout code is not in this branch.
+Stack: Vite, React, TypeScript, Tailwind, shadcn/ui, Supabase (optional account save), Netlify (hosting and a CORS pass-through).
 
-Stack: Vite, React, TypeScript, Tailwind, shadcn/ui, Supabase (auth, Postgres, storage, edge functions), Google Gemini for the premium cards.
+## Environment
+
+Copy `.env.example` to `.env`.
+
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL` | Vite | Supabase project URL. Auth and saved case files. |
+| `VITE_SUPABASE_ANON_KEY` | Vite | Supabase anon key. |
+| `VITE_APP_URL` | Vite | Site URL used by auth redirects. |
+| `VITE_DONATION_URL` | Vite | Optional tip-jar URL. Hidden when unset. |
+| `VITE_PROXY_ALLOWLIST` | Vite | Extra pass-through hosts, comma-separated. Must match the Netlify variable. |
+| `PROVIDER_PROXY_ALLOWLIST` | Netlify | Same extra hosts, read by the edge function. Built-in hosts are already allowed. |
+
+Do not put a shared model API key in the environment. Visitors paste their own.
+
+The pass-through is `netlify/edge-functions/provider-proxy.ts`, mounted at `/api/provider-proxy`. It streams one batch to an allowlisted provider host, persists nothing, and refuses localhost and private addresses.
+
+## Case files
+
+`supabase/migrations/20261111234000_case_files.sql` adds `case_files` with a unique `(user_id, export_fingerprint)` so a rerun updates the same row. Apply it yourself when you are ready. This branch does not apply it to the live project. There is no self-serve delete yet.
+
+A partial read is stored with `partial = true`. The client refuses to mark an unfinished read as complete.
 
 ## Setup
-
-1. Install and configure the frontend:
 
 ```bash
 npm install
 cp .env.example .env
-```
-
-Fill in `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and `VITE_APP_URL`. Leave `VITE_ENABLE_GOOGLE_AUTH` and `VITE_ENABLE_APPLE_AUTH` as `false` unless those providers are enabled in Supabase Auth.
-
-2. Apply every file in `supabase/migrations` in timestamp order. `20261020040306_premium_unlock.sql` adds billing columns and the payments table. `20261029160000_free_report_access.sql` lets a signed-in user read their own reports of any type. It does not drop those columns, the payments table, or stored reports.
-
-3. Create a private Storage bucket named `conversation-files` and these policies:
-
-```sql
-CREATE POLICY "Users can upload own files" ON storage.objects
-FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-
-CREATE POLICY "Users can read own files" ON storage.objects
-FOR SELECT TO authenticated
-USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-
-CREATE POLICY "Users can delete own files" ON storage.objects
-FOR DELETE TO authenticated
-USING (bucket_id = 'conversation-files' AND auth.uid()::text = (storage.foldername(name))[1]);
-```
-
-4. In Authentication → URL configuration, set the site URL and add redirect URLs for `/auth/confirm`, `/auth/callback`, and `/dashboard`. Email confirmation uses `/auth/confirm`. OAuth, if you turn it on, returns to `/auth/callback`.
-
-5. Start the app:
-
-```bash
 npm run dev
 ```
 
-## Reports
+Fill in the Supabase URL and anon key so sign-in works. A read does not require an account. In Authentication → URL configuration, set the site URL and add redirect URLs for `/auth/confirm`, `/auth/callback`, and `/dashboard`.
 
-Set `GEMINI_API_KEY` as a Supabase edge secret. It is used only when someone generates a premium report. The basic report does not call a model.
+Open `/read?sample=1` to walk the sample export with the demo extractor. No key and no network call.
 
-```bash
-supabase secrets set GEMINI_API_KEY=...
-supabase functions deploy generate-basic-report
-supabase functions deploy generate-premium-report
-```
-
-`generate-premium-report` does not check a payment flag. A signed-in user can generate premium cards. Parsing runs in the browser when a file is dropped, and again inside the report function. Uploads and reports stay until the user deletes them.
-
-## Uploads
+## Exports
 
 Exports are normalized into conversations of messages with a role, text, and a timestamp when the file has one. Both report functions read that shape. An older ChatGPT `conversations.json` still works.
 
@@ -71,7 +55,7 @@ Exports are normalized into conversations of messages with a role, text, and a t
 | CSV | `role` and `content` columns, with optional timestamp, conversation id, and title |
 | ZIP | An archive containing any of the above |
 
-Copilot, Perplexity, Mistral, DeepSeek, Cursor, and similar tools work when the file is one of those shapes. After parsing, you pick which threads to store. Files must be under 200MB.
+Copilot, Perplexity, Mistral, DeepSeek, Cursor, and similar tools work when the file is one of those shapes. Files must be under 200MB. The raw export stays in the browser.
 
 ## Scripts
 

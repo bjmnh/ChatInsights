@@ -13,6 +13,8 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import ContactPage from './pages/ContactPage';
+import ReadPage from './pages/ReadPage';
+import SavedCasePage from './pages/SavedCasePage';
 import './App.css';
 
 function Shell() {
@@ -25,7 +27,9 @@ function Shell() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/read" element={<ReadPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/saved/:id" element={<SavedCasePage />} />
           <Route path="/report/:fileId/:reportType" element={<ReportPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/auth/confirm" element={<EmailConfirmationPage />} />

@@ -32,7 +32,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
       transition={{ duration: 0.8, ease: "easeOut" }}
-      className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-500 to-orange-500 p-8 relative overflow-hidden"
+      className="min-h-screen bg-gradient-to-br from-pink-500 via-purple-500 to-orange-500 p-4 sm:p-8 relative overflow-hidden"
       style={{
         backgroundImage: `
           radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
@@ -117,7 +117,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.6, duration: 0.6 }}
-                className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-orange-600 mb-4"
+                className="text-3xl sm:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-600 via-purple-600 to-orange-600 mb-4 text-balance"
                 style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
               >
                 {data.reportTitle}

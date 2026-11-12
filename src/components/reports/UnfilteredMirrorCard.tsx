@@ -134,7 +134,7 @@ export const UnfilteredMirrorCard: React.FC<UnfilteredMirrorCardProps> = ({
             {/* Glow Effect */}
             <div className="absolute inset-0 bg-white/5 blur-3xl rounded-full" />
             
-            <p className="relative text-3xl md:text-4xl lg:text-5xl font-light text-white leading-relaxed tracking-wide">
+            <p className="relative text-2xl sm:text-4xl lg:text-5xl font-light text-white leading-relaxed tracking-wide text-balance">
               <span className="relative">
                 {currentText}
                 {textVisible && currentText.length < fullText.length && (

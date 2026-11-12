@@ -60,8 +60,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .animate-marquee,
-  .animate-scan {
+  .animate-scan,
+  .animate-pulse {
     animation: none !important;
   }
 }

@@ -49,7 +49,7 @@ export const PIISafetyCompassCard: React.FC<PIISafetyCompassCardProps> = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -50 }}
       transition={{ duration: 0.8 }}
-      className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900 p-8 relative"
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-900 p-4 sm:p-8 relative"
     >
       {/* Navigation Controls */}
       {showNavigation && onNavigate && (
@@ -94,7 +94,7 @@ export const PIISafetyCompassCard: React.FC<PIISafetyCompassCardProps> = ({
         >
           <div className="flex items-center justify-center mb-4">
             <Shield className="h-8 w-8 text-blue-400 mr-3" />
-            <h1 className="text-4xl font-bold text-white tracking-wide">
+            <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-wide text-balance">
               {data.reportTitle}
             </h1>
             <Shield className="h-8 w-8 text-blue-400 ml-3" />
@@ -201,14 +201,13 @@ export const PIISafetyCompassCard: React.FC<PIISafetyCompassCardProps> = ({
                   {item.examples && item.examples.length > 0 && (
                     <div>
                       <h4 className="text-white font-medium mb-2 text-sm">Examples to watch for:</h4>
-                      <ul className="space-y-1">
-                        {item.examples.map((example, exIndex) => (
-                          <li key={exIndex} className="text-slate-400 text-xs flex items-start">
-                            <span className="text-blue-400 mr-2">•</span>
+                      <div className="flex flex-wrap gap-2">
+                        {item.examples.map((example) => (
+                          <span key={example} className="rounded-full border border-blue-400/40 bg-blue-400/10 px-2.5 py-1 text-xs text-blue-100">
                             {example}
-                          </li>
+                          </span>
                         ))}
-                      </ul>
+                      </div>
                     </div>
                   )}
                 </motion.div>

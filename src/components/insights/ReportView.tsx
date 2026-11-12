@@ -19,6 +19,7 @@ import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { reportLabel, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { ReportCardDeck } from '../reports/ReportCardDeck';
+import { ConfidenceMeter, EvidenceChips } from '../reports/reportPolish';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -69,11 +70,15 @@ const EXTRA: Array<{
 function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> }) {
   const from = item.ev.map((id) => titles.get(id) || id).filter(Boolean);
   return (
-    <div className="rounded-xl border border-orange-400/20 bg-orange-400/10 p-4">
-      <p className="text-white">{item.v}</p>
-      {item.quote && <p className="mt-2 text-sm text-slate-300">“{item.quote}”</p>}
-      <p className="mt-2 text-xs uppercase tracking-wide text-orange-300">Confidence {item.conf.toFixed(2)} · {item.src}</p>
-      {from.length > 0 && <p className="mt-1 text-sm text-orange-200">From {from.join(', ')}</p>}
+    <div className="rounded-2xl border border-orange-400/30 bg-slate-900/50 p-5 shadow-lg">
+      <p className="text-lg text-white">{item.v}</p>
+      {item.quote && (
+        <blockquote className="mt-3 border-l-4 border-orange-400 pl-4 text-sm leading-relaxed text-slate-200">
+          “{item.quote}”
+        </blockquote>
+      )}
+      <ConfidenceMeter value={item.conf} />
+      {from.length > 0 && <div className="text-orange-200"><EvidenceChips labels={from} /></div>}
     </div>
   );
 }
@@ -137,7 +142,7 @@ const ReportView: React.FC<{
   if (blockedTitle) {
     return (
       <ExtraScreen title={blockedTitle} note="Not searched at this depth." onBack={() => setBlockedTitle(null)}>
-        <p className="text-gray-300">This depth did not send the chats this card needs.</p>
+        <p className="text-gray-300">This depth did not send the chats this card needs. A deeper pass would look here.</p>
       </ExtraScreen>
     );
   }
@@ -156,7 +161,11 @@ const ReportView: React.FC<{
     const blocks = extraFacts(caseFile, extra);
     return (
       <ExtraScreen title={title} note={note} onBack={() => setExtra(null)}>
-        {blocks.length === 0 && <p className="text-gray-400">None extracted.</p>}
+        {blocks.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-6 text-gray-300">
+            Nothing in the chats that were read belongs on this card.
+          </div>
+        )}
         {blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
       </ExtraScreen>
     );
@@ -308,10 +317,19 @@ function Tile({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index, 8) * 0.05, duration: 0.6 }}
       whileHover={quiet ? undefined : { scale: 1.02, y: -8 }}
-      className={`group ${quiet ? 'cursor-default opacity-70' : 'cursor-pointer'}`}
+      role="button"
+      tabIndex={0}
+      aria-label={title}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      className={`group rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${quiet ? 'cursor-default' : 'cursor-pointer'}`}
       onClick={onClick}
     >
-      <Card className={`h-full border bg-gradient-to-br from-slate-800/50 to-slate-900/50 ${borderColor} ${quiet ? '' : hoverBorder} backdrop-blur-sm transition-all duration-300 hover:shadow-2xl hover:shadow-white/10`}>
+      <Card className={`h-full border bg-gradient-to-br from-slate-800/60 to-slate-900/70 ${borderColor} ${quiet ? 'border-dashed opacity-80' : hoverBorder} shadow-lg backdrop-blur-sm transition duration-300 hover:shadow-2xl hover:shadow-black/40`}>
         <CardHeader className="pb-4">
           <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg ${iconBg} ${quiet ? '' : 'transition-transform duration-300 group-hover:scale-110'}`}>
             <Icon className={`h-10 w-10 ${textColor}`} />

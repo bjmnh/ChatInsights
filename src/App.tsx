@@ -1,3 +1,4 @@
+import { MotionConfig } from 'framer-motion';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -51,7 +52,9 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <Shell />
+          <MotionConfig reducedMotion="user">
+            <Shell />
+          </MotionConfig>
         </Router>
       </AuthProvider>
     </ThemeProvider>

@@ -76,7 +76,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.8 }}
-      className="min-h-screen bg-black text-white relative"
+      className="min-h-screen bg-black text-white relative px-3 sm:px-0"
     >
       {/* Navigation Controls */}
       {showNavigation && onNavigate && (

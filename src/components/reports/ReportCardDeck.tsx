@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/button';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -84,6 +84,19 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
     setCurrentCardIndex(index);
   };
 
+  const cardCount = availableCards.length;
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (!cardCount) return;
+      if (event.key === 'ArrowRight') setCurrentCardIndex((prev) => (prev + 1) % cardCount);
+      if (event.key === 'ArrowLeft') setCurrentCardIndex((prev) => (prev - 1 + cardCount) % cardCount);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cardCount]);
+
   if (availableCards.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
@@ -109,7 +122,7 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
         <Button
           variant="ghost"
           onClick={onBack}
-          className="bg-black/50 text-white hover:bg-black/70 border border-white/20"
+          className="bg-black/50 text-white hover:bg-black/70 border border-white/20 focus-visible:ring-2 focus-visible:ring-white"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Overview
@@ -122,7 +135,8 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
           <Button
             variant="ghost"
             onClick={prevCard}
-            className="fixed top-1/2 left-4 transform -translate-y-1/2 z-50 bg-black/50 text-white hover:bg-black/70 border border-white/20"
+            aria-label="Previous card"
+            className="fixed top-1/2 left-4 transform -translate-y-1/2 z-50 bg-black/50 text-white hover:bg-black/70 border border-white/20 focus-visible:ring-2 focus-visible:ring-white"
           >
             <ChevronLeft className="h-6 w-6" />
           </Button>
@@ -130,7 +144,8 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
           <Button
             variant="ghost"
             onClick={nextCard}
-            className="fixed top-1/2 right-4 transform -translate-y-1/2 z-50 bg-black/50 text-white hover:bg-black/70 border border-white/20"
+            aria-label="Next card"
+            className="fixed top-1/2 right-4 transform -translate-y-1/2 z-50 bg-black/50 text-white hover:bg-black/70 border border-white/20 focus-visible:ring-2 focus-visible:ring-white"
           >
             <ChevronRight className="h-6 w-6" />
           </Button>
@@ -143,9 +158,11 @@ export const ReportCardDeck: React.FC<ReportCardDeckProps> = ({
           {availableCards.map((_, index) => (
             <button
               key={index}
+              type="button"
+              aria-label={`Card ${index + 1}`}
               onClick={() => goToCard(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
-                index === currentCardIndex ? 'bg-white' : 'bg-white/30'
+              className={`h-3 w-3 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
+                index === currentCardIndex ? 'bg-white' : 'bg-white/50'
               }`}
             />
           ))}

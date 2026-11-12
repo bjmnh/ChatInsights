@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
 import { Brain, BarChart3, TrendingUp, Globe, Zap } from 'lucide-react';
+import { MeterRows, StatBlocks } from './reportPolish';
 
 interface LinguisticFingerprintData {
   reportTitle: string;
@@ -19,6 +20,8 @@ interface LinguisticFingerprintData {
   communicationEffectiveness?: string;
   rhetoricalDevices?: string[];
   cognitiveComplexity?: string;
+  stats?: Array<{ label: string; value: string }>;
+  meters?: Array<{ label: string; value: number }>;
   disclaimer: string;
 }
 
@@ -46,7 +49,7 @@ export const LinguisticFingerprintCard: React.FC<LinguisticFingerprintCardProps>
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.8 }}
-      className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8 relative overflow-hidden"
+      className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-8 relative overflow-hidden"
     >
       {/* Navigation Controls */}
       {showNavigation && onNavigate && (
@@ -213,6 +216,7 @@ export const LinguisticFingerprintCard: React.FC<LinguisticFingerprintCardProps>
               STRUCTURAL ANALYSIS
             </h3>
             <div className="space-y-4">
+              {data.stats && data.stats.length > 0 && <StatBlocks stats={data.stats} />}
               <div>
                 <h4 className="text-white font-medium mb-2">Sentence Structure:</h4>
                 <p className="text-slate-300 text-sm">
@@ -235,19 +239,19 @@ export const LinguisticFingerprintCard: React.FC<LinguisticFingerprintCardProps>
                 </div>
               )}
 
-              {/* Animated Waveform */}
+              {data.meters && data.meters.length > 0 && <MeterRows meters={data.meters} />}
               <div className="mt-4">
                 <h4 className="text-white font-medium mb-2">Complexity Visualization:</h4>
-                <div className="flex items-end justify-center space-x-1 h-16">
+                <div className="flex items-end justify-center space-x-1 h-16" aria-hidden="true">
                   {[...Array(20)].map((_, i) => (
                     <motion.div
                       key={i}
                       className="bg-gradient-to-t from-orange-600 to-orange-400 w-2 rounded-t"
                       initial={{ height: 0 }}
-                      animate={{ 
-                        height: animationComplete ? `${Math.random() * 60 + 10}px` : 0 
+                      animate={{
+                        height: animationComplete ? `${12 + ((i * 17) % 48)}px` : 0
                       }}
-                      transition={{ 
+                      transition={{
                         delay: 1 + i * 0.05,
                         duration: 0.5,
                         ease: "easeOut"

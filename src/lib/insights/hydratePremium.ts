@@ -24,6 +24,8 @@ export interface PremiumReportShape {
     sentenceStructure: string;
     expressiveness: string;
     potentialInterestsIndicatedByLanguage: string[];
+    stats?: Array<{ label: string; value: string }>;
+    meters?: Array<{ label: string; value: number }>;
     disclaimer: string;
   };
   topInterestingConversations?: Array<{ conversationId: string; title?: string; justification: string; significance?: string; insights?: string[] }>;
@@ -115,7 +117,7 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     }
     return '';
   };
-  const notSearched = 'Not searched at this depth.';
+  const notSearched = 'Not searched at this depth. A deeper pass would look here.';
   const fbi = hydrated.fbiReport;
   const reality = hydrated.realityTVPersona;
   const mirror = hydrated.unfilteredMirror;
@@ -242,7 +244,16 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       expressiveness: file.style.swearCount
         ? `${file.style.swearCount} swear words in the messages you sent.`
         : 'No swear words turned up in the local pass.',
-      potentialInterestsIndicatedByLanguage: interestLines.length ? interestLines : ['None extracted'],
+      stats: [
+        { label: 'Words / message', value: String(file.style.wordsPerMessage) },
+        { label: 'Your messages', value: String(file.style.userMessages) },
+        { label: 'Question share', value: `${Math.round(file.style.questionShare * 100)}%` },
+      ],
+      meters: [
+        { label: 'Questions', value: file.style.questionShare },
+        { label: 'Vocabulary', value: Math.min(1, file.style.vocabulary) },
+      ],
+      potentialInterestsIndicatedByLanguage: interestLines,
       disclaimer: 'From the local pass. No model call for these counts.',
     };
   }
@@ -295,7 +306,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     report.piiSafetyCompass = {
       reportTitle: 'What you actually typed',
       awarenessScore,
-      summary: `You shared ${file.exposure.emails.length} email addresses, ${file.exposure.phones.length} phone numbers, and ${file.exposure.cardLike} card-like numbers. Card-like numbers are counted, not printed.`,
+      summary: `You shared ${file.exposure.emails.length} ${file.exposure.emails.length === 1 ? 'email address' : 'email addresses'}, ${file.exposure.phones.length} ${file.exposure.phones.length === 1 ? 'phone number' : 'phone numbers'}, and ${file.exposure.cardLike} card-like ${file.exposure.cardLike === 1 ? 'number' : 'numbers'}. Card-like numbers are counted, not printed.`,
       detailedBreakdown: [
         {
           category: 'Emails and phones',

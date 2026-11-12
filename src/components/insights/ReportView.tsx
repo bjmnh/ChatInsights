@@ -16,7 +16,7 @@ import {
 import type { NormalizedConversation } from '../../lib/conversationParser/types';
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
-import { cardPreviews, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
+import { cardPreviews, filedStamp, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { reportLabel, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip, Stamp } from '../reports/dossier';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
@@ -46,7 +46,7 @@ const ORIGINAL: Array<{
   { id: 'linguistic', card: 'style', title: 'Linguistic Fingerprint', dossier: 'Language Trace', icon: FileText, gradient: 'from-blue-500 via-cyan-500 to-teal-500', iconBg: 'bg-gradient-to-br from-blue-400 to-cyan-600', textColor: 'text-blue-100', borderColor: 'border-blue-500/30', hoverBorder: 'hover:border-blue-400', badgeClass: 'bg-blue-500/20 text-blue-300 border-blue-500/30', key: 'linguisticFingerprint' },
   { id: 'top5', card: 'notable', title: 'Most Fascinating Conversations', dossier: 'Priority Threads', icon: Users, gradient: 'from-purple-500 via-violet-500 to-indigo-500', iconBg: 'bg-gradient-to-br from-purple-400 to-indigo-600', textColor: 'text-purple-100', borderColor: 'border-purple-500/30', hoverBorder: 'hover:border-purple-400', badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/30', key: 'topInterestingConversations' },
   { id: 'reality', card: 'stranger', title: 'Reality TV Persona', dossier: 'Subject Archetype', icon: Tv, gradient: 'from-pink-500 via-rose-500 to-red-500', iconBg: 'bg-gradient-to-br from-pink-400 to-rose-600', textColor: 'text-pink-100', borderColor: 'border-pink-500/30', hoverBorder: 'hover:border-pink-400', badgeClass: 'bg-pink-500/20 text-pink-300 border-pink-500/30', key: 'realityTVPersona' },
-  { id: 'mirror', card: 'stranger', title: 'The Unfiltered Mirror', dossier: 'Psychological Assessment', icon: Eye, gradient: 'from-gray-700 via-slate-600 to-gray-800', iconBg: 'bg-gradient-to-br from-gray-600 to-slate-800', textColor: 'text-gray-100', borderColor: 'border-gray-500/30', hoverBorder: 'hover:border-gray-400', badgeClass: 'bg-slate-500/20 text-slate-200 border-slate-400/40', key: 'unfilteredMirror' },
+  { id: 'mirror', card: 'stranger', title: 'The Unfiltered Mirror', dossier: 'Psychological Assessment', icon: Eye, gradient: 'from-slate-100 via-zinc-100 to-slate-200', iconBg: 'bg-gradient-to-br from-gray-600 to-slate-800', textColor: 'text-gray-100', borderColor: 'border-gray-500/30', hoverBorder: 'hover:border-gray-400', badgeClass: 'bg-slate-500/20 text-slate-200 border-slate-400/40', key: 'unfilteredMirror' },
   { id: 'pii', card: 'sensitive', title: 'PII Safety Compass', dossier: 'Sensitive Holdings', icon: Shield, gradient: 'from-green-500 via-emerald-500 to-teal-500', iconBg: 'bg-gradient-to-br from-green-400 to-emerald-600', textColor: 'text-green-100', borderColor: 'border-green-500/30', hoverBorder: 'hover:border-green-400', badgeClass: 'bg-green-500/20 text-green-300 border-green-500/30', key: 'piiSafetyCompass' },
   { id: 'doppelganger', card: 'usage', title: 'Digital Doppelgänger', dossier: 'Cover Identity', icon: Globe, gradient: 'from-indigo-500 via-blue-500 to-cyan-500', iconBg: 'bg-gradient-to-br from-indigo-400 to-blue-600', textColor: 'text-indigo-100', borderColor: 'border-indigo-500/30', hoverBorder: 'hover:border-indigo-400', badgeClass: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30', key: 'digitalDoppelganger' },
 ];
@@ -216,6 +216,7 @@ const ReportView: React.FC<{
           <p className="mx-auto mt-3 max-w-2xl text-xl text-gray-300">
             {reportSubtitle(caseFile)}
           </p>
+          <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-red-100">{filedStamp(caseFile)}</p>
           <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-gradient-to-r from-blue-400 to-purple-600" />
         </motion.div>
 

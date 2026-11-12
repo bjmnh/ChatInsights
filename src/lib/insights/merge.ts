@@ -73,7 +73,9 @@ export interface CaseFile {
     ev: string[];
     codename: string;
     codename_reason: string;
+    archetype: string;
   };
+  filedAt?: string;
   supportNote?: string;
   cardStatus: Record<CardId, CardState>;
 }
@@ -124,6 +126,22 @@ function depthLabel(depth: DepthId): string {
 
 export const NEUTRAL_CODENAME = 'Open notebook';
 export const NEUTRAL_CODENAME_REASON = 'A short name for this file, not a fact copied from one chat.';
+
+export function settleArchetype(draft: string | undefined, codename: string, banned: string[]): string {
+  const foldedBan = banned.map((item) => item.trim().toLowerCase()).filter((item) => item.length > 2);
+  const leaks = (value: string) => foldedBan.some((item) => value.toLowerCase().includes(item));
+  const text = draft?.trim() ?? '';
+  const words = text.split(/\s+/).filter(Boolean);
+  const ok = words.length >= 3
+    && words.length <= 8
+    && text.length <= 80
+    && !leaks(text)
+    && !/[@\d]/.test(text)
+    && toneOk(text);
+  if (ok) return text;
+  const alias = codename.trim() || NEUTRAL_CODENAME;
+  return `Cast as ${alias}`;
+}
 
 export function settleCodename(
   draft: { codename?: string; codename_reason?: string } | null | undefined,
@@ -386,9 +404,17 @@ export function buildCaseFile(input: {
   });
 
   const modelRead = new Set(read);
+  const banned = [
+    ...input.local.exposure.emails,
+    ...input.local.exposure.phones,
+    ...input.local.conversations.flatMap((item) => [...item.people, ...item.places, ...item.orgs]),
+    ...kept.map((fact) => fact.v),
+  ];
+  const alias = settleCodename(input.narrative, banned);
   return {
     schema_version: '1.0',
     model: { provider: input.provider, id: input.model, depth: input.depth },
+    filedAt: new Date().toISOString(),
     coverage,
     subject: {
       nameGuess: subjectField('name'),
@@ -418,12 +444,8 @@ export function buildCaseFile(input: {
       cover,
       blurbs: safeBlurbs,
       ev: input.narrative?.ev ?? read.slice(0, 5),
-      ...settleCodename(input.narrative, [
-        ...input.local.exposure.emails,
-        ...input.local.exposure.phones,
-        ...input.local.conversations.flatMap((item) => [...item.people, ...item.places, ...item.orgs]),
-        ...kept.map((fact) => fact.v),
-      ]),
+      ...alias,
+      archetype: settleArchetype(input.narrative?.archetype, alias.codename, banned),
     },
     supportNote: input.local.distress ? SUPPORT_NOTE : undefined,
     cardStatus: cardStates(input.depth),

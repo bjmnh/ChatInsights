@@ -70,6 +70,7 @@ export const narrativeSchema = z
     ev: z.array(z.string()).optional().default([]),
     codename: z.string().trim().min(1).optional(),
     codename_reason: z.string().trim().min(1).optional(),
+    archetype: z.string().trim().min(1).optional(),
   })
   .strip();
 
@@ -128,8 +129,9 @@ export const NARRATIVE_JSON_SCHEMA: Record<string, unknown> = {
     ev: { type: 'array', items: { type: 'string' } },
     codename: { type: 'string', description: 'Two to four playful words. No names, places, jobs, or other personal details.' },
     codename_reason: { type: 'string', description: 'One sentence saying why the alias fits, without repeating a raw fact.' },
+    archetype: { type: 'string', description: 'A playful reality-TV casting line, 3 to 8 words. A character type, not a job, name, or place from the notes.' },
   },
-  required: ['cover', 'blurbs', 'ev', 'codename', 'codename_reason'],
+  required: ['cover', 'blurbs', 'ev', 'codename', 'codename_reason', 'archetype'],
 };
 
 export const VERIFY_JSON_SCHEMA: Record<string, unknown> = {

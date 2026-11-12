@@ -107,6 +107,36 @@ export function reportSubtitle(file: CaseFile): string {
   return `${depth} · ${file.coverage.read} of ${file.coverage.conversations} conversations · ${model}`;
 }
 
+const FILED_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function filedStamp(file: CaseFile): string {
+  const analyst = file.model.id === 'demo-extractor' ? 'Demo extractor' : file.model.id;
+  const parsed = file.filedAt ? new Date(file.filedAt) : null;
+  const filed = parsed && !Number.isNaN(parsed.getTime())
+    ? `${String(parsed.getUTCDate()).padStart(2, '0')} ${FILED_MONTHS[parsed.getUTCMonth()]} ${parsed.getUTCFullYear()}`
+    : 'undated';
+  return `Filed: ${filed} · Analyst: ${analyst}`;
+}
+
+const REASON_LINE: Record<string, string> = {
+  identifier: 'an identifier in the chat',
+  health: 'a health note',
+  money: 'a money note',
+  person: 'a named person',
+  intense: 'a tense note',
+  long: 'a long thread',
+  self: 'a self-description',
+};
+
+function threadPreview(file: CaseFile): string | undefined {
+  const lead = file.notable[0];
+  if (!lead?.title) return undefined;
+  const why = lead.reasons.map((reason) => REASON_LINE[reason]).filter(Boolean);
+  const stood = why.length ? why.join(', ') : `a score of ${lead.score}`;
+  const count = file.notable.length;
+  return `${lead.title} stood out for ${stood}. ${count} ${count === 1 ? 'thread' : 'threads'} on file.`;
+}
+
 export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Record<string, string> {
   const cover = file.narrative.cover.trim();
   const shared = [cover, 'From the chats that were read', 'No cover was written for this read.'];
@@ -128,7 +158,7 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     linguistic: pick(hydrated.linguisticFingerprint?.overallStyleDescription) || ORIGINAL_CARD_COPY.linguistic,
     top5: file.cardStatus.notable === 'not-searched'
       ? notSearched
-      : pick(hydrated.topInterestingConversations?.[0]?.title, hydrated.topInterestingConversations?.[0]?.justification) || ORIGINAL_CARD_COPY.top5,
+      : threadPreview(file) || ORIGINAL_CARD_COPY.top5,
     reality: file.cardStatus.stranger === 'not-searched'
       ? notSearched
       : pick(reality?.personaArchetype, reality?.viewerAppeal, reality?.likelyStoryArcs?.[0]) || ORIGINAL_CARD_COPY.reality,
@@ -273,7 +303,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   if (searched(file, 'stranger')) {
     report.realityTVPersona = {
       reportTitle: 'What a stranger would conclude',
-      personaArchetype: file.subject.occupation?.v || peopleLine[0] || 'From the chats that were read',
+      personaArchetype: file.narrative.archetype,
       description: [file.narrative.blurbs.stranger, file.decisions[0] ? `${file.decisions[0].question}: ${file.decisions[0].v}.` : '']
         .filter((line) => line && line.trim() !== cover)
         .join(' ') || file.subject.location?.v || cover,

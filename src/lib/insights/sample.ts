@@ -81,6 +81,7 @@ export function createDemoAdapter(options?: { latencyMs?: number; sleep?: (ms: n
             ev: ['c_sister', 'c_work', 'c_money'],
             codename: 'Checklist weather',
             codename_reason: 'You keep a list open and rewrite it until it sounds like something you would send.',
+            archetype: 'The producer who rewrites the call sheet',
           }),
           viaProxy: false,
           usage: { input: 200, output: 80 },

@@ -4,10 +4,11 @@ import { CONTENT_SECURITY_POLICY } from './csp.ts';
 import { donationHref } from './donation.ts';
 import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
+import { isEchoedPlaceholder } from './checks.ts';
 import { runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
 import { cardPreviews, hydratePremiumReport, reportSubtitle } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, isComplete, NEUTRAL_CODENAME, reportLabel, settleArchetype, settleCodename } from './merge.ts';
+import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, reportLabel, reportStatus, settleArchetype, settleCodename } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -72,7 +73,7 @@ describe('depth selection', () => {
     expect(quick.stranger).toBe('not-searched');
     expect(quick.style).toBe('local');
     expect(quick.usage).toBe('local');
-    expect(cardStates('standard').stranger).toBe('partial');
+    expect(cardStates('standard').stranger).toBe('ready');
     expect(cardStates('deep').timeline).toBe('ready');
     expect(cardStates('forensic').decisions).toBe('ready');
   });
@@ -128,6 +129,19 @@ describe('cost estimate', () => {
       outputPricePerMillion: 0,
     });
     expect(paid.cost).toBeCloseTo(paid.costBeforeCushion * 1.2, 5);
+  });
+
+  it('scales a small export instead of using the large-file narrative allowance', () => {
+    const prices = { inputPricePerMillion: 0.3, outputPricePerMillion: 2.5, contextWindow: 1_000_000, depth: 'standard' as const };
+    const tiny = estimateRead({ ...prices, conversationCount: 2, userTokens: 278, fullTokens: 400 });
+    const larger = estimateRead({ ...prices, conversationCount: 20, userTokens: 2780, fullTokens: 4000 });
+    const pricey = estimateRead({ ...prices, conversationCount: 2, userTokens: 278, fullTokens: 400, inputPricePerMillion: 3, outputPricePerMillion: 15 });
+    expect(tiny.inputTokens).toBeLessThan(5_000);
+    expect(tiny.outputTokens).toBeLessThan(200);
+    expect(tiny.cost).toBeLessThan(0.02);
+    expect(tiny.cost).toBeLessThan(larger.cost);
+    expect(pricey.cost).toBeGreaterThan(tiny.cost);
+    expect(estimateRead({ ...prices, depth: 'quick', conversationCount: 2, userTokens: 278, fullTokens: 400 }).calls).toBe(1);
   });
 });
 
@@ -281,6 +295,7 @@ describe('demo pipeline', () => {
     });
     expect(result.coverage.partial).toBe(false);
     expect(reportLabel(result)).toBe('Complete');
+    expect(reportStatus(result).badge).toBe('Complete report');
     const standard = selectConversations(local, 'standard');
     expect(standard.chosenIds).toEqual(expect.arrayContaining(['c_sister', 'c_work', 'c_money', 'c_health', 'c_pii', 'c_worry', 'c_distress']));
     expect(standard.chosenIds).not.toContain('c_trivial');
@@ -311,6 +326,7 @@ describe('demo pipeline', () => {
     expect(previews.top5).toMatch(/threads on file/);
     expect(previews.top5).not.toBe('Contact card');
     expect(premium.realityTVPersona?.personaArchetype).toBe('The producer who rewrites the call sheet');
+    expect(premium.realityTVPersona?.reportTitle).toBe(premium.realityTVPersona?.personaArchetype);
     expect(previews.mirror).not.toMatch(/You mention Dana as your sister/);
     expect(reportSubtitle(result)).toBe(`Deep read · ${result.coverage.read} of ${result.coverage.conversations} conversations · Demo extractor`);
     expect(result.narrative.codename).toBe('Second Draft');
@@ -323,6 +339,22 @@ describe('demo pipeline', () => {
     expect(caseFileNumber('Second Draft|demo-extractor|8')).toBe(caseFileNumber('Second Draft|demo-extractor|8'));
     expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
     expect(settleArchetype('backend engineer, moved into team lead', 'Second Draft', ['backend engineer, moved into team lead'])).toBe('Cast as Second Draft');
+    expect(settleArchetype('The Determined Career Pivot Strategist', 'Second Draft', [])).toBe('Cast as Second Draft');
+    const standardFile = await runRead({
+      conversations,
+      local,
+      depth: 'standard',
+      model: { provider: 'demo', id: 'demo-extractor', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 },
+      adapter: createDemoAdapter({ latencyMs: 0 }),
+      sleep: async () => undefined,
+    });
+    expect(reportStatus(standardFile).badge).toBe('Finished');
+    expect(reportStatus(standardFile).detail).toMatch(/not flagged/);
+    expect(standardFile.cardStatus.stranger).toBe('ready');
+    expect(standardFile.cardStatus.file).not.toBe('partial');
+    expect(isEchoedPlaceholder('A profound, unvarnished observation about your inner patterns and motivations.')).toBe(true);
+    expect(decisionText('switching to data analytics', 'switching to data analytics')).toBe('switching to data analytics');
+    expect(decisionText('Rent or buy?', 'keep renting')).toBe('Rent or buy?: keep renting');
   });
 });
 

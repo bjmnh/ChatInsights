@@ -31,6 +31,29 @@ export function toneOk(text: string): boolean {
   return toneProblems(text).length === 0;
 }
 
+/** Phrases that show up in card copy, prompts, or schema descriptions. A model sometimes echoes them. */
+const ECHOED_EXAMPLES = [
+  'a profound, unvarnished observation',
+  'a comprehensive behavioral profile',
+  'advanced analysis of your language patterns',
+  'your 5 most intellectually unique',
+  'your personality archetype and how you',
+  'analysis of your information sharing patterns',
+  'your hypothetical social media profile',
+  'two to four playful words',
+  'a playful reality-tv casting line',
+  'one sentence saying why the alias fits',
+  'names that come up, and how you describe them',
+  'from the chats that were read',
+  'no cover was written for this read',
+];
+
+export function isEchoedPlaceholder(text: string | null | undefined): boolean {
+  const norm = (text ?? '').toLowerCase().replace(/\s+/g, ' ').replace(/[.…]+/g, '').trim();
+  if (norm.length < 12) return false;
+  return ECHOED_EXAMPLES.some((example) => norm.includes(example) || example.startsWith(norm));
+}
+
 export const DISTRESS_PATTERN =
   /\b(suicid\w*|kill myself|self[- ]harm|end my life|don'?t want to (?:be here|live)|want to die|hopeless)\b/i;
 

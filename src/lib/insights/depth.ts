@@ -78,9 +78,7 @@ export function cardStates(depth: DepthId): Record<CardId, CardState> {
       stranger: 'not-searched',
     };
   }
-  if (depth === 'standard') {
-    return { ...LOCAL_READY, stranger: 'partial' };
-  }
+  if (depth === 'standard') return { ...LOCAL_READY };
   return { ...LOCAL_READY };
 }
 
@@ -88,8 +86,7 @@ export function cardStateLabel(state: CardState, depth: DepthId): string | null 
   if (state === 'not-searched') return 'Not searched at this depth.';
   if (state === 'local') return 'From the local pass. No model call.';
   if (state === 'partial' && depth === 'quick') return 'Partial. Quick scan only sent a sample of your chats.';
-  if (state === 'partial' && depth === 'standard') return 'Cautious. Standard only sent chats the local pass flagged.';
-  if (state === 'partial') return 'Partial.';
+  if (state === 'partial') return 'Partial. This card’s pass did not finish.';
   return null;
 }
 

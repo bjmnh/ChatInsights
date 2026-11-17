@@ -7,12 +7,13 @@ import { getCaseFile } from '../services/caseFileService';
 
 const SavedCasePage: React.FC = () => {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [file, setFile] = useState<{ filename: string | null; case_file: CaseFile } | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate('/auth');
       return;
@@ -24,8 +25,9 @@ const SavedCasePage: React.FC = () => {
         else setFile(row);
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Could not load the report'));
-  }, [user, id, navigate]);
+  }, [user, authLoading, id, navigate]);
 
+  if (authLoading || (!file && !error)) return <p className="mx-auto max-w-3xl px-4 py-12 text-sm text-muted-foreground">Loading…</p>;
   if (error) return <p className="mx-auto max-w-3xl px-4 py-12 text-sm text-muted-foreground">{error}</p>;
   if (!file) return <p className="mx-auto max-w-3xl px-4 py-12 text-sm text-muted-foreground">Loading…</p>;
 
@@ -39,7 +41,7 @@ const SavedCasePage: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  return <ReportView caseFile={file.case_file} conversations={[]} onDownload={download} />;
+  return <ReportView caseFile={file.case_file} conversations={[]} onDownload={download} onClose={() => navigate('/dashboard')} />;
 };
 
 export default SavedCasePage;

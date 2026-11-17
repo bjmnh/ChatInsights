@@ -46,7 +46,7 @@ export function ClassificationBar() {
   if (!meta) return null;
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 top-0 z-[80] flex h-9 items-center justify-between gap-3 border-b border-red-300/50 bg-red-950 px-3 font-mono text-[11px] tracking-[0.16em] text-red-50 sm:px-4">
+      <div className="pointer-events-none fixed inset-x-0 top-16 z-[80] flex h-9 items-center justify-between gap-3 border-b border-red-300/50 bg-red-950 px-3 font-mono text-[11px] tracking-[0.16em] text-red-50 sm:px-4">
         <span className="min-w-0 truncate">{line}</span>
         <span className="shrink-0">CASE FILE No. {meta.caseNo}</span>
         <span className="hidden shrink-0 truncate sm:inline">SUBJECT: {meta.subject}</span>

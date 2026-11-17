@@ -14,6 +14,7 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import ContactPage from './pages/ContactPage';
+import NotFoundPage from './pages/NotFoundPage';
 import ReadPage from './pages/ReadPage';
 import SavedCasePage from './pages/SavedCasePage';
 import './App.css';
@@ -39,6 +40,7 @@ function Shell() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/support" element={<ContactPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
       {!immersive && <Footer />}

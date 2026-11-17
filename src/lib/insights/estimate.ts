@@ -39,8 +39,12 @@ export function estimateRead(input: EstimateInput): Estimate {
   let outputTokens = Math.round(userTokens * outputRatio);
   let calls = extractCalls;
   if (input.depth !== 'quick' && count > 0) {
-    inputTokens += NARRATIVE_INPUT_TOKENS;
-    outputTokens += NARRATIVE_OUTPUT_TOKENS;
+    // The published table uses 30k/16k of narrative on a 1.2M-token Standard example.
+    // Smaller exports take a share of that, and larger ones do not exceed it.
+    const reference = 1_200_000;
+    const share = Math.min(1, userTokens / reference);
+    inputTokens += Math.round(NARRATIVE_INPUT_TOKENS * share);
+    outputTokens += Math.round(NARRATIVE_OUTPUT_TOKENS * share);
     calls += 1;
   }
   if (input.depth === 'forensic' && count > 0) {

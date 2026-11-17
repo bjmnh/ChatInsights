@@ -1,4 +1,5 @@
-import type { CaseFile } from './merge.ts';
+import { isEchoedPlaceholder } from './checks.ts';
+import { decisionText, reportStatus, type CaseFile } from './merge.ts';
 
 export interface PremiumReportShape {
   fbiReport?: {
@@ -167,18 +168,18 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
       : pick(mirror?.observation, mirror?.deeperInsight, mirror?.psychologicalImplications) || ORIGINAL_CARD_COPY.mirror,
     pii: pick(hydrated.piiSafetyCompass?.summary) || ORIGINAL_CARD_COPY.pii,
     doppelganger: pick(hydrated.digitalDoppelganger?.bio, hydrated.digitalDoppelganger?.handle) || ORIGINAL_CARD_COPY.doppelganger,
-    people: file.cardStatus.people === 'not-searched'
+    people: file.cardStatus.people === 'not-searched' || file.people.length === 0
       ? notSearched
-      : pick(file.people.slice(0, 3).map((person) => person.name).join(', ')) || ORIGINAL_CARD_COPY.people,
-    places: file.cardStatus.places === 'not-searched'
+      : pick(file.people.slice(0, 3).map((person) => person.name).join(', ')) || notSearched,
+    places: file.cardStatus.places === 'not-searched' || (file.places.length === 0 && file.orgs.length === 0)
       ? notSearched
-      : pick([...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ')) || ORIGINAL_CARD_COPY.places,
+      : pick([...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ')) || notSearched,
     timeline: file.cardStatus.timeline === 'not-searched'
       ? notSearched
       : pick(file.timeline[0]?.v, file.projects[0]?.v) || ORIGINAL_CARD_COPY.timeline,
     decisions: file.cardStatus.decisions === 'not-searched'
       ? notSearched
-      : pick(file.decisions[0] ? `${file.decisions[0].question}: ${file.decisions[0].v}` : undefined) || ORIGINAL_CARD_COPY.decisions,
+      : pick(file.decisions[0] ? decisionText(file.decisions[0].question, file.decisions[0].v) : undefined) || ORIGINAL_CARD_COPY.decisions,
     loops: file.cardStatus.loops === 'not-searched'
       ? notSearched
       : pick(file.open_loops[0]?.v) || ORIGINAL_CARD_COPY.loops,
@@ -196,8 +197,14 @@ function prose(value: string | undefined): string | undefined {
 }
 
 function disclaimer(file: CaseFile): string {
-  const state = file.coverage.partial ? 'Partial report.' : 'Complete report.';
-  return `${state} ${file.model.provider} · ${file.model.id} · ${file.coverage.depth}. Read ${file.coverage.read} of ${file.coverage.conversations} conversations.`;
+  const status = reportStatus(file);
+  return `${status.badge}. ${status.detail} ${file.model.provider} · ${file.model.id} · ${file.coverage.depth}.`;
+}
+
+function keptProse(value: string | undefined): string | undefined {
+  const text = prose(value);
+  if (!text || isEchoedPlaceholder(text)) return undefined;
+  return text;
 }
 
 function searched(file: CaseFile, card: keyof CaseFile['cardStatus']): boolean {
@@ -225,7 +232,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
         operationalSignificance: titlesOf(file.narrative.ev, titles) || undefined,
       },
       subjectProfileSummary: cover,
-      psychologicalProfile: prose(file.beliefs.map((item) => item.v).join(' ')) || prose(file.worries.map((item) => item.v).join(' ')),
+      psychologicalProfile: keptProse(file.beliefs.map((item) => item.v).join(' ')) || keptProse(file.worries.map((item) => item.v).join(' ')),
       dominantInterests: interestLines.length ? interestLines : file.coverage.topics.map((topic) => topic.topic).filter(Boolean),
       communicationModalities: [
         `${file.style.wordsPerMessage} words per message you sent`,
@@ -256,7 +263,12 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
         file.routines.peakHours.length ? `Peak hours (UTC): ${file.routines.peakHours.join(', ')}` : '',
       ].filter(Boolean),
       potentialVulnerabilities: file.health.slice(0, 3).map((item) => item.v),
-      operationalAssessment: file.narrative.blurbs.file || cover,
+      operationalAssessment: (() => {
+        const note = file.narrative.blurbs.file?.trim();
+        if (!note || isEchoedPlaceholder(note)) return undefined;
+        if (note.toLowerCase() === cover.trim().toLowerCase()) return undefined;
+        return note;
+      })(),
       disclaimer: note,
     };
   }
@@ -293,7 +305,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     const rows = file.notable.slice(0, 5).map((item) => ({
       conversationId: item.id,
       title: item.title,
-      justification: item.reasons.length ? item.reasons.join(', ') : `Score ${item.score}`,
+      justification: item.reasons.map((reason) => REASON_LINE[reason]).filter(Boolean).join(', ') || `Score ${item.score}`,
       significance: item.modelRead ? 'The model read this chat.' : 'Not model-read at this depth.',
       insights: [`Score ${item.score}`],
     }));
@@ -301,28 +313,31 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   }
 
   if (searched(file, 'stranger')) {
+    const archetype = file.narrative.archetype;
+    const strangerNote = keptProse(file.narrative.blurbs.stranger);
     report.realityTVPersona = {
-      reportTitle: 'What a stranger would conclude',
-      personaArchetype: file.narrative.archetype,
-      description: [file.narrative.blurbs.stranger, file.decisions[0] ? `${file.decisions[0].question}: ${file.decisions[0].v}.` : '']
-        .filter((line) => line && line.trim() !== cover)
-        .join(' ') || file.subject.location?.v || cover,
+      reportTitle: archetype,
+      personaArchetype: archetype,
+      description: strangerNote && strangerNote.toLowerCase() !== archetype.toLowerCase()
+        ? strangerNote
+        : file.narrative.codename_reason,
       popCultureComparisons: interestLines.slice(0, 4),
       characterTraits: peopleLine.slice(0, 4),
-      likelyStoryArcs: file.decisions.slice(0, 3).map((item) => `${item.question}: ${item.v}`),
+      likelyStoryArcs: file.decisions.slice(0, 3).map((item) => decisionText(item.question, item.v)),
       viewerAppeal: file.subject.location ? `You place yourself in ${file.subject.location.v}.` : undefined,
       conflictStyle: file.contradictions[0]
         ? `${file.contradictions[0].field}: ${file.contradictions[0].earlier.v} → ${file.contradictions[0].later.v}`
         : undefined,
       disclaimer: note,
     };
+    const observation = file.worries[0]?.quote && !isEchoedPlaceholder(file.worries[0].quote)
+      ? `“${file.worries[0].quote}”`
+      : keptProse(file.worries[0]?.v) || keptProse(file.beliefs[0]?.v);
     report.unfilteredMirror = {
       reportTitle: 'The unfiltered mirror',
-      observation: file.worries[0]?.quote
-        ? `“${file.worries[0].quote}”`
-        : file.worries[0]?.v || file.beliefs[0]?.v || cover,
-      deeperInsight: file.beliefs.map((item) => item.v).join(' ') || undefined,
-      psychologicalImplications: file.worries.map((item) => item.v).join(' ') || undefined,
+      observation: observation || 'NO RECORDS FOUND AT THIS DEPTH',
+      deeperInsight: keptProse(file.beliefs.map((item) => item.v).join(' ')),
+      psychologicalImplications: keptProse(file.worries.map((item) => item.v).join(' ')),
       disclaimer: note,
     };
   }

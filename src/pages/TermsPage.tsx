@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LegalDocument, LegalPlaceholder } from '../components/legal/LegalDocument';
+import { LegalDocument } from '../components/legal/LegalDocument';
 import { LEGAL } from '../config/legal';
 
 const TermsPage: React.FC = () => {
@@ -16,10 +16,9 @@ const TermsPage: React.FC = () => {
       <section>
         <h2>1. Acceptance and eligibility</h2>
         <p>
-          These Terms of Service (“Terms”) are a contract between you and{' '}
-          <LegalPlaceholder>{LEGAL.entityName}</LegalPlaceholder> (“we,” “us”),{' '}
-          <LegalPlaceholder>{LEGAL.address}</LegalPlaceholder>, for the Chat Insights website and
-          related services (the “Service”).
+          These Terms of Service (“Terms”) cover Chat Insights, a personal hobby project, not a
+          business. There is no company and no business address behind the site (the “Service”).
+          “We” means the person who keeps the project.
         </p>
         <p className="mt-3">
           Chat Insights is an independent service. It is not affiliated with, endorsed by, or
@@ -51,7 +50,8 @@ const TermsPage: React.FC = () => {
         <h2>3. Accounts</h2>
         <p>
           You are responsible for the activity on your account and for keeping your sign-in
-          credentials private. Tell us at <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>{' '}
+          credentials private. Tell us at{' '}
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>{' '}
           if you believe someone else is using your account. We may refuse a registration or suspend
           an account that breaks these Terms.
         </p>
@@ -123,7 +123,7 @@ const TermsPage: React.FC = () => {
           from the setup screen. A saved case file does not yet have a self-serve delete control,
           and the app does not include a control that closes the whole account. To ask us to delete
           a saved case file or close your account, email{' '}
-          <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>.
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>.
         </p>
         <p className="mt-3">
           We may suspend or end access if you break these Terms, if we must do so to comply with the
@@ -141,8 +141,8 @@ const TermsPage: React.FC = () => {
           will be uninterrupted, or that a given upload will produce a particular card.
         </p>
         <p className="mt-3">
-          To the fullest extent the law allows, <LegalPlaceholder>{LEGAL.entityName}</LegalPlaceholder>{' '}
-          and its directors, employees, and suppliers will not be liable for indirect, incidental,
+          To the fullest extent the law allows, the person who maintains this hobby project
+          will not be liable for indirect, incidental,
           special, consequential, or punitive damages, or for lost profits, data, or goodwill. Our
           total liability for claims arising out of the Service will not exceed the amount you paid
           us. The service is currently free, so that amount is zero. Some places do not allow these
@@ -153,14 +153,10 @@ const TermsPage: React.FC = () => {
       <section>
         <h2>12. Governing law</h2>
         <p>
-          These Terms are governed by the laws of{' '}
-          <LegalPlaceholder>{LEGAL.governingState}</LegalPlaceholder>, without regard to conflict-of-law
-          rules. Courts located in <LegalPlaceholder>{LEGAL.governingState}</LegalPlaceholder> are
-          the exclusive venue for disputes arising out of these Terms or the Service, except where
-          the law gives you the right to bring a claim somewhere else. If a provision is held
-          unenforceable, the rest of the Terms stay in effect. These Terms, the Privacy Policy, and
-          these Terms and the Privacy Policy are the entire agreement about the Service and replace
-          earlier agreements about it.
+          These terms do not name a governing state or a court. This is a personal hobby project,
+          not a business. If a provision is held unenforceable, the rest of the Terms stay in
+          effect. These Terms and the Privacy Policy are the entire agreement about the Service and
+          replace earlier agreements about it.
         </p>
       </section>
 
@@ -176,11 +172,7 @@ const TermsPage: React.FC = () => {
       <section>
         <h2>14. Contact</h2>
         <p>
-          <LegalPlaceholder>{LEGAL.entityName}</LegalPlaceholder>
-          <br />
-          <LegalPlaceholder>{LEGAL.address}</LegalPlaceholder>
-          <br />
-          <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>
         </p>
         <p className="mt-3">
           Questions: <Link to="/contact">Contact</Link>. The service is currently free.

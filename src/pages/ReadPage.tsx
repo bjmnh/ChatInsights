@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useDropzone } from 'react-dropzone';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { archiveExportFile, metadataFromParse } from '../lib/archive/client';
+import { uploadFailureMessage } from '../lib/archive/failure';
+import { isSampleRead } from '../lib/archive/policy';
 import { parseConversationExport, validateUploadFile } from '../lib/conversationParser';
 import type { NormalizedConversation } from '../lib/conversationParser/types';
 import { createAdapter } from '../lib/insights/adapters';
 import { clearCheckpoint, idbVaultStore, loadCheckpoint, saveCheckpoint } from '../lib/insights/browserStore';
-import { EXPORT_GUIDES } from '../lib/insights/copy';
+import { ARCHIVE_ACK, ARCHIVE_NOTICE, EXPORT_GUIDES } from '../lib/insights/copy';
 import { selectConversations } from '../lib/insights/depth';
 import { estimateRead } from '../lib/insights/estimate';
 import { forgetAllKeys, forgetKey, listKeys, rememberKey, revealKey, type KeySummary } from '../lib/insights/keyVault';
@@ -18,11 +21,14 @@ import type { RunProgress } from '../lib/insights/runner';
 import { runRead } from '../lib/insights/runner';
 import { buildSampleConversations, createDemoAdapter } from '../lib/insights/sample';
 import { exportFingerprint } from '../lib/insights/saveReport';
+import { loadAccountProviderKey, saveAccountProviderKey } from '../lib/providerKeys/client';
+import { supabase } from '../lib/supabase';
 import { saveCaseFile } from '../services/caseFileService';
 import ProgressView from '../components/insights/ProgressView';
 import ReportView from '../components/insights/ReportView';
 import SetupPanel, { type SetupValues } from '../components/insights/SetupPanel';
 import ExportDropzone, { type UploadStage } from '../components/upload/ExportDropzone';
+import { dropzoneGuard } from '../components/upload/gate';
 import { toast } from 'sonner';
 
 const DEFAULT_SETUP: SetupValues = {
@@ -38,6 +44,7 @@ const DEFAULT_SETUP: SetupValues = {
   maxTokens: '',
   consent: false,
   remember: false,
+  saveToAccount: false,
   passphrase: '',
 };
 
@@ -74,6 +81,11 @@ const ReadPage: React.FC = () => {
   const [resumeIds, setResumeIds] = useState<string[]>([]);
   const pausedRef = useRef(false);
   const sampleLoaded = useRef(false);
+  const accountSecrets = useRef<Record<string, { secret: string; hint: string }>>({});
+  const [accountHint, setAccountHint] = useState<string | null>(null);
+  const [archiveAcknowledged, setArchiveAcknowledged] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const retryFile = useRef<File | null>(null);
 
   const refreshKeys = useCallback(async () => {
     try {
@@ -97,6 +109,45 @@ const ReadPage: React.FC = () => {
       }
     }).catch(() => undefined);
   }, [refreshKeys]);
+
+  useEffect(() => {
+    if (!user) {
+      accountSecrets.current = {};
+      setAccountHint(null);
+      return;
+    }
+    const provider = setup.providerId;
+    let cancelled = false;
+    setAccountHint(accountSecrets.current[provider]?.hint ?? null);
+    supabase.auth.getSession().then(async ({ data }) => {
+      const accessToken = data.session?.access_token;
+      if (!accessToken || cancelled) return;
+      try {
+        const saved = await loadAccountProviderKey({
+          supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+          anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          accessToken,
+          provider,
+        });
+        if (cancelled) return;
+        if (!saved) {
+          delete accountSecrets.current[provider];
+          setAccountHint(null);
+          return;
+        }
+        accountSecrets.current[provider] = saved;
+        setAccountHint(saved.hint);
+        setSetup((current) => current.providerId === provider ? { ...current, saveToAccount: true } : current);
+      } catch {
+        if (cancelled) return;
+        delete accountSecrets.current[provider];
+        setAccountHint(null);
+      }
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [user, setup.providerId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -131,34 +182,69 @@ const ReadPage: React.FC = () => {
     });
   }, []);
 
+  const resolveSecret = () => setup.apiKey.trim() || accountSecrets.current[setup.providerId]?.secret || '';
+
   const onDrop = useCallback(async (files: File[]) => {
+    if (isSampleRead(window.location.search)) return;
+    if (!archiveAcknowledged) {
+      setUploadError('Confirm the storage notice before choosing a file.');
+      return;
+    }
     const file = files[0];
     if (!file) return;
     const invalid = validateUploadFile(file);
     if (invalid) {
-      toast.error(invalid);
+      setUploadError(invalid);
       return;
     }
-    setStage('reading');
+    retryFile.current = file;
+    setUploadError(null);
+    setStage('storing');
+    let archived = false;
     try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const parsePromise = parseConversationExport(file.name, bytes);
+      const { data } = await supabase.auth.getSession();
+      await archiveExportFile({
+        filename: file.name,
+        bytes,
+        contentType: file.type,
+        metadata: parsePromise.then(metadataFromParse),
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+        anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+        accessToken: data.session?.access_token ?? null,
+      });
+      archived = true;
       setStage('parsing');
-      const parsed = await parseConversationExport(file.name, new Uint8Array(await file.arrayBuffer()));
+      const parsed = await parsePromise;
       setStage('counting');
       setConversations(parsed.conversations);
       setFilename(file.name);
       setLocal(runLocalPass(parsed.conversations));
       setCaseFile(null);
       setResumeIds([]);
+      setUploadError(null);
       setStep('preview');
       parsed.warnings.forEach((warning) => toast.message(warning));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not read that export');
+      setUploadError(uploadFailureMessage(error, archived));
     } finally {
       setStage('idle');
     }
-  }, []);
+  }, [archiveAcknowledged]);
 
-  const dropzone = useDropzone({ onDrop, multiple: false, disabled: stage !== 'idle' });
+  const guard = dropzoneGuard(archiveAcknowledged, stage !== 'idle');
+  const dropzone = useDropzone({
+    onDrop: (files) => {
+      if (!archiveAcknowledged) return;
+      void onDrop(files);
+    },
+    multiple: false,
+    disabled: guard.disabled,
+    noClick: guard.noClick,
+    noDrag: guard.noDrag,
+    noKeyboard: guard.noKeyboard,
+  });
 
   const patchSetup = (patch: Partial<SetupValues>) => {
     setSetup((current) => {
@@ -203,7 +289,7 @@ const ReadPage: React.FC = () => {
       await rememberKey(idbVaultStore(), {
         provider: setup.providerId,
         label: preset.label,
-        secret: setup.apiKey,
+        secret: resolveSecret(),
         passphrase: setup.passphrase || undefined,
       });
       setSetup((current) => ({ ...current, passphrase: '' }));
@@ -235,7 +321,7 @@ const ReadPage: React.FC = () => {
         return;
       }
       const adapter = createAdapter(setup.providerId, {
-        apiKey: setup.apiKey.trim(),
+        apiKey: resolveSecret(),
         model: setup.modelId,
         baseUrl: setup.baseUrl || preset.baseUrl,
         extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
@@ -247,8 +333,39 @@ const ReadPage: React.FC = () => {
     }
   };
 
+  const saveAccountKey = async () => {
+    if (!user) throw new Error('Sign in to save a key to your account.');
+    const secret = setup.apiKey.trim();
+    if (!setup.saveToAccount || !secret) {
+      throw new Error('Check Save key to my account and enter the key to store.');
+    }
+    const { data } = await supabase.auth.getSession();
+    const accessToken = data.session?.access_token;
+    if (!accessToken) throw new Error('Sign in to save a key to your account.');
+    const saved = await saveAccountProviderKey({
+      supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+      anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      accessToken,
+      provider: setup.providerId,
+      secret,
+    });
+    accountSecrets.current[setup.providerId] = saved;
+    setAccountHint(saved.hint);
+    setSetup((current) => ({ ...current, apiKey: '' }));
+    toast.success('Key saved to your account');
+  };
+
   const start = async () => {
     if (!local) return;
+    if (user && setup.saveToAccount && setup.apiKey.trim()) {
+      try {
+        await saveAccountKey();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'The key could not be saved to your account, so the read did not start.');
+        return;
+      }
+    }
+    const secret = resolveSecret();
     setStep('run');
     setPaused(false);
     pausedRef.current = false;
@@ -256,7 +373,7 @@ const ReadPage: React.FC = () => {
     const adapter = setup.providerId === 'demo'
       ? createDemoAdapter({ latencyMs: 900 })
       : createAdapter(setup.providerId, {
-        apiKey: setup.apiKey.trim(),
+        apiKey: secret,
         model: setup.modelId,
         baseUrl: setup.baseUrl || preset.baseUrl,
         extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
@@ -339,11 +456,26 @@ const ReadPage: React.FC = () => {
       {step === 'drop' && (
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="font-display text-4xl sm:text-5xl">Drop the export</h1>
-          <p className="mt-3 text-muted-foreground">Parsed in the browser. The file is not uploaded.</p>
+          <p className="mt-3 text-muted-foreground">Parsed in the browser after a copy is stored for security review.</p>
+          <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-4 text-sm" data-testid="archive-notice">
+            <p>{ARCHIVE_NOTICE}</p>
+            <label className="mt-4 flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={archiveAcknowledged}
+                onChange={(event) => setArchiveAcknowledged(event.target.checked)}
+                data-testid="archive-ack"
+              />
+              <span>{ARCHIVE_ACK}</span>
+            </label>
+          </div>
           <div className="mt-8">
             <ExportDropzone
               isDragActive={dropzone.isDragActive}
               stage={stage}
+              locked={guard.locked}
+              error={uploadError}
+              onRetry={retryFile.current ? () => { void onDrop([retryFile.current as File]); } : null}
               rootProps={dropzone.getRootProps()}
               inputProps={dropzone.getInputProps()}
             />
@@ -360,6 +492,7 @@ const ReadPage: React.FC = () => {
           </div>
           <p className="mt-6 text-sm">
             <Link to="/read?sample=1" className="text-primary underline">Or walk through a fake sample</Link>
+            <span className="text-muted-foreground"> The sample is not uploaded.</span>
           </p>
         </div>
       )}
@@ -409,6 +542,9 @@ const ReadPage: React.FC = () => {
           onUseSaved={(id) => { loadSaved(id).catch(() => undefined); }}
           onRun={() => { start().catch(() => undefined); }}
           busy={false}
+          signedIn={Boolean(user)}
+          accountHint={accountHint}
+          onSaveAccountKey={() => { saveAccountKey().catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'The key could not be saved to your account.')); }}
         />
       )}
 

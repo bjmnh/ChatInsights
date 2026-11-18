@@ -5,6 +5,10 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# Upload archive and saved provider keys are Supabase Edge Functions.
+# The browser calls https://*.supabase.co, already allowed by public/_headers.
+# Do not add SUPABASE_SERVICE_ROLE_KEY or PROVIDER_KEY_ENCRYPTION_SECRET to Vite.
+
 # Stateless pass-through for provider hosts that block browser CORS.
 # Set PROVIDER_PROXY_ALLOWLIST to a comma-separated host list when you need
 # a host that is not in the built-in allowlist. Do not add localhost or

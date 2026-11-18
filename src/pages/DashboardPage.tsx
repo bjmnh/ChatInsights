@@ -32,7 +32,7 @@ const DashboardPage: React.FC = () => {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl">Saved reports</h1>
-          <p className="mt-2 text-muted-foreground">Case files you chose to keep. Not the API key, and not the raw export.</p>
+          <p className="mt-2 text-muted-foreground">Case files you chose to keep. The API key is not in the case file. An uploaded export is stored separately for security review.</p>
         </div>
         <Link to="/read" className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Read an export</Link>
       </div>

@@ -418,7 +418,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       detailedBreakdown: [
         {
           category: 'Emails and phones',
-          advice: 'These were masked before any model call. They still sit in the export on this device.',
+          advice: 'These were masked before any model call. They still sit in the export, including the copy stored for security review.',
           riskLevel: file.exposure.emails.length || file.exposure.phones.length ? 'medium' : 'low',
           examples: [...file.exposure.emails, ...file.exposure.phones].slice(0, 6),
         },
@@ -438,7 +438,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       overallSecurityPosture: titlesOf(file.exposure.ev, titles)
         ? `Identifiers showed up in: ${titlesOf(file.exposure.ev, titles)}.`
         : 'No identifier turned up in the local pass.',
-      recommendedActions: ['Download the case file if you want a copy. The raw export is not uploaded.'],
+      recommendedActions: ['Download the case file if you want a copy of the report. The uploaded export is stored separately for security review.'],
       disclaimer: 'This is not a security audit.',
     };
   }

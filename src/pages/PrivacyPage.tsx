@@ -11,7 +11,7 @@ const PrivacyPage: React.FC = () => {
   return (
     <LegalDocument
       title="Privacy Policy"
-      lede="How Chat Insights collects, uses, and keeps the chat export you choose to upload."
+      lede="How Chat Insights collects, uses, and keeps the chat export you choose to upload, including the copy stored for security review."
     >
       <section>
         <h2>1. Who we are</h2>
@@ -35,19 +35,25 @@ const PrivacyPage: React.FC = () => {
             authentication details handled by Supabase Auth. A read works without an account. If you
             sign in with a provider, we may also receive a name or avatar that provider sends.
           </li>
-          <li>
-            <strong>The export, on your device.</strong> Parsing and the local pass happen in your
-            browser. We do not upload the raw export. A chat export can include sensitive information
-            about you and about other people. Use only data you have the right to use.
+          <li data-testid="privacy-export">
+            <strong>The export you upload.</strong> When you choose a file, a copy of that file is
+            stored on Chat Insights’ servers, in a private Supabase bucket, for security review.
+            Parsing and the local pass still run in your browser. The sample is not uploaded. A chat
+            export can include sensitive information about you and about other people. Use only data
+            you have the right to use. The stored copy is the file you uploaded. It is not your AI
+            provider API key, and it is not the model’s reply.
           </li>
           <li>
-            <strong>Your API key, on your device.</strong> It stays in memory unless you turn on
-            Remember on this device. That option stores ciphertext in this browser. We do not send
-            the key to our servers for storage.
+            <strong>Your API key.</strong> It stays in memory for the read unless you opt in. Remember
+            on this device stores ciphertext in this browser. Save key to my account, shown only when
+            you are signed in, stores the key encrypted on the server and ties it to your account. We
+            do not put the key in the upload archive or in a saved case file. If you do not opt in,
+            we do not send the key to our servers for storage.
           </li>
           <li>
             <strong>A saved case file, only if you save one.</strong> The finished JSON, which can
-            include health, money, and relationship details. Not the key, and not the raw export.
+            include health, money, and relationship details. The key is not in that JSON. The uploaded
+            export is the separate security-review copy described above.
           </li>
           <li>
             <strong>Technical data.</strong> Standard server logs kept by our hosting providers, such
@@ -89,8 +95,9 @@ const PrivacyPage: React.FC = () => {
         <h2>4. Who processes it</h2>
         <ul>
           <li>
-            <strong>Supabase</strong> hosts authentication and, if you save a case file, the
-            database row for that file.
+            <strong>Supabase</strong> hosts authentication, the private archive of uploaded exports,
+            encrypted provider keys you choose to save to your account, and, if you save a case file,
+            the database row for that file.
           </li>
           <li>
             <strong>Netlify</strong> hosts the website and, only when a provider blocks the browser,
@@ -110,10 +117,11 @@ const PrivacyPage: React.FC = () => {
       <section>
         <h2>5. Storage and retention</h2>
         <p>
-          A case file you save stays on your account until you ask us to delete it. Self-serve
-          deletion is not available yet. There is no control in the app that closes the whole
-          account. To ask about a saved case file or your account, including a privacy or data
-          question, email{' '}
+          A copy of an export you upload is kept for security review. This page does not state how
+          long that copy is kept. A case file you save stays on your account until you ask us to
+          delete it. Self-serve deletion is not available yet. There is no control in the app that
+          closes the whole account. To ask about an uploaded export, a saved case file, or your
+          account, including a privacy or data question, email{' '}
           <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>.
         </p>
         <p className="mt-3">
@@ -132,11 +140,14 @@ const PrivacyPage: React.FC = () => {
       <section>
         <h2>6. Security</h2>
         <p>
-          Data is sent over HTTPS. Saved case files are limited to your account by database rules.
-          A remembered key is encrypted in this browser. That protects against casual inspection of
-          the disk. It does not protect against malware, or against a script that runs on this
-          origin. The site sends a strict Content-Security-Policy so pages do not load unexpected
-          scripts. No system is perfectly secure, and we cannot guarantee absolute security.
+          Data is sent over HTTPS. The upload archive is private: the browser’s Supabase key cannot
+          read, change, or delete those files or their metadata. Saved case files are limited to
+          your account by database rules. A key you save to your account is encrypted before it is
+          stored, and the encryption secret is not in the browser. A remembered key is also encrypted
+          in this browser. That protects against casual inspection of the disk. It does not protect
+          against malware, or against a script that runs on this origin. The site sends a strict
+          Content-Security-Policy so pages do not load unexpected scripts. No system is perfectly
+          secure, and we cannot guarantee absolute security.
         </p>
       </section>
 

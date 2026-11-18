@@ -18,7 +18,8 @@ import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, filedStamp, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { decisionText, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
-import { DossierFrame, DossierKicker, Paperclip, Stamp } from '../reports/dossier';
+import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
+import { EMPTY_RECORD } from '../../lib/insights/hydratePremium';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
 import { LinguisticFingerprintCard } from '../reports/LinguisticFingerprintCard';
@@ -104,7 +105,7 @@ function EmptyFile() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-24">
       <p className="rounded-sm border border-dashed border-amber-200/40 bg-black/30 p-6 font-mono text-sm uppercase tracking-[0.16em] text-amber-100">
-        NO RECORDS FOUND AT THIS DEPTH
+        {EMPTY_RECORD}
       </p>
     </div>
   );
@@ -115,7 +116,7 @@ function originalSlide(id: OriginalId, hydrated: PremiumReportShape): React.Reac
   if (id === 'linguistic' && hydrated.linguisticFingerprint) return <LinguisticFingerprintCard data={hydrated.linguisticFingerprint} />;
   if (id === 'top5' && hydrated.topInterestingConversations) return <Top5ConversationsCard data={hydrated.topInterestingConversations} />;
   if (id === 'reality' && hydrated.realityTVPersona) return <RealityTVPersonaCard data={hydrated.realityTVPersona} />;
-  if (id === 'mirror' && hydrated.unfilteredMirror) return <UnfilteredMirrorCard data={hydrated.unfilteredMirror} />;
+  if (id === 'mirror' && hydrated.unfilteredMirror && hydrated.unfilteredMirror.observation !== EMPTY_RECORD) return <UnfilteredMirrorCard data={hydrated.unfilteredMirror} />;
   if (id === 'pii' && hydrated.piiSafetyCompass) return <PIISafetyCompassCard data={hydrated.piiSafetyCompass} />;
   if (id === 'doppelganger' && hydrated.digitalDoppelganger) return <DigitalDoppelgangerCard data={hydrated.digitalDoppelganger} />;
   return <EmptyFile />;
@@ -129,7 +130,7 @@ function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map
     <ExtraScreen
       dossier={insight.dossier}
       title={insight.title}
-      note={empty ? 'NO RECORDS FOUND AT THIS DEPTH' : cardStateLabel(state, file.model.depth)}
+      note={empty ? null : cardStateLabel(state, file.model.depth)}
     >
       {empty ? <EmptyFile /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
     </ExtraScreen>
@@ -151,7 +152,6 @@ function ExtraScreen({
     <div className="px-4 pb-16 pt-6 sm:px-8">
       <div className="relative mx-auto mt-8 max-w-4xl rounded-sm border border-amber-200/20 bg-[#24180f] p-6 shadow-2xl" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,220,170,0.08) 1px, transparent 0)', backgroundSize: '16px 16px' }}>
         <Paperclip className="absolute -top-6 left-8 drop-shadow-md" />
-        <Stamp text="REVIEWED" className="absolute right-6 top-6" />
         <DossierKicker label={dossier} subtitle={title} />
         <h1 className="font-display text-4xl text-amber-50 sm:text-5xl">{dossier}</h1>
         {note && <p className="mt-3 font-mono text-sm uppercase tracking-[0.14em] text-amber-200">{note}</p>}
@@ -218,7 +218,6 @@ const ReportView: React.FC<{
   return frame(
     <div data-testid="report" className="fixed inset-x-0 bottom-0 top-16 z-[60] overflow-y-auto bg-[#0c1018] pb-16 pt-14">
       <div className="container relative mx-auto px-4 py-8">
-        <Stamp text={status.badge === 'Partial report' ? 'PARTIAL' : 'CLASSIFIED'} className="absolute right-6 top-2 hidden sm:block" />
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
             {onClose && (
@@ -278,7 +277,7 @@ const ReportView: React.FC<{
                 gradient={insight.gradient}
                 badgeClass={insight.badgeClass}
                 quiet={quiet}
-                badge={quiet ? 'NO RECORDS FOUND AT THIS DEPTH' : state === 'partial' ? 'PARTIAL' : state === 'local' ? 'LOCAL PASS' : insight.id === 'fbi' ? `SUBJECT: ${codename}` : undefined}
+                badge={insight.id === 'fbi' ? `SUBJECT: ${codename}` : undefined}
                 onClick={() => setViewerIndex(index)}
               />
             );
@@ -301,7 +300,6 @@ const ReportView: React.FC<{
                 gradient={insight.gradient}
                 badgeClass={insight.badgeClass}
                 quiet={quiet}
-                badge={quiet ? 'NO RECORDS FOUND AT THIS DEPTH' : state === 'partial' ? 'PARTIAL' : state === 'local' ? 'LOCAL PASS' : undefined}
                 onClick={() => setViewerIndex(ORIGINAL.length + index)}
               />
             );
@@ -378,9 +376,6 @@ function Tile({
       onClick={onClick}
     >
       <Card className={`relative h-full border bg-gradient-to-br from-slate-800/60 to-slate-900/70 ${borderColor} ${quiet ? 'border-dashed opacity-80' : hoverBorder} shadow-lg backdrop-blur-sm transition duration-300 hover:shadow-2xl hover:shadow-black/40`}>
-        <div className="absolute -top-px left-5 rounded-b-sm bg-[#c4a574] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.16em] text-[#3a2a14]">
-          FILE
-        </div>
         <CardHeader className="pb-4">
           <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg ${iconBg} ${quiet ? '' : 'transition-transform duration-300 group-hover:scale-110'}`}>
             <Icon className={`h-10 w-10 ${textColor}`} />

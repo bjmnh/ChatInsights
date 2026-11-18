@@ -146,6 +146,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
             </motion.div>
 
             {/* Description */}
+            {data.description && (
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -160,6 +161,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
                 {data.description}
               </p>
             </motion.div>
+            )}
 
             {/* Pop Culture Comparisons */}
             {data.popCultureComparisons && data.popCultureComparisons.length > 0 && (
@@ -272,6 +274,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
             </div>
 
             {/* Footer */}
+            {data.disclaimer ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -282,6 +285,7 @@ export const RealityTVPersonaCard: React.FC<RealityTVPersonaCardProps> = ({
                 {data.disclaimer}
               </p>
             </motion.div>
+            ) : null}
           </div>
         </motion.div>
       </div>

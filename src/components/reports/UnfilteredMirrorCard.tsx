@@ -192,6 +192,7 @@ export const UnfilteredMirrorCard: React.FC<UnfilteredMirrorCardProps> = ({
         )}
 
         {/* Disclaimer */}
+        {data.disclaimer ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -202,6 +203,7 @@ export const UnfilteredMirrorCard: React.FC<UnfilteredMirrorCardProps> = ({
             {data.disclaimer}
           </p>
         </motion.div>
+        ) : null}
 
         {/* Subtle Border */}
         <motion.div

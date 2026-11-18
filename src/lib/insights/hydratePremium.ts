@@ -1,5 +1,6 @@
 import { isEchoedPlaceholder } from './checks.ts';
-import { decisionText, reportStatus, type CaseFile } from './merge.ts';
+import { notablePhraseOk } from './localPass.ts';
+import { decisionText, type CaseFile } from './merge.ts';
 
 export interface PremiumReportShape {
   fbiReport?: {
@@ -72,6 +73,8 @@ function titlesOf(ids: string[], titles: Map<string, string>): string {
   const names = ids.map((id) => titles.get(id) || id).filter(Boolean);
   return names.length ? names.join(', ') : '';
 }
+
+export const EMPTY_RECORD = 'NO RECORDS FOUND AT THIS DEPTH';
 
 export const ORIGINAL_CARD_COPY: Record<string, string> = {
   fbi: 'A comprehensive behavioral profile with psychological insights and operational assessment.',
@@ -148,7 +151,7 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     }
     return '';
   };
-  const notSearched = 'NO RECORDS FOUND AT THIS DEPTH';
+  const notSearched = EMPTY_RECORD;
   const fbi = hydrated.fbiReport;
   const reality = hydrated.realityTVPersona;
   const mirror = hydrated.unfilteredMirror;
@@ -163,9 +166,9 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     reality: file.cardStatus.stranger === 'not-searched'
       ? notSearched
       : pick(reality?.personaArchetype, reality?.viewerAppeal, reality?.likelyStoryArcs?.[0]) || ORIGINAL_CARD_COPY.reality,
-    mirror: file.cardStatus.stranger === 'not-searched'
+    mirror: file.cardStatus.stranger === 'not-searched' || !mirror?.observation || mirror.observation === EMPTY_RECORD
       ? notSearched
-      : pick(mirror?.observation, mirror?.deeperInsight, mirror?.psychologicalImplications) || ORIGINAL_CARD_COPY.mirror,
+      : pick(mirror.observation, mirror.deeperInsight, mirror.psychologicalImplications) || notSearched,
     pii: pick(hydrated.piiSafetyCompass?.summary) || ORIGINAL_CARD_COPY.pii,
     doppelganger: pick(hydrated.digitalDoppelganger?.bio, hydrated.digitalDoppelganger?.handle) || ORIGINAL_CARD_COPY.doppelganger,
     people: file.cardStatus.people === 'not-searched' || file.people.length === 0
@@ -174,18 +177,18 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     places: file.cardStatus.places === 'not-searched' || (file.places.length === 0 && file.orgs.length === 0)
       ? notSearched
       : pick([...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ')) || notSearched,
-    timeline: file.cardStatus.timeline === 'not-searched'
+    timeline: file.cardStatus.timeline === 'not-searched' || (file.timeline.length === 0 && file.projects.length === 0)
       ? notSearched
-      : pick(file.timeline[0]?.v, file.projects[0]?.v) || ORIGINAL_CARD_COPY.timeline,
-    decisions: file.cardStatus.decisions === 'not-searched'
+      : pick(file.timeline[0]?.v, file.projects[0]?.v) || notSearched,
+    decisions: file.cardStatus.decisions === 'not-searched' || file.decisions.length === 0
       ? notSearched
-      : pick(file.decisions[0] ? decisionText(file.decisions[0].question, file.decisions[0].v) : undefined) || ORIGINAL_CARD_COPY.decisions,
-    loops: file.cardStatus.loops === 'not-searched'
+      : pick(file.decisions[0] ? decisionText(file.decisions[0].question, file.decisions[0].v) : undefined) || notSearched,
+    loops: file.cardStatus.loops === 'not-searched' || file.open_loops.length === 0
       ? notSearched
-      : pick(file.open_loops[0]?.v) || ORIGINAL_CARD_COPY.loops,
-    mind: file.cardStatus.mind === 'not-searched'
+      : pick(file.open_loops[0]?.v) || notSearched,
+    mind: file.cardStatus.mind === 'not-searched' || (file.worries.length === 0 && file.beliefs.length === 0)
       ? notSearched
-      : pick(file.worries[0]?.v, file.beliefs[0]?.v) || ORIGINAL_CARD_COPY.mind,
+      : pick(file.worries[0]?.v, file.beliefs[0]?.v) || notSearched,
   };
 }
 
@@ -196,9 +199,30 @@ function prose(value: string | undefined): string | undefined {
   return text;
 }
 
-function disclaimer(file: CaseFile): string {
-  const status = reportStatus(file);
-  return `${status.badge}. ${status.detail} ${file.model.provider} · ${file.model.id} · ${file.coverage.depth}.`;
+function normText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/** Keep the first copy of a sentence. Later cards do not repeat it. */
+function claim(value: string | undefined, used: Set<string>): string | undefined {
+  const text = value?.trim();
+  if (!text || isEchoedPlaceholder(text)) return undefined;
+  const key = normText(text);
+  if (used.has(key)) return undefined;
+  used.add(key);
+  return text;
+}
+
+export function scrubRawCodes(value: string): string {
+  return value
+    .replace(/\s*[.,;]?\s*\b(self|money|person|health|identifier|intense|long|work|pii|emotion|place|org)\b\s*$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+export function toHashtag(value: string): string {
+  const body = value.trim().replace(/^#+/, '').replace(/[^a-z0-9]+/gi, '');
+  return body ? `#${body}` : '';
 }
 
 function keptProse(value: string | undefined): string | undefined {
@@ -212,8 +236,9 @@ function searched(file: CaseFile, card: keyof CaseFile['cardStatus']): boolean {
 }
 
 export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>): PremiumReportShape {
-  const note = disclaimer(file);
-  const cover = file.narrative.cover || 'No cover was written for this read.';
+  const used = new Set<string>();
+  const cover = claim(file.narrative.cover, used) || 'No cover was written for this read.';
+  if (file.narrative.codename_reason.trim()) used.add(normText(file.narrative.codename_reason));
   const interestLines = file.interests.map((item) => item.v);
   const peopleLine = file.people.slice(0, 6).map((person) => (
     person.relationship ? `${person.name} (${person.relationship})` : person.name
@@ -266,10 +291,10 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       operationalAssessment: (() => {
         const note = file.narrative.blurbs.file?.trim();
         if (!note || isEchoedPlaceholder(note)) return undefined;
-        if (note.toLowerCase() === cover.trim().toLowerCase()) return undefined;
-        return note;
+        if (normText(note) === normText(cover)) return undefined;
+        return claim(note, used);
       })(),
-      disclaimer: note,
+      disclaimer: '',
     };
   }
 
@@ -279,7 +304,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       overallStyleDescription: `About ${file.style.wordsPerMessage} words per message you sent, across ${file.style.userMessages} messages and ${file.style.userWords} words.`,
       vocabularyProfile: {
         qualitativeAssessment: `Vocabulary ratio ${file.style.vocabulary}. Question share ${Math.round(file.style.questionShare * 100)}%.`,
-        notableWords: file.style.topPhrases.length ? file.style.topPhrases : ['No repeated phrase'],
+        notableWords: file.style.topPhrases.filter(notablePhraseOk),
       },
       sentenceStructure: file.style.questionShare > 0.3
         ? 'A lot of what you send is a question.'
@@ -314,13 +339,11 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
 
   if (searched(file, 'stranger')) {
     const archetype = file.narrative.archetype;
-    const strangerNote = keptProse(file.narrative.blurbs.stranger);
+    const strangerNote = claim(keptProse(file.narrative.blurbs.stranger), used);
     report.realityTVPersona = {
       reportTitle: archetype,
       personaArchetype: archetype,
-      description: strangerNote && strangerNote.toLowerCase() !== archetype.toLowerCase()
-        ? strangerNote
-        : file.narrative.codename_reason,
+      description: strangerNote && normText(strangerNote) !== normText(archetype) ? strangerNote : '',
       popCultureComparisons: interestLines.slice(0, 4),
       characterTraits: peopleLine.slice(0, 4),
       likelyStoryArcs: file.decisions.slice(0, 3).map((item) => decisionText(item.question, item.v)),
@@ -328,17 +351,20 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       conflictStyle: file.contradictions[0]
         ? `${file.contradictions[0].field}: ${file.contradictions[0].earlier.v} → ${file.contradictions[0].later.v}`
         : undefined,
-      disclaimer: note,
+      disclaimer: '',
     };
-    const observation = file.worries[0]?.quote && !isEchoedPlaceholder(file.worries[0].quote)
-      ? `“${file.worries[0].quote}”`
-      : keptProse(file.worries[0]?.v) || keptProse(file.beliefs[0]?.v);
+    const observation = claim(
+      file.worries[0]?.quote && !isEchoedPlaceholder(file.worries[0].quote)
+        ? `“${file.worries[0].quote}”`
+        : keptProse(file.worries[0]?.v) || keptProse(file.beliefs[0]?.v),
+      used,
+    );
     report.unfilteredMirror = {
       reportTitle: 'The unfiltered mirror',
-      observation: observation || 'NO RECORDS FOUND AT THIS DEPTH',
-      deeperInsight: keptProse(file.beliefs.map((item) => item.v).join(' ')),
-      psychologicalImplications: keptProse(file.worries.map((item) => item.v).join(' ')),
-      disclaimer: note,
+      observation: observation || EMPTY_RECORD,
+      deeperInsight: claim(keptProse(file.beliefs.map((item) => item.v).join(' ')), used),
+      psychologicalImplications: claim(keptProse(file.worries.map((item) => item.v).join(' ')), used),
+      disclaimer: '',
     };
   }
 
@@ -377,7 +403,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
         ? `Identifiers showed up in: ${titlesOf(file.exposure.ev, titles)}.`
         : 'No identifier turned up in the local pass.',
       recommendedActions: ['Download the case file if you want a copy. The raw export is not uploaded.'],
-      disclaimer: 'This is not a security audit. ' + note,
+      disclaimer: 'This is not a security audit.',
     };
   }
 
@@ -385,7 +411,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     const posts = [
       ...file.decisions.slice(0, 2).map((item, index) => ({
         id: `d${index}`,
-        content: `${item.question} ${item.v}${item.quote ? ` “${item.quote}”` : ''}`,
+        content: scrubRawCodes(`${decisionText(item.question, item.v)}${item.quote ? ` “${item.quote}”` : ''}`),
         timestamp: item.first || '',
         likes: 0,
         retweets: 0,
@@ -393,7 +419,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       })),
       ...file.notable.slice(0, 2).map((item) => ({
         id: item.id,
-        content: `${item.title}. ${item.reasons.join(', ') || 'Flagged locally.'}`,
+        content: scrubRawCodes(item.title),
         timestamp: '',
         likes: 0,
         retweets: 0,
@@ -403,11 +429,11 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     report.digitalDoppelganger = {
       reportTitle: 'A profile from the case file',
       handle: file.subject.nameGuess?.v ? `@${file.subject.nameGuess.v.toLowerCase().replace(/\s+/g, '')}` : '@your-chats',
-      bio: [file.subject.occupation?.v, file.subject.location?.v].filter(Boolean).join(' · ') || cover,
-      topHashtags: (interestLines.length ? interestLines : file.style.topPhrases).slice(0, 4).map((item) => `#${item.replace(/\s+/g, '')}`),
+      bio: claim([file.subject.occupation?.v, file.subject.location?.v].filter(Boolean).join(' · '), used) || '',
+      topHashtags: (interestLines.length ? interestLines : file.style.topPhrases.filter(notablePhraseOk)).slice(0, 4).map(toHashtag).filter(Boolean),
       personalityTraits: peopleLine.slice(0, 4),
-      posts: posts.length ? posts : [{ id: 'cover', content: cover, timestamp: '', likes: 0, retweets: 0, replies: 0 }],
-      disclaimer: note,
+      posts: posts.length ? posts : [],
+      disclaimer: '',
     };
   }
 

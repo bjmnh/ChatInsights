@@ -306,9 +306,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
           transition={{ delay: 3 }}
           className="p-6 text-center border-t border-gray-800"
         >
-          <p className="text-gray-500 text-sm">
-            {data.disclaimer}
-          </p>
+          {data.disclaimer ? <p className="text-gray-500 text-sm">{data.disclaimer}</p> : null}
         </motion.div>
       </div>
     </motion.div>

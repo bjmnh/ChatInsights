@@ -5,10 +5,10 @@ import { donationHref } from './donation.ts';
 import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
 import { isEchoedPlaceholder } from './checks.ts';
-import { runLocalPass } from './localPass.ts';
+import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
-import { cardPreviews, hydratePremiumReport, reportSubtitle } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, reportLabel, reportStatus, settleArchetype, settleCodename } from './merge.ts';
+import { cardPreviews, EMPTY_RECORD, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag } from './hydratePremium.ts';
+import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, reportLabel, reportStatus, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -355,6 +355,78 @@ describe('demo pipeline', () => {
     expect(isEchoedPlaceholder('A profound, unvarnished observation about your inner patterns and motivations.')).toBe(true);
     expect(decisionText('switching to data analytics', 'switching to data analytics')).toBe('switching to data analytics');
     expect(decisionText('Rent or buy?', 'keep renting')).toBe('Rent or buy?: keep renting');
+  });
+});
+
+describe('a real-shaped standard report', () => {
+  it('does not repeat empty states, raw codes, double hashes, or another card’s sentence', () => {
+    const cited = (v: string): CaseFile['interests'][number] => ({
+      v, conf: 0.5, ev: ['c1'], src: 'ai', first: null, last: null, quote: null,
+    });
+    const file: CaseFile = {
+      schema_version: '1.0',
+      model: { provider: 'gemini', id: 'gemini-3.5-flash-lite', depth: 'standard' },
+      coverage: {
+        conversations: 3, planned: 2, read: 2, skipped: 1, batches: 1, failed: 0,
+        depth: 'standard', partial: false, narrative: 'written', viaProxy: false,
+        dateRange: { first: null, last: null }, topics: [],
+      },
+      subject: {},
+      people: [],
+      places: [],
+      orgs: [],
+      timeline: [],
+      projects: [],
+      routines: { hours: [], weekdays: [], peakHours: [], lateNightShare: 0, longestStreak: 0 },
+      interests: [cited('#dataanalytics'), cited('##mealpreponSundays')],
+      beliefs: [],
+      worries: [],
+      health: [],
+      money: [],
+      decisions: [],
+      open_loops: [],
+      contradictions: [],
+      exposure: { emails: [], phones: [], cardLike: 0, urls: 0, keyLike: 0, ev: [] },
+      style: {
+        wordsPerMessage: 12, vocabulary: 0.4, questionShare: 0.1, swearCount: 0,
+        topPhrases: ["don't want", 'lab notes'], userMessages: 4, userWords: 40,
+      },
+      usage: { providers: [], byMonth: [], longest: [] },
+      notable: [
+        { id: 'c1', title: 'Cover letter for a data analyst role', score: 4, reasons: ['self'], modelRead: true },
+        { id: 'c2', title: 'Budget spreadsheet formulas', score: 3, reasons: ['money'], modelRead: true },
+      ],
+      narrative: {
+        cover: 'You keep a lab notebook next to the household budget.',
+        blurbs: {},
+        ev: ['c1'],
+        codename: 'Beakers And Balance Sheets',
+        codename_reason: 'This alias points to the habit of pairing scientific inquiry with financial organization.',
+        archetype: 'The ambitious pivot seeker building dashboards',
+      },
+      cardStatus: cardStates('standard'),
+    };
+    const hydrated = hydratePremiumReport(file, new Map());
+    const previews = cardPreviews(file, hydrated);
+    expect(previews.decisions).toBe(EMPTY_RECORD);
+    expect(previews.mind).toBe(EMPTY_RECORD);
+    expect(previews.mirror).toBe(EMPTY_RECORD);
+    expect(hydrated.unfilteredMirror?.observation).toBe(EMPTY_RECORD);
+    expect(hydrated.realityTVPersona?.reportTitle).toBe('The ambitious pivot seeker building dashboards');
+    expect(hydrated.realityTVPersona?.description).toBe('');
+    expect(hydrated.realityTVPersona?.description).not.toBe(hydrated.fbiReport?.subjectCodename.justification);
+    expect(hydrated.fbiReport?.disclaimer).toBe('');
+    expect(hydrated.realityTVPersona?.disclaimer).toBe('');
+    const posts = JSON.stringify(hydrated.digitalDoppelganger?.posts);
+    expect(posts).not.toMatch(/\bself\b|\bmoney\b/);
+    expect(posts).toContain('Cover letter for a data analyst role');
+    expect(hydrated.digitalDoppelganger?.topHashtags).toEqual(['#dataanalytics', '#mealpreponSundays']);
+    expect(hydrated.digitalDoppelganger?.topHashtags.join(' ')).not.toContain('##');
+    expect(hydrated.linguisticFingerprint?.vocabularyProfile.notableWords).not.toContain("don't want");
+    expect(hydrated.linguisticFingerprint?.vocabularyProfile.notableWords).toContain('lab notes');
+    expect(toHashtag('##mealpreponSundays')).toBe('#mealpreponSundays');
+    expect(scrubRawCodes('Budget spreadsheet formulas. money')).toBe('Budget spreadsheet formulas');
+    expect(notablePhraseOk("don't want")).toBe(false);
   });
 });
 

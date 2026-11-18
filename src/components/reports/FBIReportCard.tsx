@@ -555,7 +555,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
             )}
 
             {/* Footer */}
-            <motion.div 
+            {data.disclaimer ? <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 3.4 }}
@@ -574,7 +574,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
               >
                 DOCUMENT GENERATED: {new Date().toLocaleDateString()} • CLASSIFICATION: CONFIDENTIAL • DISTRIBUTION: RESTRICTED
               </div>
-            </motion.div>
+            </motion.div> : null}
           </div>
         </motion.div>
       </div>

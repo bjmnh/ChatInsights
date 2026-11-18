@@ -69,9 +69,42 @@ export interface PremiumReportShape {
   };
 }
 
+const RAW_CONVERSATION_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** A saved file may only have the export's id. Those stay off the page. */
+export function conversationTitle(id: string, titles: Map<string, string>): string | undefined {
+  const named = titles.get(id)?.trim();
+  if (!named || named === id || RAW_CONVERSATION_ID.test(named)) return undefined;
+  return named;
+}
+
 function titlesOf(ids: string[], titles: Map<string, string>): string {
-  const names = ids.map((id) => titles.get(id) || id).filter(Boolean);
-  return names.length ? names.join(', ') : '';
+  return uniqueDisplay(ids.map((id) => conversationTitle(id, titles) || '')).join(', ');
+}
+
+const JUNK_TOKEN = new Set([
+  'resumed', 'started', 'continued', 'finished', 'stopped', 'trying', 'working', 'going', 'using',
+  'making', 'getting', 'having', 'being', 'doing', 'said', 'says', 'want', 'wanted', 'need', 'needed',
+  'like', 'liked', 'just', 'also', 'really', 'very', 'more', 'some', 'this', 'that', 'with', 'from',
+  'into', 'about', 'after', 'before', 'during', 'while', 'because', 'since', 'until', 'again', 'still',
+  'already', 'always', 'never', 'often', 'maybe', 'perhaps', 'actually', 'basically', 'literally',
+  'untitled', 'topic', 'chat',
+]);
+
+/** Case-insensitive unique list. Single-token junk, such as "resumed", can be dropped from interests. */
+export function uniqueDisplay(items: Array<string | undefined>, dropJunkTokens = false): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of items) {
+    const text = raw?.trim() ?? '';
+    if (!text) continue;
+    if (dropJunkTokens && !/\s/.test(text) && (text.length < 3 || JUNK_TOKEN.has(text.toLowerCase()))) continue;
+    const key = text.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+  }
+  return out;
 }
 
 export const EMPTY_RECORD = 'NO RECORDS FOUND AT THIS DEPTH';
@@ -239,7 +272,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   const used = new Set<string>();
   const cover = claim(file.narrative.cover, used) || 'No cover was written for this read.';
   if (file.narrative.codename_reason.trim()) used.add(normText(file.narrative.codename_reason));
-  const interestLines = file.interests.map((item) => item.v);
+  const interestLines = uniqueDisplay(file.interests.map((item) => item.v), true);
   const peopleLine = file.people.slice(0, 6).map((person) => (
     person.relationship ? `${person.name} (${person.relationship})` : person.name
   ));
@@ -258,7 +291,10 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       },
       subjectProfileSummary: cover,
       psychologicalProfile: keptProse(file.beliefs.map((item) => item.v).join(' ')) || keptProse(file.worries.map((item) => item.v).join(' ')),
-      dominantInterests: interestLines.length ? interestLines : file.coverage.topics.map((topic) => topic.topic).filter(Boolean),
+      dominantInterests: uniqueDisplay(
+        interestLines.length ? interestLines : file.coverage.topics.map((topic) => topic.topic),
+        true,
+      ),
       communicationModalities: [
         `${file.style.wordsPerMessage} words per message you sent`,
         `${Math.round(file.style.questionShare * 100)}% of your messages ask a question`,
@@ -304,7 +340,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       overallStyleDescription: `About ${file.style.wordsPerMessage} words per message you sent, across ${file.style.userMessages} messages and ${file.style.userWords} words.`,
       vocabularyProfile: {
         qualitativeAssessment: `Vocabulary ratio ${file.style.vocabulary}. Question share ${Math.round(file.style.questionShare * 100)}%.`,
-        notableWords: file.style.topPhrases.filter(notablePhraseOk),
+        notableWords: uniqueDisplay(file.style.topPhrases.filter(notablePhraseOk)),
       },
       sentenceStructure: file.style.questionShare > 0.3
         ? 'A lot of what you send is a question.'
@@ -344,8 +380,8 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       reportTitle: archetype,
       personaArchetype: archetype,
       description: strangerNote && normText(strangerNote) !== normText(archetype) ? strangerNote : '',
-      popCultureComparisons: interestLines.slice(0, 4),
-      characterTraits: peopleLine.slice(0, 4),
+      popCultureComparisons: uniqueDisplay(interestLines).slice(0, 4),
+      characterTraits: uniqueDisplay(peopleLine).slice(0, 4),
       likelyStoryArcs: file.decisions.slice(0, 3).map((item) => decisionText(item.question, item.v)),
       viewerAppeal: file.subject.location ? `You place yourself in ${file.subject.location.v}.` : undefined,
       conflictStyle: file.contradictions[0]
@@ -430,8 +466,8 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       reportTitle: 'A profile from the case file',
       handle: file.subject.nameGuess?.v ? `@${file.subject.nameGuess.v.toLowerCase().replace(/\s+/g, '')}` : '@your-chats',
       bio: claim([file.subject.occupation?.v, file.subject.location?.v].filter(Boolean).join(' · '), used) || '',
-      topHashtags: (interestLines.length ? interestLines : file.style.topPhrases.filter(notablePhraseOk)).slice(0, 4).map(toHashtag).filter(Boolean),
-      personalityTraits: peopleLine.slice(0, 4),
+      topHashtags: uniqueDisplay((interestLines.length ? interestLines : file.style.topPhrases.filter(notablePhraseOk)).slice(0, 4).map(toHashtag)),
+      personalityTraits: uniqueDisplay(peopleLine).slice(0, 4),
       posts: posts.length ? posts : [],
       disclaimer: '',
     };

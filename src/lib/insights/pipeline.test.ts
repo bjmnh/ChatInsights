@@ -7,7 +7,7 @@ import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
-import { cardPreviews, EMPTY_RECORD, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag } from './hydratePremium.ts';
+import { cardPreviews, conversationTitle, EMPTY_RECORD, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag, uniqueDisplay } from './hydratePremium.ts';
 import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, reportLabel, reportStatus, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
@@ -378,7 +378,7 @@ describe('a real-shaped standard report', () => {
       timeline: [],
       projects: [],
       routines: { hours: [], weekdays: [], peakHours: [], lateNightShare: 0, longestStreak: 0 },
-      interests: [cited('#dataanalytics'), cited('##mealpreponSundays')],
+      interests: [cited('#dataanalytics'), cited('##mealpreponSundays'), cited('resumed'), cited('Resumed'), cited('data analytics')],
       beliefs: [],
       worries: [],
       health: [],
@@ -399,7 +399,7 @@ describe('a real-shaped standard report', () => {
       narrative: {
         cover: 'You keep a lab notebook next to the household budget.',
         blurbs: {},
-        ev: ['c1'],
+        ev: ['32e1c0dd-1111-4111-8111-111111111111'],
         codename: 'Beakers And Balance Sheets',
         codename_reason: 'This alias points to the habit of pairing scientific inquiry with financial organization.',
         archetype: 'The ambitious pivot seeker building dashboards',
@@ -415,6 +415,13 @@ describe('a real-shaped standard report', () => {
     expect(hydrated.realityTVPersona?.reportTitle).toBe('The ambitious pivot seeker building dashboards');
     expect(hydrated.realityTVPersona?.description).toBe('');
     expect(hydrated.realityTVPersona?.description).not.toBe(hydrated.fbiReport?.subjectCodename.justification);
+    expect(hydrated.fbiReport?.dominantInterests).toEqual(['#dataanalytics', '##mealpreponSundays', 'data analytics']);
+    expect(hydrated.fbiReport?.dominantInterests).not.toContain('resumed');
+    expect(hydrated.fbiReport?.subjectCodename.operationalSignificance).toBeUndefined();
+    expect(JSON.stringify(hydrated.fbiReport)).not.toMatch(/32e1c0dd/);
+    expect(conversationTitle('32e1c0dd-1111-4111-8111-111111111111', new Map([['32e1c0dd-1111-4111-8111-111111111111', 'Cover letter']]))).toBe('Cover letter');
+    expect(uniqueDisplay(['resumed', 'Resumed', 'data analytics'], true)).toEqual(['data analytics']);
+    expect(toHashtag('#dataanalytics')).toBe('#dataanalytics');
     expect(hydrated.fbiReport?.disclaimer).toBe('');
     expect(hydrated.realityTVPersona?.disclaimer).toBe('');
     const posts = JSON.stringify(hydrated.digitalDoppelganger?.posts);

@@ -19,7 +19,7 @@ import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, filedStamp, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { decisionText, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
-import { EMPTY_RECORD } from '../../lib/insights/hydratePremium';
+import { conversationTitle, EMPTY_RECORD } from '../../lib/insights/hydratePremium';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
 import { LinguisticFingerprintCard } from '../reports/LinguisticFingerprintCard';
@@ -79,7 +79,7 @@ const EXTRA: Array<{
 ];
 
 function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> }) {
-  const from = item.ev.map((id) => titles.get(id) || id).filter(Boolean);
+  const from = item.ev.map((id) => conversationTitle(id, titles)).filter((label): label is string => Boolean(label));
   return (
     <div className="rounded-2xl border border-amber-700/40 bg-[#1a140c]/80 p-5 shadow-lg" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(255,220,160,0.04) 23px)' }}>
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-amber-200">Finding</p>
@@ -169,7 +169,13 @@ const ReportView: React.FC<{
   onClose?: () => void;
   saveMessage?: string;
 }> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage }) => {
-  const titles = useMemo(() => new Map(conversations.map((conversation) => [conversation.id, conversation.title])), [conversations]);
+  const titles = useMemo(() => {
+    const map = new Map(conversations.map((conversation) => [conversation.id, conversation.title]));
+    for (const item of caseFile.notable) {
+      if (item.title && !map.has(item.id)) map.set(item.id, item.title);
+    }
+    return map;
+  }, [conversations, caseFile.notable]);
   const hydrated = useMemo(() => hydratePremiumReport(caseFile, titles), [caseFile, titles]);
   const previews = useMemo(() => cardPreviews(caseFile, hydrated), [caseFile, hydrated]);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);

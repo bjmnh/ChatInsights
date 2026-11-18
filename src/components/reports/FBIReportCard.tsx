@@ -464,7 +464,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
                       {pii.conversationContext && (
                         <div className="font-mono text-xs text-amber-800 mb-2">
                           <strong>From</strong>
-                          <EvidenceChips labels={pii.conversationContext.split(',')} />
+                          <EvidenceChips labels={pii.conversationContext.split(/\s*(?:,|·)\s*/).map((label) => label.trim()).filter((label) => label && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(label))} />
                         </div>
                       )}
                       

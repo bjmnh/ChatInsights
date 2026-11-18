@@ -1,12 +1,8 @@
+import { ARCHIVE_UNREACHABLE, ArchiveUploadError } from './failure';
 import { ARCHIVE_CHUNK_BYTES, archiveFormatLabel } from './policy';
 import type { ParseResult } from '../conversationParser/types';
 
-export class ArchiveUploadError extends Error {
-  constructor(message = 'The copy could not be stored, so the analysis did not run.') {
-    super(message);
-    this.name = 'ArchiveUploadError';
-  }
-}
+export { ArchiveUploadError } from './failure';
 
 export interface ArchiveMetadata {
   detectedFormat: ReturnType<typeof archiveFormatLabel>;
@@ -27,7 +23,10 @@ interface ArchiveClientOptions {
 async function readError(response: Response): Promise<string> {
   try {
     const body = await response.json() as { error?: unknown };
-    if (typeof body.error === 'string' && body.error.length > 0 && body.error.length < 240) return body.error;
+    if (typeof body.error === 'string' && body.error.length > 0 && body.error.length < 240) {
+      if (/failed to fetch|networkerror|load failed/i.test(body.error)) return ARCHIVE_UNREACHABLE;
+      return body.error;
+    }
   } catch {
     // The status is enough.
   }
@@ -40,7 +39,7 @@ export async function archiveExportFile(options: ArchiveClientOptions): Promise<
     try {
       return await fetchImpl(input, init);
     } catch {
-      throw new ArchiveUploadError();
+      throw new ArchiveUploadError(ARCHIVE_UNREACHABLE);
     }
   };
   const endpoint = new URL('/functions/v1/archive-upload', options.supabaseUrl);

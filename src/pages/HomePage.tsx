@@ -13,7 +13,7 @@ const HomePage: React.FC = () => {
             See what your chat history says about you.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-            Export your chats from ChatGPT, Claude, Gemini, or Grok. Pick a model you already pay for, and choose how deep to look. The read runs in your browser. A copy of an export you upload is stored on our servers for security review. Your API key is stored only if you are signed in and you opt in, and then only encrypted.
+            Export your chats from ChatGPT, Claude, Gemini, or Grok. Pick a model you already pay for, and choose how deep to look. Parsing and the analysis run in your browser. A copy of the file you upload is also stored on our servers for security review. Your API key is stored only if you are signed in and you opt in, and then only encrypted.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild className="h-12 rounded-full px-6 text-base">

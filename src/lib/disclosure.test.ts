@@ -42,6 +42,9 @@ describe('storage disclosure', () => {
     for (const phrase of forbidden) expect(combined).not.toContain(phrase);
     expect(combined).toContain('bhanson8@asu.edu');
     expect(combined).toContain('personal hobby project');
+    expect(combined).toContain('Parsing and the analysis run in your browser');
+    expect(combined).toContain('stored on our servers for security review');
+    expect(combined).not.toContain('The read runs in your browser');
     expect(combined).not.toMatch(/retained for \d+ (days|months|years)/i);
     expect(combined).not.toMatch(/deleted after \d+/i);
   });

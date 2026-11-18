@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef, type MutableRefObject, type Ref } from 'react';
 import type { DropzoneInputProps, DropzoneRootProps } from 'react-dropzone';
 import { FileArchive, FileJson, Upload } from 'lucide-react';
+import { clearFileInput } from './gate';
 
 const stages = [
   { id: 'storing', label: 'Storing a copy for security review' },
@@ -14,24 +15,56 @@ export type UploadStage = 'idle' | 'storing' | 'reading' | 'parsing' | 'counting
 interface ExportDropzoneProps {
   isDragActive: boolean;
   stage: UploadStage;
+  locked: boolean;
+  error: string | null;
+  onRetry: (() => void) | null;
   rootProps: DropzoneRootProps;
   inputProps: DropzoneInputProps;
 }
 
-const ExportDropzone: React.FC<ExportDropzoneProps> = ({ isDragActive, stage, rootProps, inputProps }) => {
+const ExportDropzone: React.FC<ExportDropzoneProps> = ({
+  isDragActive,
+  stage,
+  locked,
+  error,
+  onRetry,
+  rootProps,
+  inputProps,
+}) => {
   const busy = stage !== 'idle';
   const activeIndex = stages.findIndex((item) => item.id === stage);
+  const inputNode = useRef<HTMLInputElement | null>(null);
+  const { ref, disabled, ...restInput } = inputProps as DropzoneInputProps & {
+    ref?: Ref<HTMLInputElement>;
+    disabled?: boolean;
+  };
+
+  useEffect(() => {
+    if (stage === 'idle') clearFileInput(inputNode.current);
+  }, [stage]);
 
   return (
     <div
       {...rootProps}
+      data-testid="export-dropzone"
       className={`relative overflow-hidden rounded-[28px] border px-5 py-10 text-center transition sm:px-10 sm:py-14 ${
+        locked ? 'opacity-60' : ''
+      } ${
         isDragActive
           ? 'border-primary bg-primary/10'
           : 'border-white/15 bg-[radial-gradient(circle_at_top,_rgba(214,255,63,0.16),_transparent_55%)]'
-      } ${busy ? 'cursor-progress' : 'cursor-pointer'}`}
+      } ${busy ? 'cursor-progress' : locked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
     >
-      <input {...inputProps} />
+      <input
+        {...restInput}
+        ref={(node) => {
+          inputNode.current = node;
+          if (typeof ref === 'function') ref(node);
+          else if (ref) (ref as MutableRefObject<HTMLInputElement | null>).current = node;
+        }}
+        disabled={locked || Boolean(disabled)}
+        data-testid="export-file-input"
+      />
       <div className="mx-auto grid max-w-xl gap-6">
         <div className="relative mx-auto h-36 w-28 rounded-2xl border border-white/15 bg-[#101218] shadow-2xl">
           <div className="space-y-2 p-3 pt-5">
@@ -78,6 +111,25 @@ const ExportDropzone: React.FC<ExportDropzoneProps> = ({ isDragActive, stage, ro
               <span className="rounded-full border border-white/15 px-3 py-1">MD · CSV · HTML</span>
               <span className="rounded-full border border-white/15 px-3 py-1">Up to 200MB</span>
             </div>
+          </div>
+        )}
+        {error && (
+          <div role="alert" data-testid="upload-error" className="rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-left text-sm text-red-100">
+            <p>{error}</p>
+            {onRetry && !busy && (
+              <button
+                type="button"
+                data-testid="upload-retry"
+                className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onRetry();
+                }}
+              >
+                Try again
+              </button>
+            )}
           </div>
         )}
       </div>

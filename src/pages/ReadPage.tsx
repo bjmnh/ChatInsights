@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { archiveExportFile, metadataFromParse } from '../lib/archive/client';
+import { uploadFailureMessage } from '../lib/archive/failure';
 import { isSampleRead } from '../lib/archive/policy';
 import { parseConversationExport, validateUploadFile } from '../lib/conversationParser';
 import type { NormalizedConversation } from '../lib/conversationParser/types';
@@ -27,6 +28,7 @@ import ProgressView from '../components/insights/ProgressView';
 import ReportView from '../components/insights/ReportView';
 import SetupPanel, { type SetupValues } from '../components/insights/SetupPanel';
 import ExportDropzone, { type UploadStage } from '../components/upload/ExportDropzone';
+import { dropzoneGuard } from '../components/upload/gate';
 import { toast } from 'sonner';
 
 const DEFAULT_SETUP: SetupValues = {
@@ -82,6 +84,8 @@ const ReadPage: React.FC = () => {
   const accountSecrets = useRef<Record<string, { secret: string; hint: string }>>({});
   const [accountHint, setAccountHint] = useState<string | null>(null);
   const [archiveAcknowledged, setArchiveAcknowledged] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const retryFile = useRef<File | null>(null);
 
   const refreshKeys = useCallback(async () => {
     try {
@@ -134,8 +138,10 @@ const ReadPage: React.FC = () => {
         accountSecrets.current[provider] = saved;
         setAccountHint(saved.hint);
         setSetup((current) => current.providerId === provider ? { ...current, saveToAccount: true } : current);
-      } catch (error) {
-        if (!cancelled) toast.error(error instanceof Error ? error.message : 'The saved key could not be loaded.');
+      } catch {
+        if (cancelled) return;
+        delete accountSecrets.current[provider];
+        setAccountHint(null);
       }
     }).catch(() => undefined);
     return () => {
@@ -181,16 +187,18 @@ const ReadPage: React.FC = () => {
   const onDrop = useCallback(async (files: File[]) => {
     if (isSampleRead(window.location.search)) return;
     if (!archiveAcknowledged) {
-      toast.error('Confirm the storage notice before choosing a file.');
+      setUploadError('Confirm the storage notice before choosing a file.');
       return;
     }
     const file = files[0];
     if (!file) return;
     const invalid = validateUploadFile(file);
     if (invalid) {
-      toast.error(invalid);
+      setUploadError(invalid);
       return;
     }
+    retryFile.current = file;
+    setUploadError(null);
     setStage('storing');
     let archived = false;
     try {
@@ -215,24 +223,27 @@ const ReadPage: React.FC = () => {
       setLocal(runLocalPass(parsed.conversations));
       setCaseFile(null);
       setResumeIds([]);
+      setUploadError(null);
       setStep('preview');
       parsed.warnings.forEach((warning) => toast.message(warning));
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'The copy could not be stored, so the analysis did not run.';
-      if (!archived) {
-        toast.error(message.includes('analysis did not run') ? message : `${message} The analysis did not run.`);
-        return;
-      }
-      toast.error(`${message} A copy of the file was stored for security review, and the analysis did not run.`);
+      setUploadError(uploadFailureMessage(error, archived));
     } finally {
       setStage('idle');
     }
   }, [archiveAcknowledged]);
 
+  const guard = dropzoneGuard(archiveAcknowledged, stage !== 'idle');
   const dropzone = useDropzone({
-    onDrop,
+    onDrop: (files) => {
+      if (!archiveAcknowledged) return;
+      void onDrop(files);
+    },
     multiple: false,
-    disabled: stage !== 'idle' || !archiveAcknowledged,
+    disabled: guard.disabled,
+    noClick: guard.noClick,
+    noDrag: guard.noDrag,
+    noKeyboard: guard.noKeyboard,
   });
 
   const patchSetup = (patch: Partial<SetupValues>) => {
@@ -458,10 +469,13 @@ const ReadPage: React.FC = () => {
               <span>{ARCHIVE_ACK}</span>
             </label>
           </div>
-          <div className={`mt-8 ${archiveAcknowledged ? '' : 'pointer-events-none opacity-50'}`}>
+          <div className="mt-8">
             <ExportDropzone
               isDragActive={dropzone.isDragActive}
               stage={stage}
+              locked={guard.locked}
+              error={uploadError}
+              onRetry={retryFile.current ? () => { void onDrop([retryFile.current as File]); } : null}
               rootProps={dropzone.getRootProps()}
               inputProps={dropzone.getInputProps()}
             />

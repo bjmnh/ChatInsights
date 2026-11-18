@@ -103,10 +103,32 @@ const ReadPage: React.FC = () => {
     if (params.get('sample') !== '1' || sampleLoaded.current) return;
     sampleLoaded.current = true;
     const sample = buildSampleConversations();
+    const localReport = runLocalPass(sample);
     setConversations(sample);
     setFilename('sample-not-a-real-person.json');
-    setLocal(runLocalPass(sample));
-    setStep('preview');
+    setLocal(localReport);
+    setSetup((current) => applyProvider('demo', current));
+    setStep('run');
+    runRead({
+      conversations: sample,
+      local: localReport,
+      depth: 'standard',
+      model: {
+        provider: 'demo',
+        id: 'demo-extractor',
+        inputPricePerMillion: 0,
+        outputPricePerMillion: 0,
+        contextWindow: 100_000,
+      },
+      adapter: createDemoAdapter({ latencyMs: 0 }),
+      sleep: async () => undefined,
+    }).then((result) => {
+      setCaseFile(result);
+      setStep('report');
+    }).catch(() => {
+      toast.error('The sample did not open.');
+      setStep('preview');
+    });
   }, []);
 
   const onDrop = useCallback(async (files: File[]) => {
@@ -406,6 +428,10 @@ const ReadPage: React.FC = () => {
           conversations={conversations}
           onDownload={download}
           onSave={() => { save().catch(() => undefined); }}
+          onClose={() => {
+            if (new URLSearchParams(window.location.search).get('sample') === '1') navigate('/');
+            else setStep('preview');
+          }}
           saveMessage={saveMessage}
         />
       )}

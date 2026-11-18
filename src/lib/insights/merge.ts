@@ -1,5 +1,5 @@
 import type { NormalizedConversation } from '../conversationParser/types.ts';
-import { quoteAppears, SUPPORT_NOTE, toneOk } from './checks.ts';
+import { isEchoedPlaceholder, quoteAppears, SUPPORT_NOTE, toneOk } from './checks.ts';
 import { cardStates, QUICK_KINDS, type CardId, type CardState, type DepthId } from './depth.ts';
 import type { LocalReport } from './localPass.ts';
 import type { Fact, NarrativeDraft } from './schema.ts';
@@ -106,6 +106,39 @@ export function reportLabel(caseFile: CaseFile): 'Partial' | 'Complete' {
   return isComplete(caseFile) ? 'Complete' : 'Partial';
 }
 
+/** What the header should say. A finished Standard read that skipped unflagged chats is not an unqualified "complete". */
+export function reportStatus(file: CaseFile): { badge: string; detail: string } {
+  const read = file.coverage.read;
+  const total = file.coverage.conversations;
+  const unread = Math.max(0, total - read);
+  const counts = `Read ${read} of ${total} conversation${total === 1 ? '' : 's'}.`;
+  if (!isComplete(file)) {
+    const why = file.coverage.partialReason ? ` Stopped early (${file.coverage.partialReason}).` : '';
+    return { badge: 'Partial report', detail: `${counts}${why} This is not a finished pass.` };
+  }
+  if (unread > 0 && file.model.depth === 'standard') {
+    const noun = unread === 1 ? '1 conversation was not flagged' : `${unread} conversations were not flagged`;
+    return { badge: 'Finished', detail: `${counts} ${noun}, so Standard left ${unread === 1 ? 'it' : 'them'} unread.` };
+  }
+  if (unread > 0 && file.model.depth === 'quick') {
+    return { badge: 'Finished', detail: `${counts} Quick scan only sent a sample, so the rest were not read.` };
+  }
+  if (unread > 0) {
+    return { badge: 'Finished', detail: `${counts} The rest were not read.` };
+  }
+  return { badge: 'Complete report', detail: counts };
+}
+
+export function decisionText(question: string, value: string): string {
+  const q = question.trim();
+  const v = value.trim();
+  if (!v) return q;
+  if (!q || q.toLowerCase() === v.toLowerCase()) return v;
+  return `${q}: ${v}`;
+}
+
+const JOB_TITLE = /\b(strategist|engineer|manager|analyst|consultant|director|founder|executive|specialist|coordinator|recruiter|accountant|attorney|lawyer|physician|developer|designer|marketer|officer|supervisor|administrator|career)\b/i;
+
 export function finalizeCoverage(coverage: Omit<Coverage, 'partial'> & { partial?: boolean; partialReason?: string }): Coverage {
   const forced =
     Boolean(coverage.partial) ||
@@ -137,6 +170,8 @@ export function settleArchetype(draft: string | undefined, codename: string, ban
     && text.length <= 80
     && !leaks(text)
     && !/[@\d]/.test(text)
+    && !JOB_TITLE.test(text)
+    && !isEchoedPlaceholder(text)
     && toneOk(text);
   if (ok) return text;
   const alias = codename.trim() || NEUTRAL_CODENAME;
@@ -273,6 +308,7 @@ export function buildCaseFile(input: {
     const sources = input.depth === 'forensic' ? [userText, assistantText] : [userText];
     if (!quoteAppears(fact.q, sources)) continue;
     if (fact.q && /\b(hopeless|suicid|self[- ]harm|kill myself)\b/i.test(fact.q)) continue;
+    if (isEchoedPlaceholder(fact.v) || isEchoedPlaceholder(fact.d) || isEchoedPlaceholder(fact.q)) continue;
     kept.push(fact);
     readIds.add(fact.c);
   }
@@ -371,7 +407,9 @@ export function buildCaseFile(input: {
     });
   }
 
-  const coverSource = input.narrative && toneOk(input.narrative.cover) ? input.narrative.cover : null;
+  const coverSource = input.narrative && toneOk(input.narrative.cover) && !isEchoedPlaceholder(input.narrative.cover)
+    ? input.narrative.cover
+    : null;
   const narrativeStatus: NarrativeStatus = input.narrativeStatus === 'written' && !coverSource ? 'templated' : input.narrativeStatus;
   const cover = coverSource ?? templateCover({
     depth: input.depth,
@@ -384,7 +422,7 @@ export function buildCaseFile(input: {
   const blurbs = coverSource && input.narrative ? input.narrative.blurbs : {};
   const safeBlurbs: Record<string, string> = {};
   for (const [key, value] of Object.entries(blurbs)) {
-    if (toneOk(value)) safeBlurbs[key] = value;
+    if (toneOk(value) && !isEchoedPlaceholder(value)) safeBlurbs[key] = value;
   }
 
   const coverage = finalizeCoverage({
@@ -445,9 +483,15 @@ export function buildCaseFile(input: {
       blurbs: safeBlurbs,
       ev: input.narrative?.ev ?? read.slice(0, 5),
       ...alias,
-      archetype: settleArchetype(input.narrative?.archetype, alias.codename, banned),
+      archetype: settleArchetype(
+        input.narrative && !isEchoedPlaceholder(input.narrative.archetype) ? input.narrative.archetype : undefined,
+        alias.codename,
+        banned,
+      ),
     },
     supportNote: input.local.distress ? SUPPORT_NOTE : undefined,
-    cardStatus: cardStates(input.depth),
+    cardStatus: coverage.partial
+      ? (Object.fromEntries(Object.entries(cardStates(input.depth)).map(([id, state]) => [id, state === 'ready' ? 'partial' : state])) as Record<CardId, CardState>)
+      : cardStates(input.depth),
   };
 }

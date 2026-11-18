@@ -6,9 +6,5 @@
 export const LEGAL_LAST_UPDATED = 'November 11, 2026';
 
 export const LEGAL = {
-  entityName: '[LEGAL ENTITY NAME]',
-  contactEmail: '[CONTACT EMAIL]',
-  address: '[BUSINESS ADDRESS]',
-  governingState: '[GOVERNING STATE]',
-  responseTime: '[RESPONSE TIME]',
+  contactEmail: 'bhanson8@asu.edu',
 } as const;

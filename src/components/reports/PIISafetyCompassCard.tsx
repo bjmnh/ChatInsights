@@ -273,9 +273,9 @@ export const PIISafetyCompassCard: React.FC<PIISafetyCompassCardProps> = ({
           transition={{ delay: 1.8 }}
           className="text-center"
         >
-          <p className="text-slate-400 text-sm">
+          {data.disclaimer ? <p className="text-slate-400 text-sm">
             {data.disclaimer}
-          </p>
+          </p> : null}
         </motion.div>
       </div>
     </motion.div>

@@ -62,7 +62,7 @@ interface BasicReportData {
 
 const ReportPage: React.FC = () => {
   const { fileId, reportType } = useParams<{ fileId: string; reportType: 'basic' | 'premium' }>();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [report, setReport] = useState<Report | null>(null);
@@ -91,13 +91,16 @@ const ReportPage: React.FC = () => {
       return;
     }
 
+    if (authLoading) return;
     if (!user || !fileId || !reportType) {
       navigate('/dashboard');
       return;
     }
 
     fetchReport();
-  }, [user, fileId, reportType, navigate, location.state]);
+    // fetchReport is recreated each render; the params above already cover when it should run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading, fileId, reportType, navigate, location.state]);
 
   const fetchReport = async () => {
     try {

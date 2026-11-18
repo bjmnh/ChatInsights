@@ -351,9 +351,7 @@ export const LinguisticFingerprintCard: React.FC<LinguisticFingerprintCardProps>
           transition={{ delay: 1.2 }}
           className="mt-12 text-center"
         >
-          <p className="text-slate-400 text-sm">
-            {data.disclaimer}
-          </p>
+          {data.disclaimer ? <p className="text-slate-400 text-sm">{data.disclaimer}</p> : null}
         </motion.div>
       </div>
     </motion.div>

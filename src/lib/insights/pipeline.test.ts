@@ -4,10 +4,11 @@ import { CONTENT_SECURITY_POLICY } from './csp.ts';
 import { donationHref } from './donation.ts';
 import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
-import { runLocalPass } from './localPass.ts';
+import { isEchoedPlaceholder } from './checks.ts';
+import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
-import { cardPreviews, hydratePremiumReport, reportSubtitle } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, isComplete, NEUTRAL_CODENAME, reportLabel, settleArchetype, settleCodename } from './merge.ts';
+import { cardPreviews, conversationTitle, EMPTY_RECORD, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag, uniqueDisplay } from './hydratePremium.ts';
+import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, reportLabel, reportStatus, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
 import { maskSensitive, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -72,7 +73,7 @@ describe('depth selection', () => {
     expect(quick.stranger).toBe('not-searched');
     expect(quick.style).toBe('local');
     expect(quick.usage).toBe('local');
-    expect(cardStates('standard').stranger).toBe('partial');
+    expect(cardStates('standard').stranger).toBe('ready');
     expect(cardStates('deep').timeline).toBe('ready');
     expect(cardStates('forensic').decisions).toBe('ready');
   });
@@ -128,6 +129,19 @@ describe('cost estimate', () => {
       outputPricePerMillion: 0,
     });
     expect(paid.cost).toBeCloseTo(paid.costBeforeCushion * 1.2, 5);
+  });
+
+  it('scales a small export instead of using the large-file narrative allowance', () => {
+    const prices = { inputPricePerMillion: 0.3, outputPricePerMillion: 2.5, contextWindow: 1_000_000, depth: 'standard' as const };
+    const tiny = estimateRead({ ...prices, conversationCount: 2, userTokens: 278, fullTokens: 400 });
+    const larger = estimateRead({ ...prices, conversationCount: 20, userTokens: 2780, fullTokens: 4000 });
+    const pricey = estimateRead({ ...prices, conversationCount: 2, userTokens: 278, fullTokens: 400, inputPricePerMillion: 3, outputPricePerMillion: 15 });
+    expect(tiny.inputTokens).toBeLessThan(5_000);
+    expect(tiny.outputTokens).toBeLessThan(200);
+    expect(tiny.cost).toBeLessThan(0.02);
+    expect(tiny.cost).toBeLessThan(larger.cost);
+    expect(pricey.cost).toBeGreaterThan(tiny.cost);
+    expect(estimateRead({ ...prices, depth: 'quick', conversationCount: 2, userTokens: 278, fullTokens: 400 }).calls).toBe(1);
   });
 });
 
@@ -281,6 +295,7 @@ describe('demo pipeline', () => {
     });
     expect(result.coverage.partial).toBe(false);
     expect(reportLabel(result)).toBe('Complete');
+    expect(reportStatus(result).badge).toBe('Complete report');
     const standard = selectConversations(local, 'standard');
     expect(standard.chosenIds).toEqual(expect.arrayContaining(['c_sister', 'c_work', 'c_money', 'c_health', 'c_pii', 'c_worry', 'c_distress']));
     expect(standard.chosenIds).not.toContain('c_trivial');
@@ -311,6 +326,7 @@ describe('demo pipeline', () => {
     expect(previews.top5).toMatch(/threads on file/);
     expect(previews.top5).not.toBe('Contact card');
     expect(premium.realityTVPersona?.personaArchetype).toBe('The producer who rewrites the call sheet');
+    expect(premium.realityTVPersona?.reportTitle).toBe(premium.realityTVPersona?.personaArchetype);
     expect(previews.mirror).not.toMatch(/You mention Dana as your sister/);
     expect(reportSubtitle(result)).toBe(`Deep read · ${result.coverage.read} of ${result.coverage.conversations} conversations · Demo extractor`);
     expect(result.narrative.codename).toBe('Second Draft');
@@ -323,6 +339,101 @@ describe('demo pipeline', () => {
     expect(caseFileNumber('Second Draft|demo-extractor|8')).toBe(caseFileNumber('Second Draft|demo-extractor|8'));
     expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
     expect(settleArchetype('backend engineer, moved into team lead', 'Second Draft', ['backend engineer, moved into team lead'])).toBe('Cast as Second Draft');
+    expect(settleArchetype('The Determined Career Pivot Strategist', 'Second Draft', [])).toBe('Cast as Second Draft');
+    const standardFile = await runRead({
+      conversations,
+      local,
+      depth: 'standard',
+      model: { provider: 'demo', id: 'demo-extractor', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 },
+      adapter: createDemoAdapter({ latencyMs: 0 }),
+      sleep: async () => undefined,
+    });
+    expect(reportStatus(standardFile).badge).toBe('Finished');
+    expect(reportStatus(standardFile).detail).toMatch(/not flagged/);
+    expect(standardFile.cardStatus.stranger).toBe('ready');
+    expect(standardFile.cardStatus.file).not.toBe('partial');
+    expect(isEchoedPlaceholder('A profound, unvarnished observation about your inner patterns and motivations.')).toBe(true);
+    expect(decisionText('switching to data analytics', 'switching to data analytics')).toBe('switching to data analytics');
+    expect(decisionText('Rent or buy?', 'keep renting')).toBe('Rent or buy?: keep renting');
+  });
+});
+
+describe('a real-shaped standard report', () => {
+  it('does not repeat empty states, raw codes, double hashes, or another card’s sentence', () => {
+    const cited = (v: string): CaseFile['interests'][number] => ({
+      v, conf: 0.5, ev: ['c1'], src: 'ai', first: null, last: null, quote: null,
+    });
+    const file: CaseFile = {
+      schema_version: '1.0',
+      model: { provider: 'gemini', id: 'gemini-3.5-flash-lite', depth: 'standard' },
+      coverage: {
+        conversations: 3, planned: 2, read: 2, skipped: 1, batches: 1, failed: 0,
+        depth: 'standard', partial: false, narrative: 'written', viaProxy: false,
+        dateRange: { first: null, last: null }, topics: [],
+      },
+      subject: {},
+      people: [],
+      places: [],
+      orgs: [],
+      timeline: [],
+      projects: [],
+      routines: { hours: [], weekdays: [], peakHours: [], lateNightShare: 0, longestStreak: 0 },
+      interests: [cited('#dataanalytics'), cited('##mealpreponSundays'), cited('resumed'), cited('Resumed'), cited('data analytics')],
+      beliefs: [],
+      worries: [],
+      health: [],
+      money: [],
+      decisions: [],
+      open_loops: [],
+      contradictions: [],
+      exposure: { emails: [], phones: [], cardLike: 0, urls: 0, keyLike: 0, ev: [] },
+      style: {
+        wordsPerMessage: 12, vocabulary: 0.4, questionShare: 0.1, swearCount: 0,
+        topPhrases: ["don't want", 'lab notes'], userMessages: 4, userWords: 40,
+      },
+      usage: { providers: [], byMonth: [], longest: [] },
+      notable: [
+        { id: 'c1', title: 'Cover letter for a data analyst role', score: 4, reasons: ['self'], modelRead: true },
+        { id: 'c2', title: 'Budget spreadsheet formulas', score: 3, reasons: ['money'], modelRead: true },
+      ],
+      narrative: {
+        cover: 'You keep a lab notebook next to the household budget.',
+        blurbs: {},
+        ev: ['32e1c0dd-1111-4111-8111-111111111111'],
+        codename: 'Beakers And Balance Sheets',
+        codename_reason: 'This alias points to the habit of pairing scientific inquiry with financial organization.',
+        archetype: 'The ambitious pivot seeker building dashboards',
+      },
+      cardStatus: cardStates('standard'),
+    };
+    const hydrated = hydratePremiumReport(file, new Map());
+    const previews = cardPreviews(file, hydrated);
+    expect(previews.decisions).toBe(EMPTY_RECORD);
+    expect(previews.mind).toBe(EMPTY_RECORD);
+    expect(previews.mirror).toBe(EMPTY_RECORD);
+    expect(hydrated.unfilteredMirror?.observation).toBe(EMPTY_RECORD);
+    expect(hydrated.realityTVPersona?.reportTitle).toBe('The ambitious pivot seeker building dashboards');
+    expect(hydrated.realityTVPersona?.description).toBe('');
+    expect(hydrated.realityTVPersona?.description).not.toBe(hydrated.fbiReport?.subjectCodename.justification);
+    expect(hydrated.fbiReport?.dominantInterests).toEqual(['#dataanalytics', '##mealpreponSundays', 'data analytics']);
+    expect(hydrated.fbiReport?.dominantInterests).not.toContain('resumed');
+    expect(hydrated.fbiReport?.subjectCodename.operationalSignificance).toBeUndefined();
+    expect(JSON.stringify(hydrated.fbiReport)).not.toMatch(/32e1c0dd/);
+    expect(conversationTitle('32e1c0dd-1111-4111-8111-111111111111', new Map([['32e1c0dd-1111-4111-8111-111111111111', 'Cover letter']]))).toBe('Cover letter');
+    expect(uniqueDisplay(['resumed', 'Resumed', 'data analytics'], true)).toEqual(['data analytics']);
+    expect(toHashtag('#dataanalytics')).toBe('#dataanalytics');
+    expect(hydrated.fbiReport?.disclaimer).toBe('');
+    expect(hydrated.realityTVPersona?.disclaimer).toBe('');
+    const posts = JSON.stringify(hydrated.digitalDoppelganger?.posts);
+    expect(posts).not.toMatch(/\bself\b|\bmoney\b/);
+    expect(posts).toContain('Cover letter for a data analyst role');
+    expect(hydrated.digitalDoppelganger?.topHashtags).toEqual(['#dataanalytics', '#mealpreponSundays']);
+    expect(hydrated.digitalDoppelganger?.topHashtags.join(' ')).not.toContain('##');
+    expect(hydrated.linguisticFingerprint?.vocabularyProfile.notableWords).not.toContain("don't want");
+    expect(hydrated.linguisticFingerprint?.vocabularyProfile.notableWords).toContain('lab notes');
+    expect(toHashtag('##mealpreponSundays')).toBe('#mealpreponSundays');
+    expect(scrubRawCodes('Budget spreadsheet formulas. money')).toBe('Budget spreadsheet formulas');
+    expect(notablePhraseOk("don't want")).toBe(false);
   });
 });
 

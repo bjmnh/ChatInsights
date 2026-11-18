@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { LegalDocument, LegalPlaceholder } from '../components/legal/LegalDocument';
+import { LegalDocument } from '../components/legal/LegalDocument';
 import { LEGAL } from '../config/legal';
 
 const PrivacyPage: React.FC = () => {
@@ -16,14 +16,13 @@ const PrivacyPage: React.FC = () => {
       <section>
         <h2>1. Who we are</h2>
         <p>
-          Chat Insights (“we,” “us”) is a web app that builds reports from a chat export you upload.
-          It is operated by <LegalPlaceholder>{LEGAL.entityName}</LegalPlaceholder>,{' '}
-          <LegalPlaceholder>{LEGAL.address}</LegalPlaceholder>.
-          Chat Insights is an independent service. It is not affiliated with, endorsed by, or
-          sponsored by the companies that make the chat products you export from.
+          Chat Insights is a personal hobby project, not a business. It is not a company, and it
+          does not have a business address. It is not affiliated with, endorsed by, or sponsored by
+          the companies that make the chat products you export from.
         </p>
         <p className="mt-3">
-          Contact: <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>. See also our{' '}
+          Contact:{' '}
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>. See also our{' '}
           <Link to="/contact">Contact</Link> page.
         </p>
       </section>
@@ -113,9 +112,9 @@ const PrivacyPage: React.FC = () => {
         <p>
           A case file you save stays on your account until you ask us to delete it. Self-serve
           deletion is not available yet. There is no control in the app that closes the whole
-          account. To ask us to delete a saved case file or your account, email{' '}
-          <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>. We will respond within{' '}
-          <LegalPlaceholder>{LEGAL.responseTime}</LegalPlaceholder>.
+          account. To ask about a saved case file or your account, including a privacy or data
+          question, email{' '}
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>.
         </p>
         <p className="mt-3">
           The read itself can leave a checkpoint in this browser so a closed tab can resume. You
@@ -154,9 +153,9 @@ const PrivacyPage: React.FC = () => {
       <section>
         <h2>8. Children</h2>
         <p>
-          The read is for adults. Before a run you confirm you are 18 or older. Contact{' '}
-          <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder> if you believe a child has given
-          us personal data.
+          The read is for adults. Before a run you confirm you are 18 or older. Email{' '}
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a> if you believe a child
+          has given us personal data.
         </p>
       </section>
 
@@ -181,11 +180,7 @@ const PrivacyPage: React.FC = () => {
       <section>
         <h2>11. Contact</h2>
         <p>
-          <LegalPlaceholder>{LEGAL.entityName}</LegalPlaceholder>
-          <br />
-          <LegalPlaceholder>{LEGAL.address}</LegalPlaceholder>
-          <br />
-          <LegalPlaceholder>{LEGAL.contactEmail}</LegalPlaceholder>
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>
         </p>
       </section>
     </LegalDocument>

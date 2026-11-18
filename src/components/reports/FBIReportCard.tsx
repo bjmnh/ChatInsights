@@ -464,7 +464,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
                       {pii.conversationContext && (
                         <div className="font-mono text-xs text-amber-800 mb-2">
                           <strong>From</strong>
-                          <EvidenceChips labels={pii.conversationContext.split(',')} />
+                          <EvidenceChips labels={pii.conversationContext.split(/\s*(?:,|·)\s*/).map((label) => label.trim()).filter((label) => label && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(label))} />
                         </div>
                       )}
                       
@@ -555,7 +555,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
             )}
 
             {/* Footer */}
-            <motion.div 
+            {data.disclaimer ? <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 3.4 }}
@@ -574,7 +574,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
               >
                 DOCUMENT GENERATED: {new Date().toLocaleDateString()} • CLASSIFICATION: CONFIDENTIAL • DISTRIBUTION: RESTRICTED
               </div>
-            </motion.div>
+            </motion.div> : null}
           </div>
         </motion.div>
       </div>

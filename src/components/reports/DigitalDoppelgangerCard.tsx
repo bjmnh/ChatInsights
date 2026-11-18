@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { toHashtag } from '../../lib/insights/hydratePremium';
 import { Button } from '../ui/button';
 import { Hash, MessageSquare, Heart, Repeat2, Share, MoreHorizontal, Calendar } from 'lucide-react';
 
@@ -192,7 +193,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
                   transition={{ delay: 1.2 + index * 0.1 }}
                   className="px-3 py-1 bg-gray-900 text-blue-400 rounded-full text-sm border border-gray-700 hover:bg-gray-800 transition-colors cursor-pointer"
                 >
-                  #{hashtag}
+                  {toHashtag(hashtag)}
                 </motion.span>
               ))}
             </div>
@@ -306,9 +307,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
           transition={{ delay: 3 }}
           className="p-6 text-center border-t border-gray-800"
         >
-          <p className="text-gray-500 text-sm">
-            {data.disclaimer}
-          </p>
+          {data.disclaimer ? <p className="text-gray-500 text-sm">{data.disclaimer}</p> : null}
         </motion.div>
       </div>
     </motion.div>

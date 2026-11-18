@@ -17,10 +17,17 @@ import type { NormalizedConversation } from '../../lib/conversationParser/types'
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, filedStamp, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
-import { reportLabel, type CaseFile, type Cited } from '../../lib/insights/merge';
-import { DossierFrame, DossierKicker, Paperclip, Stamp } from '../reports/dossier';
+import { decisionText, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
+import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
+import { conversationTitle, EMPTY_RECORD } from '../../lib/insights/hydratePremium';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
-import { ReportCardDeck } from '../reports/ReportCardDeck';
+import { FBIReportCard } from '../reports/FBIReportCard';
+import { LinguisticFingerprintCard } from '../reports/LinguisticFingerprintCard';
+import { Top5ConversationsCard } from '../reports/Top5ConversationsCard';
+import { RealityTVPersonaCard } from '../reports/RealityTVPersonaCard';
+import { UnfilteredMirrorCard } from '../reports/UnfilteredMirrorCard';
+import { PIISafetyCompassCard } from '../reports/PIISafetyCompassCard';
+import { DigitalDoppelgangerCard } from '../reports/DigitalDoppelgangerCard';
 import { ConfidenceMeter, EvidenceChips } from '../reports/reportPolish';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -72,7 +79,7 @@ const EXTRA: Array<{
 ];
 
 function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> }) {
-  const from = item.ev.map((id) => titles.get(id) || id).filter(Boolean);
+  const from = item.ev.map((id) => conversationTitle(id, titles)).filter((label): label is string => Boolean(label));
   return (
     <div className="rounded-2xl border border-amber-700/40 bg-[#1a140c]/80 p-5 shadow-lg" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(255,220,160,0.04) 23px)' }}>
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-amber-200">Finding</p>
@@ -94,28 +101,57 @@ function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> 
   );
 }
 
+function EmptyFile() {
+  return (
+    <div className="mx-auto max-w-3xl px-6 py-24">
+      <p className="rounded-sm border border-dashed border-amber-200/40 bg-black/30 p-6 font-mono text-sm uppercase tracking-[0.16em] text-amber-100">
+        {EMPTY_RECORD}
+      </p>
+    </div>
+  );
+}
+
+function originalSlide(id: OriginalId, hydrated: PremiumReportShape): React.ReactNode {
+  if (id === 'fbi' && hydrated.fbiReport) return <FBIReportCard data={hydrated.fbiReport} />;
+  if (id === 'linguistic' && hydrated.linguisticFingerprint) return <LinguisticFingerprintCard data={hydrated.linguisticFingerprint} />;
+  if (id === 'top5' && hydrated.topInterestingConversations) return <Top5ConversationsCard data={hydrated.topInterestingConversations} />;
+  if (id === 'reality' && hydrated.realityTVPersona) return <RealityTVPersonaCard data={hydrated.realityTVPersona} />;
+  if (id === 'mirror' && hydrated.unfilteredMirror && hydrated.unfilteredMirror.observation !== EMPTY_RECORD) return <UnfilteredMirrorCard data={hydrated.unfilteredMirror} />;
+  if (id === 'pii' && hydrated.piiSafetyCompass) return <PIISafetyCompassCard data={hydrated.piiSafetyCompass} />;
+  if (id === 'doppelganger' && hydrated.digitalDoppelganger) return <DigitalDoppelgangerCard data={hydrated.digitalDoppelganger} />;
+  return <EmptyFile />;
+}
+
+function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map<string, string>): React.ReactNode {
+  const state = file.cardStatus[insight.id];
+  const blocks = extraFacts(file, insight.id).filter((item) => item.v.trim());
+  const empty = state === 'not-searched' || blocks.length === 0;
+  return (
+    <ExtraScreen
+      dossier={insight.dossier}
+      title={insight.title}
+      note={empty ? null : cardStateLabel(state, file.model.depth)}
+    >
+      {empty ? <EmptyFile /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
+    </ExtraScreen>
+  );
+}
+
 function ExtraScreen({
   dossier,
   title,
   note,
-  onBack,
   children,
 }: {
   dossier: string;
   title: string;
   note?: string | null;
-  onBack: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-[60] overflow-y-auto bg-[#120e0a] px-4 pb-16 pt-14 sm:px-8">
-      <Button variant="ghost" onClick={onBack} className="border border-amber-200/30 bg-black/50 font-mono text-amber-100 hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-amber-200">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Overview
-      </Button>
+    <div className="px-4 pb-16 pt-6 sm:px-8">
       <div className="relative mx-auto mt-8 max-w-4xl rounded-sm border border-amber-200/20 bg-[#24180f] p-6 shadow-2xl" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,220,170,0.08) 1px, transparent 0)', backgroundSize: '16px 16px' }}>
         <Paperclip className="absolute -top-6 left-8 drop-shadow-md" />
-        <Stamp text="REVIEWED" className="absolute right-6 top-6" />
         <DossierKicker label={dossier} subtitle={title} />
         <h1 className="font-display text-4xl text-amber-50 sm:text-5xl">{dossier}</h1>
         {note && <p className="mt-3 font-mono text-sm uppercase tracking-[0.14em] text-amber-200">{note}</p>}
@@ -130,82 +166,76 @@ const ReportView: React.FC<{
   conversations: NormalizedConversation[];
   onDownload: () => void;
   onSave?: () => void;
+  onClose?: () => void;
   saveMessage?: string;
-}> = ({ caseFile, conversations, onDownload, onSave, saveMessage }) => {
-  const titles = useMemo(() => new Map(conversations.map((conversation) => [conversation.id, conversation.title])), [conversations]);
+}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage }) => {
+  const titles = useMemo(() => {
+    const map = new Map(conversations.map((conversation) => [conversation.id, conversation.title]));
+    for (const item of caseFile.notable) {
+      if (item.title && !map.has(item.id)) map.set(item.id, item.title);
+    }
+    return map;
+  }, [conversations, caseFile.notable]);
   const hydrated = useMemo(() => hydratePremiumReport(caseFile, titles), [caseFile, titles]);
   const previews = useMemo(() => cardPreviews(caseFile, hydrated), [caseFile, hydrated]);
-  const [deckIndex, setDeckIndex] = useState<number | null>(null);
-  const [extra, setExtra] = useState<CardId | null>(null);
-  const [blockedTitle, setBlockedTitle] = useState<string | null>(null);
-  const label = reportLabel(caseFile);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const status = reportStatus(caseFile);
   const codename = caseFile.narrative.codename;
   const caseNo = caseFileNumber(`${codename}|${caseFile.model.id}|${caseFile.coverage.read}`);
   const frame = (node: React.ReactNode) => (
     <DossierFrame meta={{ caseNo, subject: codename }}>{node}</DossierFrame>
   );
+  const slides = useMemo(() => [
+    ...ORIGINAL.map((insight) => ({ id: insight.id, node: originalSlide(insight.id, hydrated) })),
+    ...EXTRA.map((insight) => ({ id: insight.id, node: extraSlide(caseFile, insight, titles) })),
+  ], [caseFile, hydrated, titles]);
 
-  const originalAvailable = ORIGINAL.filter((item) => Boolean(hydrated[item.key]));
+  const moveViewer = (delta: number) => {
+    setViewerIndex((current) => {
+      if (current == null) return current;
+      return Math.min(slides.length - 1, Math.max(0, current + delta));
+    });
+  };
 
-  if (deckIndex != null) {
+  if (viewerIndex != null) {
+    const index = Math.min(viewerIndex, slides.length - 1);
     return frame(
-      <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950 pb-8 pt-9">
-        <ReportCardDeck
-          reportData={hydrated}
-          onBack={() => setDeckIndex(null)}
-          initialCardIndex={deckIndex}
-        />
+      <div className="fixed inset-x-0 bottom-0 top-16 z-[60] overflow-y-auto bg-slate-950 pb-16">
+        <div className="sticky top-12 z-50 flex flex-wrap items-center justify-between gap-2 bg-slate-950/90 px-4 py-3">
+          <Button variant="ghost" onClick={() => setViewerIndex(null)} className="border border-white/20 bg-black/50 text-white hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Overview
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" aria-label="Previous card" disabled={index === 0} onClick={() => moveViewer(-1)} className="border border-white/20 bg-black/50 text-white hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white">
+              Previous
+            </Button>
+            <p className="font-mono text-xs tracking-widest text-white/80">{index + 1} of {slides.length}</p>
+            <Button type="button" variant="ghost" aria-label="Next card" disabled={index >= slides.length - 1} onClick={() => moveViewer(1)} className="border border-white/20 bg-black/50 text-white hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white">
+              Next
+            </Button>
+          </div>
+        </div>
+        <div key={slides[index]?.id}>{slides[index]?.node}</div>
       </div>,
     );
   }
 
-  if (blockedTitle) {
-    return frame(
-      <ExtraScreen dossier="NO RECORDS" title={blockedTitle} note="NO RECORDS FOUND AT THIS DEPTH" onBack={() => setBlockedTitle(null)}>
-        <p className="font-mono text-sm uppercase tracking-[0.14em] text-amber-100">This depth did not open this file.</p>
-      </ExtraScreen>,
-    );
-  }
-
-  if (extra) {
-    const state = caseFile.cardStatus[extra];
-    const note = cardStateLabel(state, caseFile.model.depth);
-    const entry = EXTRA.find((item) => item.id === extra);
-    const title = entry?.title || extra;
-    const dossier = entry?.dossier || title;
-    if (state === 'not-searched') {
-      return frame(
-        <ExtraScreen dossier={dossier} title={title} note="NO RECORDS FOUND AT THIS DEPTH" onBack={() => setExtra(null)}>
-          <p className="font-mono text-sm uppercase tracking-[0.14em] text-amber-100">A deeper pass would open this file.</p>
-        </ExtraScreen>,
-      );
-    }
-    const blocks = extraFacts(caseFile, extra);
-    return frame(
-      <ExtraScreen dossier={dossier} title={title} note={note} onBack={() => setExtra(null)}>
-        {blocks.length === 0 && (
-          <div className="rounded-sm border border-dashed border-amber-200/40 bg-black/30 p-6 font-mono text-sm uppercase tracking-[0.16em] text-amber-100">
-            NO RECORDS FOUND AT THIS DEPTH
-          </div>
-        )}
-        {blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
-      </ExtraScreen>,
-    );
-  }
-
   return frame(
-    <div data-testid="report" className="fixed inset-0 z-[60] overflow-y-auto bg-[#0c1018] pb-16 pt-14">
+    <div data-testid="report" className="fixed inset-x-0 bottom-0 top-16 z-[60] overflow-y-auto bg-[#0c1018] pb-16 pt-14">
       <div className="container relative mx-auto px-4 py-8">
-        <Stamp text={label === 'Partial' ? 'PARTIAL' : 'CLASSIFIED'} className="absolute right-6 top-2 hidden sm:block" />
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
+            {onClose && (
+              <Button variant="outline" onClick={onClose} className="border-white/20 text-white hover:bg-white/10">Close</Button>
+            )}
             <Button onClick={onDownload} className="bg-blue-600 hover:bg-blue-700 text-white">Download JSON</Button>
             {onSave && (
               <Button variant="outline" onClick={onSave} className="border-white/20 text-white hover:bg-white/10">Save to account</Button>
             )}
           </div>
-          <Badge variant="outline" className={label === 'Partial' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={label === 'Partial' ? 'partial-banner' : 'complete-banner'}>
-            {label} report
+          <Badge variant="outline" className={status.badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={status.badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
+            {status.badge}
           </Badge>
         </div>
 
@@ -217,10 +247,11 @@ const ReportView: React.FC<{
             {reportSubtitle(caseFile)}
           </p>
           <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-red-100">{filedStamp(caseFile)}</p>
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-300">{status.detail}</p>
           <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-gradient-to-r from-blue-400 to-purple-600" />
         </motion.div>
 
-        {label === 'Partial' && (
+        {status.badge === 'Partial report' && (
           <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-100" data-testid="partial-banner">
             Partial report{caseFile.coverage.partialReason ? ` (${caseFile.coverage.partialReason})` : ''}. Unread conversations: {Math.max(0, caseFile.coverage.planned - caseFile.coverage.read)}. This is not saved as a complete success.
           </div>
@@ -252,15 +283,8 @@ const ReportView: React.FC<{
                 gradient={insight.gradient}
                 badgeClass={insight.badgeClass}
                 quiet={quiet}
-                badge={quiet ? 'NO RECORDS FOUND AT THIS DEPTH' : state === 'partial' ? 'PARTIAL' : state === 'local' ? 'LOCAL PASS' : insight.id === 'fbi' ? `SUBJECT: ${codename}` : undefined}
-                onClick={() => {
-                  if (quiet) {
-                    setBlockedTitle(insight.title);
-                    return;
-                  }
-                  const deckAt = originalAvailable.findIndex((item) => item.id === insight.id);
-                  if (deckAt >= 0) setDeckIndex(deckAt);
-                }}
+                badge={insight.id === 'fbi' ? `SUBJECT: ${codename}` : undefined}
+                onClick={() => setViewerIndex(index)}
               />
             );
           })}
@@ -282,8 +306,7 @@ const ReportView: React.FC<{
                 gradient={insight.gradient}
                 badgeClass={insight.badgeClass}
                 quiet={quiet}
-                badge={quiet ? 'NO RECORDS FOUND AT THIS DEPTH' : state === 'partial' ? 'PARTIAL' : state === 'local' ? 'LOCAL PASS' : undefined}
-                onClick={() => setExtra(insight.id)}
+                onClick={() => setViewerIndex(ORIGINAL.length + index)}
               />
             );
           })}
@@ -314,7 +337,7 @@ function extraFacts(file: CaseFile, id: CardId): Cited[] {
   if (id === 'decisions') {
     return file.decisions.map((item) => ({
       ...item,
-      v: `${item.question}: ${item.v}${item.reversed ? ` (earlier: ${item.reversed.v})` : ''}`,
+      v: `${decisionText(item.question, item.v)}${item.reversed ? ` (earlier: ${item.reversed.v})` : ''}`,
     }));
   }
   if (id === 'loops') return file.open_loops;
@@ -359,9 +382,6 @@ function Tile({
       onClick={onClick}
     >
       <Card className={`relative h-full border bg-gradient-to-br from-slate-800/60 to-slate-900/70 ${borderColor} ${quiet ? 'border-dashed opacity-80' : hoverBorder} shadow-lg backdrop-blur-sm transition duration-300 hover:shadow-2xl hover:shadow-black/40`}>
-        <div className="absolute -top-px left-5 rounded-b-sm bg-[#c4a574] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-[0.16em] text-[#3a2a14]">
-          FILE
-        </div>
         <CardHeader className="pb-4">
           <div className={`mb-6 flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg ${iconBg} ${quiet ? '' : 'transition-transform duration-300 group-hover:scale-110'}`}>
             <Icon className={`h-10 w-10 ${textColor}`} />

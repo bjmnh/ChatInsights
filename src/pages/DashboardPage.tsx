@@ -5,7 +5,7 @@ import { listCaseFiles, type SavedCaseSummary } from '../services/caseFileServic
 import { loadCheckpoint, type LocalCheckpoint } from '../lib/insights/browserStore';
 
 const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<SavedCaseSummary[]>([]);
   const [error, setError] = useState('');
@@ -13,6 +13,7 @@ const DashboardPage: React.FC = () => {
   const [checkpoint, setCheckpoint] = useState<LocalCheckpoint | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!user) {
       navigate('/auth');
       return;
@@ -24,7 +25,7 @@ const DashboardPage: React.FC = () => {
         setError(err instanceof Error ? err.message : 'Could not load saved reports');
       })
       .finally(() => setLoading(false));
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">

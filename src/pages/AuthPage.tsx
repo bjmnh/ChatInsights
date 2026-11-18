@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { config } from '../lib/config';
 import { Button } from '../components/ui/button';
@@ -41,6 +41,7 @@ const AppleIcon = () => (
 
 export default function AuthPage() {
   const { user, loading, login, register, loginWithGoogle, loginWithApple, resetPassword } = useAuth();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -50,10 +51,9 @@ export default function AuthPage() {
     confirmPassword: '',
   });
 
-  // Redirect if already authenticated
-  if (user) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  useEffect(() => {
+    if (!loading && user) navigate('/dashboard', { replace: true });
+  }, [loading, user, navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -154,10 +154,11 @@ export default function AuthPage() {
     }
   };
 
-  if (loading) {
+  if (loading || user || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-[70vh] items-center justify-center" data-testid="auth-loading">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="sr-only">Loading</span>
       </div>
     );
   }

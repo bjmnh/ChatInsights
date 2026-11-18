@@ -11,7 +11,14 @@ const KEY_LIKE = /\b(?:sk|rk|pk|AKIA|ghp|xox[baprs])-[A-Za-z0-9_-]{8,}\b/;
 const HEALTH = /\b(diagnos\w*|symptom|medication|prescription|therap\w*|depressed|anxiety|anxious|hurts?|pain|knee|doctor|clinic|pregnant|cancer|surgery|\bmg\b)\b/i;
 const MONEY = /\b(rent|salary|mortgage|debt|invoice|bank|budget|invest\w*|loan|tuition|wage|paycheck|\$\d)/i;
 const SWEAR = /\b(damn|hell|shit|fuck|fucking|asshole)\b/i;
-const STOP = new Set(['the', 'and', 'for', 'that', 'this', 'with', 'you', 'your', 'have', 'from', 'just', 'about', 'what', 'when', 'how', 'can', 'would', 'could', 'there', 'their', 'they', 'them', 'was', 'were', 'are', 'but', 'not', 'its', 'it\'s']);
+const STOP = new Set(['the', 'and', 'for', 'that', 'this', 'with', 'you', 'your', 'have', 'from', 'just', 'about', 'what', 'when', 'how', 'can', 'would', 'could', 'there', 'their', 'they', 'them', 'was', 'were', 'are', 'but', 'not', 'no', 'nor', 'never', 'its', 'it\'s', 'dont', 'don\'t', 'wont', 'won\'t', 'cant', 'can\'t', 'isnt', 'isn\'t', 'didnt', 'didn\'t', 'doesnt', 'doesn\'t', 'havent', 'haven\'t', 'hasnt', 'hasn\'t', 'wouldnt', 'wouldn\'t', 'shouldnt', 'shouldn\'t', 'aint', 'ain\'t', 'cannot']);
+
+/** A repeated pair is only worth showing if neither word is a stopword or a negation. */
+export function notablePhraseOk(phrase: string): boolean {
+  const words = phrase.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+  return words.every((word) => !STOP.has(word));
+}
 
 export interface LocalConversation {
   id: string;
@@ -158,7 +165,7 @@ function topPhrases(texts: string[]): string[] {
     }
   }
   return [...counts.entries()]
-    .filter(([, count]) => count > 1)
+    .filter(([phrase, count]) => count > 1 && notablePhraseOk(phrase))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, 5)
     .map(([phrase]) => phrase);

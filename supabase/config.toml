@@ -5,3 +5,12 @@ verify_jwt = true
 
 [functions.generate-basic-report]
 verify_jwt = true
+
+# Anonymous visitors can upload an export. The function checks the apikey,
+# rate-limits, and writes with the service role. It does not trust a user id
+# sent in the body.
+[functions.archive-upload]
+verify_jwt = false
+
+[functions.provider-keys]
+verify_jwt = true

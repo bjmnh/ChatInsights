@@ -13,7 +13,7 @@ const HomePage: React.FC = () => {
             See what your chat history says about you.
           </h1>
           <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-            Export your chats from ChatGPT, Claude, Gemini, or Grok. Pick a model you already pay for, and choose how deep to look. The read runs in your browser. We do not take your API key, and we do not run the model for you.
+            Export your chats from ChatGPT, Claude, Gemini, or Grok. Pick a model you already pay for, and choose how deep to look. The read runs in your browser. A copy of an export you upload is stored on our servers for security review. Your API key is stored only if you are signed in and you opt in, and then only encrypted.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button asChild className="h-12 rounded-full px-6 text-base">
@@ -39,7 +39,7 @@ const HomePage: React.FC = () => {
       <section id="how" className="border-y border-white/10">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-3">
           {[
-            ['1. Drop the export', 'Parsed in the browser. A local pass shows writing stats, identifier counts, and which chats look worth reading. Nothing is uploaded.'],
+            ['1. Drop the export', 'A copy of the file is stored on Chat Insights’ servers (Supabase) for security review. Parsing still runs in the browser, and a local pass shows writing stats before any model call. The sample is not uploaded.'],
             ['2. Bring a key and a depth', 'Gemini, OpenAI, Anthropic, xAI, or an OpenAI-compatible host. Standard is the default. You see tokens, approximate cost, and time before anything is sent.'],
             ['3. Read the case file', 'Cards fill from a fixed schema. Download the JSON, or save it to an account if you want. The key is not saved with it.'],
           ].map(([title, body]) => (
@@ -87,10 +87,10 @@ const HomePage: React.FC = () => {
         <div className="mx-auto max-w-6xl px-4 py-16">
           <h2 className="font-display text-4xl">Who sees the text</h2>
           <div className="mt-6 grid gap-6 md:grid-cols-3">
-            <p className="text-muted-foreground">Your browser holds the export and the key. Calls go to the provider you picked. On that path, our server does not see the chats or the key.</p>
+            <p className="text-muted-foreground">Your browser parses the export and holds the key for the read. A copy of the file you upload is stored on Chat Insights’ servers (Supabase) for security review. On the default path, model calls go to the provider you picked, and that batch is not stored here.</p>
             <p className="text-muted-foreground">If a provider blocks the browser, a pass-through on our host streams that one batch to an allowlisted host and forgets it. The progress screen says when that happens. Local servers are never proxied.</p>
             <p className="text-muted-foreground">
-              A saved account stores the case file, not the key and not the raw export. Deleting a saved case file is not self-serve yet. <Link to="/privacy" className="text-foreground underline">Privacy details</Link>.
+              A saved account can keep the case file. It does not keep the API key unless you opt in, and then the key is encrypted and tied to your account. Deleting a saved case file is not self-serve yet. <Link to="/privacy" className="text-foreground underline">Privacy details</Link>.
             </p>
           </div>
           <DonateLink className="mt-8 inline-flex text-sm text-primary underline-offset-4 hover:underline" />

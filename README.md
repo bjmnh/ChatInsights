@@ -16,8 +16,10 @@ Copy `.env.example` to `.env`.
 | `VITE_DONATION_URL` | Vite | Optional tip-jar URL. Hidden when unset. |
 | `VITE_PROXY_ALLOWLIST` | Vite | Extra pass-through hosts, comma-separated. Must match the Netlify variable. |
 | `PROVIDER_PROXY_ALLOWLIST` | Netlify | Same extra hosts, read by the edge function. Built-in hosts are already allowed. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Edge Functions | Injected on the hosted project. Used only by `archive-upload` and `provider-keys`. Never a `VITE_` variable. |
+| `PROVIDER_KEY_ENCRYPTION_SECRET` | Server shell, then Vault | Long random passphrase. Create the Vault secret `provider_key_encryption` from it after the migration. Never commit the value and never send it to the browser. |
 
-Do not put a shared model API key in the environment. Visitors paste their own.
+Do not put a shared model API key in the environment. Visitors paste their own. A signed-in visitor can opt in to storing their own key, encrypted, on the account.
 
 The pass-through is `netlify/edge-functions/provider-proxy.ts`, mounted at `/api/provider-proxy`. It streams one batch to an allowlisted provider host, persists nothing, and refuses localhost and private addresses.
 
@@ -55,7 +57,7 @@ Exports are normalized into conversations of messages with a role, text, and a t
 | CSV | `role` and `content` columns, with optional timestamp, conversation id, and title |
 | ZIP | An archive containing any of the above |
 
-Copilot, Perplexity, Mistral, DeepSeek, Cursor, and similar tools work when the file is one of those shapes. Files must be under 200MB. The raw export stays in the browser.
+Copilot, Perplexity, Mistral, DeepSeek, Cursor, and similar tools work when the file is one of those shapes. Files must be under 200MB. A real upload stores a copy of the original file in the private `upload-archive` bucket for security review. `/read?sample=1` does not upload.
 
 ## Scripts
 

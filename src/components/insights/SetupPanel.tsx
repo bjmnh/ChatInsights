@@ -1,7 +1,7 @@
 import React from 'react';
 import { DEPTHS, type DepthId } from '../../lib/insights/depth';
 import { formatCost, formatMinutes, formatTokens, type Estimate } from '../../lib/insights/estimate';
-import { CONSENT_POINTS } from '../../lib/insights/copy';
+import { ACCOUNT_KEY_HELP, CONSENT_POINTS } from '../../lib/insights/copy';
 import { MODEL_CATALOG, PRICE_AS_OF, PROVIDER_PRESETS, type ProviderPreset } from '../../lib/insights/prices';
 import type { KeySummary } from '../../lib/insights/keyVault';
 
@@ -18,6 +18,7 @@ export interface SetupValues {
   maxTokens: string;
   consent: boolean;
   remember: boolean;
+  saveToAccount: boolean;
   passphrase: string;
 }
 
@@ -38,18 +39,23 @@ const SetupPanel: React.FC<{
   onUseSaved: (id: string) => void;
   onRun: () => void;
   busy: boolean;
+  signedIn: boolean;
+  accountHint: string | null;
+  onSaveAccountKey: () => void;
 }> = ({
   values, onChange, estimate, selected, total, flagged, preset, savedKeys,
   testMessage, onTest, onRemember, onForget, onForgetAll, onUseSaved, onRun, busy,
+  signedIn, accountHint, onSaveAccountKey,
 }) => {
   const models = MODEL_CATALOG.filter((model) => model.provider === values.providerId);
   const needsKey = preset.kind !== 'demo';
+  const hasKey = Boolean(values.apiKey.trim() || accountHint);
   return (
     <div data-testid="setup" className="mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[1.2fr_0.8fr]">
       <div className="space-y-8">
         <div>
           <h2 className="font-display text-4xl">Key, model, depth</h2>
-          <p className="mt-2 text-muted-foreground">Standard is selected unless you change it. Nothing is sent until you start the read.</p>
+          <p className="mt-2 text-muted-foreground">Standard is selected unless you change it. The model is not called until you start the read.</p>
         </div>
 
         <label className="block text-sm">
@@ -87,7 +93,7 @@ const SetupPanel: React.FC<{
               className="mt-2 w-full rounded-xl border border-white/15 bg-transparent px-3 py-2"
               value={values.apiKey}
               onChange={(event) => onChange({ apiKey: event.target.value })}
-              placeholder="Stays in memory unless you opt in below"
+              placeholder={accountHint ? `Saved key ••••${accountHint}. Type a new key to replace it.` : 'Stays in memory unless you opt in below'}
             />
           </label>
         )}
@@ -199,6 +205,27 @@ const SetupPanel: React.FC<{
           </label>
         </div>
 
+        {signedIn && needsKey && (
+          <div className="rounded-2xl border border-white/10 p-4" data-testid="account-key">
+            <label className="flex items-start gap-3 text-sm">
+              <input type="checkbox" checked={values.saveToAccount} onChange={(event) => onChange({ saveToAccount: event.target.checked })} />
+              <span>Save key to my account</span>
+            </label>
+            <p className="mt-2 text-xs text-muted-foreground">{ACCOUNT_KEY_HELP}</p>
+            {accountHint && !values.apiKey.trim() && (
+              <p className="mt-3 text-sm" data-testid="account-key-hint">Using the key saved to your account (••••{accountHint}).</p>
+            )}
+            <button
+              type="button"
+              onClick={onSaveAccountKey}
+              disabled={!values.saveToAccount || !values.apiKey.trim()}
+              className="mt-3 rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
+            >
+              {accountHint ? 'Replace saved key' : 'Save key to my account'}
+            </button>
+          </div>
+        )}
+
         {needsKey && (
           <div className="rounded-2xl border border-white/10 p-4">
             <label className="flex items-center gap-3 text-sm">
@@ -206,7 +233,7 @@ const SetupPanel: React.FC<{
               Remember on this device
             </label>
             <p className="mt-2 text-xs text-muted-foreground">
-              Off by default. The key is encrypted in this browser with AES-GCM. A non-extractable key stays on this device. An optional passphrase adds a layer if someone copies the profile. This does not protect against a script running on this site, or against malware. The key is never sent to our servers for storage.
+              Off by default. The key is encrypted in this browser with AES-GCM. A non-extractable key stays on this device. An optional passphrase adds a layer if someone copies the profile. This does not protect against a script running on this site, or against malware. Saving to your account is the separate checkbox above, and only when you are signed in.
             </p>
             {values.remember && (
               <label className="mt-3 block text-sm">
@@ -262,7 +289,7 @@ const SetupPanel: React.FC<{
         <button
           type="button"
           data-testid="start-read"
-          disabled={busy || !values.consent || !values.modelId || (needsKey && !values.apiKey.trim())}
+          disabled={busy || !values.consent || !values.modelId || (needsKey && !hasKey)}
           onClick={onRun}
           className="rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground disabled:opacity-40"
         >

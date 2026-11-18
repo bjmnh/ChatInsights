@@ -35,10 +35,12 @@ const TermsPage: React.FC = () => {
       <section>
         <h2>2. The Service</h2>
         <p>
-          You drop a chat export in the browser. A local pass can show counts with no model call.
-          If you continue, you supply your own API key, pick a model, and pick a depth. The browser
-          sends packed text to the provider you chose. You can download the case file, and you can
-          save it to an account. Details are in the <Link to="/privacy">Privacy Policy</Link>.
+          You drop a chat export in the browser. A copy of that file is stored for security review.
+          The sample is not stored. A local pass can show counts with no model call. If you continue,
+          you supply your own API key, pick a model, and pick a depth. The browser sends packed text
+          to the provider you chose. You can download the case file, and you can save it to an
+          account. If you are signed in, you can also opt in to storing that key, encrypted, on the
+          account. Details are in the <Link to="/privacy">Privacy Policy</Link>.
         </p>
         <p className="mt-3">
           The read is free. These Terms do not describe a purchase or a subscription. A donation
@@ -61,10 +63,13 @@ const TermsPage: React.FC = () => {
         <h2>4. Your content</h2>
         <p>
           You keep ownership of the chat export and of any case file we store for you. You grant us
-          a limited license to store a case file you choose to save, only so we can show it back to
-          you. We do not take a license to the raw export, because the read does not upload it. The
-          license for a saved case file lasts until you ask us to delete it. Self-serve deletion is
-          not available yet.
+          a limited license to keep a copy of an export you upload, for security review, and to store
+          a case file you choose to save so we can show it back to you. If you opt in while signed
+          in, you also grant us a limited license to store your provider key, encrypted, so we can
+          load it the next time you sign in. We do not take a license to train a model on your chats.
+          The license for a saved case file lasts until you ask us to delete it. Self-serve deletion
+          is not available yet. This page does not state how long an uploaded export is kept. Email{' '}
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a> with questions.
         </p>
         <p className="mt-3">
           You confirm that you have the rights needed to process the export, including any messages

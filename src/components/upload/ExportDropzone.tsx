@@ -3,12 +3,13 @@ import type { DropzoneInputProps, DropzoneRootProps } from 'react-dropzone';
 import { FileArchive, FileJson, Upload } from 'lucide-react';
 
 const stages = [
+  { id: 'storing', label: 'Storing a copy for security review' },
   { id: 'reading', label: 'Opening the file' },
   { id: 'parsing', label: 'Reading the export' },
   { id: 'counting', label: 'Counting conversations' },
 ] as const;
 
-export type UploadStage = 'idle' | 'reading' | 'parsing' | 'counting';
+export type UploadStage = 'idle' | 'storing' | 'reading' | 'parsing' | 'counting';
 
 interface ExportDropzoneProps {
   isDragActive: boolean;

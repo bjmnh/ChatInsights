@@ -8,3 +8,13 @@ export function caseFileNumber(seed: string): string {
   const value = (hash >>> 0) % 9000 + 1000;
   return `CI-${value}`;
 }
+
+/** A number for this read, not for the fallback title. Two files that share "Untitled case file" still differ. */
+export function caseNumberFor(file: {
+  runId?: string;
+  filedAt?: string;
+  coverage: { conversations: number; topics: { c: string }[] };
+}, conversationIds: string[] = []): string {
+  const ids = (conversationIds.length ? conversationIds : file.coverage.topics.map((topic) => topic.c)).join(',');
+  return caseFileNumber([file.runId ?? '', file.filedAt ?? '', ids, String(file.coverage.conversations)].join('|'));
+}

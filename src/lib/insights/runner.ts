@@ -1,6 +1,6 @@
 import type { NormalizedConversation } from '../conversationParser/types.ts';
 import type { Adapter, CompleteRequest } from './adapters.ts';
-import { applyNarrativeResult, buildCaseFile, type CaseFile, type NarrativeStatus } from './merge.ts';
+import { applyNarrativeResult, buildCaseFile, providerFailureDetail, type CaseFile, type NarrativeStatus } from './merge.ts';
 import { packBatches, packConversation, type PackedBatch } from './pack.ts';
 import { EXTRACTION_SYSTEM, NARRATIVE_SYSTEM, QUICK_ADDENDUM, VERIFY_SYSTEM } from './prompts.ts';
 import {
@@ -103,6 +103,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   let spentTokens = 0;
   let completed = 0;
   let stopReason: string | undefined;
+  let overloadKind: 'rate' | 'server' | undefined;
   const plannedBatchCount = queue.length;
   const accounted = new Set<string>();
   for (const id of selection.chosenIds) {
@@ -140,6 +141,8 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
 
   input.onProgress?.(progress('packing', 'Packing the chats that this depth will send.'));
 
+  // One batch at a time. A Quick scan does not fire the next call until this one settles,
+  // so a 429 is not caused by overlapping requests from this read.
   while (queue.length) {
     if (input.signal?.aborted) {
       stopReason = 'stopped';
@@ -216,13 +219,14 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
         accounted.add(id);
       });
       completed += 1;
+      if (error instanceof ProviderRequestError && error.kind === 'rate') overloadKind = 'rate';
+      else if (error instanceof ProviderRequestError && error.kind === 'server' && overloadKind !== 'rate') overloadKind = 'server';
       stopReason = stopReason ?? 'batch-failed';
     }
   }
 
   if (failed.size > 0 && (!stopReason || stopReason === 'batch-failed')) {
-    const count = failed.size;
-    stopReason = `The provider failed on ${count} conversation${count === 1 ? '' : 's'} after several retries.`;
+    stopReason = providerFailureDetail(overloadKind ?? 'other', failed.size);
   }
 
   let narrativeStatus: NarrativeStatus = input.depth === 'quick' ? 'not-in-depth' : 'templated';

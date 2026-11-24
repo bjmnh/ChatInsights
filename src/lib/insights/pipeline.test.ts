@@ -6,7 +6,7 @@ import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from './estimate.ts';
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
-import { caseFileNumber } from './caseNumber.ts';
+import { caseFileNumber, caseNumberFor } from './caseNumber.ts';
 import { cardPreviews, caseDownloadName, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, isThinProfileLabel, publicSubjectName, reportSubtitle, scrubRawCodes, sentenceCase, sourceLabels, toHashtag, uniqueDisplay, vocabularyMeterValue } from './hydratePremium.ts';
 import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, WRITE_UP_MISSING, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
@@ -21,7 +21,7 @@ import {
 import { buildSampleConversations, createDemoAdapter } from './sample.ts';
 import { caseFileRow, exportFingerprint, persistenceFields, upsertByConflict } from './saveReport.ts';
 import { runRead, type RunProgress } from './runner.ts';
-import { completeWithRetry, ProviderRequestError, PROVIDER_AUTH_MESSAGE, retryWaitMs } from './transport.ts';
+import { completeWithRetry, headerRetryAfterMs, ProviderRequestError, PROVIDER_AUTH_MESSAGE, retryWaitMs } from './transport.ts';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
   forgetAllKeys,
@@ -402,8 +402,9 @@ describe('budget cap and partial reports', () => {
     });
     expect(calls).toBe(5);
     expect(seen.some((line) => line.includes('The provider is busy (503)') && line.includes('Retrying'))).toBe(true);
-    expect(result.coverage.partialReason).toMatch(/The provider failed on 3 conversations after several retries/);
-    expect(plainPartialDetail(result)).toMatch(/failed on 3 conversations/);
+    expect(result.coverage.partialReason).toMatch(/The provider was busy \(503\) on 3 conversations/);
+    expect(result.coverage.partialReason).toMatch(/Wait a few minutes/);
+    expect(plainPartialDetail(result)).toMatch(/busy \(503\)/);
     expect(result.coverage.failed).toBe(3);
     expect(result.coverage.narrative).not.toBe('skipped-budget');
     const merged = mergeCaseFiles(result, {
@@ -523,6 +524,50 @@ describe('budget cap and partial reports', () => {
     expect(seen[1]).toBe(1000);
     expect(seen).toContain(4000);
     expect(Math.max(...seen)).toBeGreaterThan(2000);
+    expect(headerRetryAfterMs(new Headers({ 'retry-after': '45' }))).toBe(45_000);
+    const paced: number[] = [];
+    let limited = 0;
+    await completeWithRetry(
+      async () => {
+        limited += 1;
+        if (limited === 1) throw new ProviderRequestError('slow down', 429, 'rate', 30_000);
+        return 'ok';
+      },
+      async () => undefined,
+      (info) => paced.push(info.waitMs),
+    );
+    expect(paced[0]).toBe(30_000);
+  });
+
+  it('sends Quick scan batches one at a time', async () => {
+    const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `My sister Dana wrote a long note ${index} about the rent and the launch.`));
+    let inFlight = 0;
+    let maxInFlight = 0;
+    let calls = 0;
+    await runRead({
+      conversations,
+      local: runLocalPass(conversations),
+      depth: 'quick',
+      quickFraction: 1,
+      model: { provider: 'script', id: 'script', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 3500 },
+      adapter: {
+        id: 'script',
+        async complete(request: { user: string }) {
+          calls += 1;
+          inFlight += 1;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          inFlight -= 1;
+          return {
+            text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'note' })), facts: [] }),
+            viaProxy: false,
+          };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(calls).toBeGreaterThan(1);
+    expect(maxInFlight).toBe(1);
   });
 
   it('stops on an invalid key instead of a batch-failed report', async () => {
@@ -604,6 +649,12 @@ describe('demo pipeline', () => {
     expect(premium.fbiReport?.psychologicalProfile).toMatch(/rewriting the launch checklist/);
     expect(caseFileNumber('Second Draft|demo-extractor|8')).toMatch(/^CI-\d{4}$/);
     expect(caseFileNumber('Second Draft|demo-extractor|8')).toBe(caseFileNumber('Second Draft|demo-extractor|8'));
+    const shared = { coverage: { conversations: 3, topics: [] as { c: string }[] } };
+    const firstFile = caseNumberFor({ ...shared, runId: 'run-a', filedAt: '2026-11-24T00:00:00.000Z' }, ['a']);
+    const secondFile = caseNumberFor({ ...shared, runId: 'run-b', filedAt: '2026-11-24T00:00:01.000Z' }, ['b']);
+    expect(firstFile).toMatch(/^CI-\d{4}$/);
+    expect(secondFile).not.toBe(firstFile);
+    expect(caseNumberFor({ ...shared, runId: 'run-a', filedAt: '2026-11-24T00:00:00.000Z' }, ['a'])).toBe(firstFile);
     expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
     expect(settleArchetype('backend engineer, moved into team lead', 'Second Draft', ['backend engineer, moved into team lead'])).toBe('Cast as Second Draft');
     expect(settleArchetype('The Determined Career Pivot Strategist', 'Second Draft', [])).toBe('Cast as Second Draft');

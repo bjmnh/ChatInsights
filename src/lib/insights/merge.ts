@@ -113,8 +113,7 @@ export function reportStatus(file: CaseFile): { badge: string; detail: string } 
   const unread = Math.max(0, total - read);
   const counts = `Read ${read} of ${total} conversation${total === 1 ? '' : 's'}.`;
   if (!isComplete(file)) {
-    const why = file.coverage.partialReason ? ` Stopped early (${file.coverage.partialReason}).` : '';
-    return { badge: 'Partial report', detail: `${counts}${why} This is not a finished pass.` };
+    return { badge: 'Partial report', detail: `${counts} ${plainPartialDetail(file)}` };
   }
   if (unread > 0 && file.model.depth === 'standard') {
     const noun = unread === 1 ? '1 conversation was not flagged' : `${unread} conversations were not flagged`;
@@ -133,6 +132,21 @@ export function reportStatus(file: CaseFile): { badge: string; detail: string } 
 }
 
 /** The badge on screen. A fake sample is never labeled like a finished personal read. */
+export function plainPartialDetail(file: CaseFile): string {
+  const reason = file.coverage.partialReason ?? '';
+  const missed = Math.max(file.coverage.failed, file.coverage.planned - file.coverage.read, 0);
+  const noun = `${missed} conversation${missed === 1 ? '' : 's'}`;
+  if (!reason || reason === 'batch-failed' || reason === 'server') {
+    return `The provider failed on ${noun} after several retries.`;
+  }
+  if (reason === 'budget') return 'Stopped because the budget cap was reached.';
+  if (reason === 'safety') return 'The provider safety filter blocked a batch.';
+  if (reason === 'stopped') return 'The read was stopped before it finished.';
+  if (reason === 'verification') return 'The quote check did not finish.';
+  if (/^the provider failed on/i.test(reason)) return reason.endsWith('.') ? reason : `${reason}.`;
+  return `Stopped early (${reason}). This is not a finished pass.`;
+}
+
 export function displayBadge(file: CaseFile, demo = false): string {
   if (demo) return 'Sample report';
   return reportStatus(file).badge;
@@ -176,7 +190,16 @@ function depthLabel(depth: DepthId): string {
 }
 
 export const NEUTRAL_CODENAME = 'Open notebook';
-export const NEUTRAL_CODENAME_REASON = 'A plain name for this case file. It is not a claim taken from one chat.';
+export const NEUTRAL_CODENAME_REASON = 'A name for this case file.';
+
+const INTERNAL_CODENAME_REASON = /not a fact copied from one chat|not a claim taken from one chat|short name for this file|plain name for this case file/i;
+
+/** Saved reports may still carry the old internal fallback. Show a plain sentence instead. */
+export function publicCodenameReason(reason: string): string {
+  const text = reason.trim();
+  if (!text || INTERNAL_CODENAME_REASON.test(text)) return NEUTRAL_CODENAME_REASON;
+  return text;
+}
 
 const SMALL_TITLE_WORDS = new Set(['a', 'an', 'and', 'or', 'the', 'of', 'for', 'to', 'in', 'on']);
 
@@ -524,5 +547,52 @@ export function buildCaseFile(input: {
     cardStatus: coverage.partial
       ? (Object.fromEntries(Object.entries(cardStates(input.depth)).map(([id, state]) => [id, state === 'ready' ? 'partial' : state])) as Record<CardId, CardState>)
       : cardStates(input.depth),
+  };
+}
+
+function unionBy<T>(current: T[], extra: T[], key: (item: T) => string): T[] {
+  const seen = new Set(current.map((item) => key(item)));
+  return [...current, ...extra.filter((item) => {
+    const id = key(item);
+    if (seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  })];
+}
+
+/** Fold a retry of the unread chats into the report already on screen. */
+export function mergeCaseFiles(base: CaseFile, extra: CaseFile): CaseFile {
+  const topics = unionBy(base.coverage.topics, extra.coverage.topics, (item) => item.c);
+  const read = Math.min(base.coverage.conversations, topics.length);
+  const failed = extra.coverage.failed;
+  const partial = extra.coverage.partial || failed > 0;
+  return {
+    ...base,
+    filedAt: extra.filedAt || base.filedAt,
+    coverage: {
+      ...base.coverage,
+      read,
+      failed,
+      partial,
+      partialReason: partial ? extra.coverage.partialReason : undefined,
+      topics,
+      batches: base.coverage.batches + extra.coverage.batches,
+    },
+    people: unionBy(base.people, extra.people, (item) => item.name.trim().toLowerCase()),
+    places: unionBy(base.places, extra.places, (item) => item.v.trim().toLowerCase()),
+    orgs: unionBy(base.orgs, extra.orgs, (item) => item.v.trim().toLowerCase()),
+    timeline: unionBy(base.timeline, extra.timeline, (item) => item.v.trim().toLowerCase()),
+    projects: unionBy(base.projects, extra.projects, (item) => item.v.trim().toLowerCase()),
+    interests: unionBy(base.interests, extra.interests, (item) => item.v.trim().toLowerCase()),
+    beliefs: unionBy(base.beliefs, extra.beliefs, (item) => item.v.trim().toLowerCase()),
+    worries: unionBy(base.worries, extra.worries, (item) => item.v.trim().toLowerCase()),
+    health: unionBy(base.health, extra.health, (item) => item.v.trim().toLowerCase()),
+    money: unionBy(base.money, extra.money, (item) => item.v.trim().toLowerCase()),
+    decisions: unionBy(base.decisions, extra.decisions, (item) => item.v.trim().toLowerCase()),
+    open_loops: unionBy(base.open_loops, extra.open_loops, (item) => item.v.trim().toLowerCase()),
+    notable: base.notable.map((item) => {
+      const updated = extra.notable.find((next) => next.id === item.id);
+      return updated?.modelRead ? { ...item, modelRead: true } : item;
+    }),
   };
 }

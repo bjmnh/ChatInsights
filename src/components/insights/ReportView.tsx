@@ -16,10 +16,9 @@ import {
 import type { NormalizedConversation } from '../../lib/conversationParser/types';
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
-import { cardPreviews, filedStamp, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
-import { decisionText, displayBadge, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
+import { cardPreviews, conversationTitle, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, reportSubtitle, sentenceCase, type PremiumReportShape } from '../../lib/insights/hydratePremium';
+import { decisionText, displayBadge, plainPartialDetail, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
-import { conversationTitle, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy } from '../../lib/insights/hydratePremium';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
 import { LinguisticFingerprintCard } from '../reports/LinguisticFingerprintCard';
@@ -83,7 +82,7 @@ function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> 
   return (
     <div className="rounded-2xl border border-amber-700/40 bg-[#1a140c]/80 p-5 shadow-lg" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(255,220,160,0.04) 23px)' }}>
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-amber-200">Finding</p>
-      <p className="mt-1 text-lg text-amber-50">{item.v}</p>
+      <p className="mt-1 text-lg text-amber-50">{sentenceCase(item.v)}</p>
       {item.quote && (
         <blockquote className="mt-3 border-l-4 border-amber-500 pl-4 font-mono text-sm leading-relaxed text-amber-100">
           <span className="mb-1 block text-[10px] uppercase tracking-[0.18em] text-amber-300">Evidence</span>
@@ -172,11 +171,13 @@ const ReportView: React.FC<{
   caseFile: CaseFile;
   conversations: NormalizedConversation[];
   onDownload: () => void;
-  onSave?: () => void;
+  onSave?: () => Promise<void> | void;
+  onRetryUnread?: () => void;
   onClose?: () => void;
   saveMessage?: string;
   demo?: boolean;
-}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo }) => {
+}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread }) => {
+  const [savedLabel, setSavedLabel] = useState<'Save to account' | 'Saved' | 'Update saved copy'>('Save to account');
   const titles = useMemo(() => {
     const map = new Map(conversations.map((conversation) => [conversation.id, conversation.title]));
     for (const item of caseFile.notable) {
@@ -247,7 +248,14 @@ const ReportView: React.FC<{
             )}
             <Button onClick={onDownload} className="bg-blue-600 hover:bg-blue-700 text-white">Download JSON</Button>
             {onSave && !demo && (
-              <Button variant="outline" onClick={onSave} className="border-white/20 text-white hover:bg-white/10">Save to account</Button>
+              <Button variant="outline" onClick={() => {
+                Promise.resolve(onSave()).then(() => {
+                  setSavedLabel(caseFile.coverage.partial ? 'Update saved copy' : 'Saved');
+                }).catch(() => undefined);
+              }} className="border-white/20 text-white hover:bg-white/10">{savedLabel}</Button>
+            )}
+            {onRetryUnread && caseFile.coverage.partial && caseFile.coverage.failed > 0 && (
+              <Button variant="outline" onClick={onRetryUnread} className="border-white/20 text-white hover:bg-white/10">Retry unread conversations</Button>
             )}
           </div>
           <Badge variant="outline" className={badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : badge.startsWith('Quick scan') ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : badge === 'Sample report' ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
@@ -274,7 +282,7 @@ const ReportView: React.FC<{
 
         {status.badge === 'Partial report' && (
           <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-100" data-testid="partial-banner">
-            Partial report{caseFile.coverage.partialReason ? ` (${caseFile.coverage.partialReason})` : ''}. Unread conversations: {Math.max(0, caseFile.coverage.planned - caseFile.coverage.read)}. This is not saved as a complete success.
+            {plainPartialDetail(caseFile)} Unread conversations: {Math.max(0, caseFile.coverage.planned - caseFile.coverage.read)}. This is not saved as a complete success.
           </div>
         )}
         {caseFile.coverage.viaProxy && (
@@ -344,7 +352,7 @@ const ReportView: React.FC<{
 function extraFacts(file: CaseFile, id: CardId): Cited[] {
   if (id === 'people') {
     return file.people.map((person) => ({
-      v: person.relationship ? `${person.name} · ${person.relationship}` : person.name,
+      v: sentenceCase(person.relationship ? `${person.name} · ${person.relationship}` : person.name),
       conf: person.conf,
       ev: person.ev,
       src: person.src,

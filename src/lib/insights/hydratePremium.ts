@@ -1,6 +1,6 @@
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk } from './localPass.ts';
-import { decisionText, type CaseFile } from './merge.ts';
+import { decisionText, publicCodenameReason, type CaseFile } from './merge.ts';
 
 export interface PremiumReportShape {
   fbiReport?: {
@@ -152,11 +152,25 @@ function distinct(value: string | undefined, shared: string[]): string | undefin
   return text;
 }
 
-/** Capitalize a fully lowercase phrase. Leave text that already has capitals alone. */
+/**
+ * Capitalize the first letter of a finding, name, or headline.
+ * Later capitals stay put, so "iPhone notes" is unchanged only when it already
+ * starts with a capital. Verbatim evidence quotes are not passed through this.
+ */
 export function sentenceCase(value: string): string {
   const text = value.trim();
-  if (!text || /[A-Z]/.test(text)) return text;
-  return text.charAt(0).toUpperCase() + text.slice(1);
+  if (!text || /[A-Z#]/.test(text)) return text;
+  const index = text.search(/[a-z]/);
+  if (index < 0) return text;
+  return text.slice(0, index) + text.charAt(index).toUpperCase() + text.slice(index + 1);
+}
+
+export function isThinProfileLabel(value: string): boolean {
+  const text = value.replace(/^@/, '').trim();
+  if (!text) return true;
+  if (text.length < 4) return true;
+  return /^\d+\s*(year|years|month|months|day|days|week|weeks)\b\.?$/i.test(text)
+    || /^\d+(year|years|month|months|day|days|week|weeks)$/i.test(text);
 }
 
 export function reportSubtitle(file: CaseFile): string {
@@ -182,6 +196,11 @@ export function formatFiledDate(iso: string | null | undefined): string {
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return '';
   return `${String(parsed.getUTCDate()).padStart(2, '0')} ${FILED_MONTHS[parsed.getUTCMonth()]} ${parsed.getUTCFullYear()}`;
+}
+
+export function caseDownloadName(filename: string | null | undefined): string {
+  const stripped = (filename || 'chat-insights').replace(/(\.[a-z0-9]{1,8})+$/i, '').replace(/\.+$/, '').trim();
+  return `${stripped || 'chat-insights'}-case-file.json`;
 }
 
 export function filedStamp(file: CaseFile): string {
@@ -215,7 +234,7 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
   const pick = (...values: Array<string | undefined>) => {
     for (const value of values) {
       const text = distinct(value, shared);
-      if (text) return text;
+      if (text) return sentenceCase(text);
     }
     return '';
   };
@@ -241,7 +260,7 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     doppelganger: pick(hydrated.digitalDoppelganger?.bio, hydrated.digitalDoppelganger?.handle) || ORIGINAL_CARD_COPY.doppelganger,
     people: file.cardStatus.people === 'not-searched' || file.people.length === 0
       ? gap('people')
-      : pick(file.people.slice(0, 3).map((person) => person.name).join(', ')) || gap('people'),
+      : pick(file.people.slice(0, 3).map((person) => sentenceCase(person.name)).join(', ')) || gap('people'),
     places: file.cardStatus.places === 'not-searched' || (file.places.length === 0 && file.orgs.length === 0)
       ? gap('places')
       : pick([...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ')) || gap('places'),
@@ -307,7 +326,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   const used = new Set<string>();
   const cover = claim(file.narrative.cover, used) || 'No cover was written for this read.';
   if (file.narrative.codename_reason.trim()) used.add(normText(file.narrative.codename_reason));
-  const interestLines = uniqueDisplay(file.interests.map((item) => item.v), true);
+  const interestLines = uniqueDisplay(file.interests.map((item) => sentenceCase(item.v)), true);
   const codename = file.narrative.codename;
   const codenameReason = file.narrative.codename_reason;
 
@@ -318,11 +337,15 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       reportTitle: 'A read of your chats',
       subjectCodename: {
         name: codename,
-        justification: codenameReason,
+        justification: publicCodenameReason(codenameReason),
         operationalSignificance: titlesOf(file.narrative.ev, titles) || undefined,
       },
       subjectProfileSummary: sentenceCase(cover),
-      psychologicalProfile: keptProse(file.beliefs.map((item) => item.v).join(' ')) || keptProse(file.worries.map((item) => item.v).join(' ')),
+      psychologicalProfile: (() => {
+        const text = keptProse(file.beliefs.map((item) => sentenceCase(item.v)).join(' '))
+          || keptProse(file.worries.map((item) => sentenceCase(item.v)).join(' '));
+        return text ? sentenceCase(text) : undefined;
+      })(),
       dominantInterests: uniqueDisplay(
         interestLines.length ? interestLines : file.coverage.topics.map((topic) => topic.topic),
         true,
@@ -331,7 +354,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
         `${file.style.wordsPerMessage} words per message you sent`,
         `${Math.round(file.style.questionShare * 100)}% of your messages ask a question`,
       ],
-      emotionalToneAndEngagement: file.worries[0]?.v || 'No worry was extracted at this depth.',
+      emotionalToneAndEngagement: file.worries[0]?.v ? sentenceCase(file.worries[0].v) : 'No worry was extracted at this depth.',
       informationSharingTendencies: `You shared ${file.exposure.emails.length} email addresses, ${file.exposure.phones.length} phone numbers, and ${file.exposure.cardLike} card-like numbers.`,
       piiExamples: [
         ...file.exposure.emails.slice(0, 3).map((email) => ({
@@ -354,8 +377,8 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       behavioralPatterns: [
         ...interestLines.slice(0, 3),
         file.routines.peakHours.length ? `Peak hours (UTC): ${file.routines.peakHours.join(', ')}` : '',
-      ].filter((item) => item && !isPersonTrait(item, file)),
-      potentialVulnerabilities: file.health.slice(0, 3).map((item) => item.v),
+      ].filter((item): item is string => Boolean(item) && !isPersonTrait(item, file)).map((item) => sentenceCase(item)),
+      potentialVulnerabilities: file.health.slice(0, 3).map((item) => sentenceCase(item.v)),
       operationalAssessment: (() => {
         const note = file.narrative.blurbs.file?.trim();
         if (!note || isEchoedPlaceholder(note)) return undefined;
@@ -428,7 +451,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     );
     report.unfilteredMirror = {
       reportTitle: 'The unfiltered mirror',
-      observation: observation || emptyCardCopy(true),
+      observation: observation ? sentenceCase(observation) : emptyCardCopy(true),
       deeperInsight: claim(keptProse(file.beliefs.map((item) => item.v).join(' ')), used),
       psychologicalImplications: claim(keptProse(file.worries.map((item) => item.v).join(' ')), used),
       disclaimer: '',
@@ -475,6 +498,13 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   }
 
   if (searched(file, 'file') || searched(file, 'usage')) {
+    const nameGuess = file.subject.nameGuess?.v?.trim() ?? '';
+    const handleBody = nameGuess.toLowerCase().replace(/\s+/g, '');
+    const bioParts = [file.subject.occupation?.v, file.subject.location?.v]
+      .filter((part): part is string => Boolean(part))
+      .map((part) => sentenceCase(part))
+      .join(' · ');
+    const bio = claim(bioParts, used);
     const posts = [
       ...file.decisions.slice(0, 2).map((item, index) => ({
         id: `d${index}`,
@@ -489,8 +519,8 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     ].filter((post) => post.content);
     report.digitalDoppelganger = {
       reportTitle: 'A playful sketch, not a real profile',
-      handle: file.subject.nameGuess?.v ? `@${file.subject.nameGuess.v.toLowerCase().replace(/\s+/g, '')}` : '@your-chats',
-      bio: claim([file.subject.occupation?.v, file.subject.location?.v].filter((part): part is string => Boolean(part)).map((part) => sentenceCase(part)).join(' · '), used) || 'Imagined from this case file. Not a real account.',
+      handle: nameGuess && !isThinProfileLabel(nameGuess) && handleBody ? `@${handleBody}` : '@your-chats',
+      bio: bio && !isThinProfileLabel(bio) ? bio : 'Imagined from this case file. Not a real account.',
       topHashtags: uniqueDisplay((interestLines.length ? interestLines : file.style.topPhrases.filter(notablePhraseOk)).slice(0, 4).map(toHashtag)),
       personalityTraits: uniqueDisplay(interestLines).filter((item) => !isPersonTrait(item, file)).slice(0, 4),
       posts: posts.length ? posts : [],

@@ -173,10 +173,12 @@ const ReportView: React.FC<{
   onDownload: () => void;
   onSave?: () => Promise<void> | void;
   onRetryUnread?: () => void;
+  onRetryWriteUp?: () => void;
+  retryNote?: string;
   onClose?: () => void;
   saveMessage?: string;
   demo?: boolean;
-}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread }) => {
+}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread, onRetryWriteUp, retryNote }) => {
   const [savedLabel, setSavedLabel] = useState<'Save to account' | 'Saved' | 'Update saved copy'>('Save to account');
   const order = useMemo(() => new Map(conversations.map((conversation, index) => [conversation.id, index])), [conversations]);
   const titles = useMemo(() => {
@@ -258,8 +260,11 @@ const ReportView: React.FC<{
                 }).catch(() => undefined);
               }} className="border-white/20 text-white hover:bg-white/10">{savedLabel}</Button>
             )}
-            {onRetryUnread && caseFile.coverage.partial && caseFile.coverage.failed > 0 && (
+            {onRetryUnread && caseFile.coverage.partial && unreadCount(caseFile) > 0 && (
               <Button variant="outline" onClick={onRetryUnread} className="border-white/20 text-white hover:bg-white/10">Retry unread conversations</Button>
+            )}
+            {onRetryWriteUp && caseFile.coverage.partial && unreadCount(caseFile) === 0 && (
+              <Button variant="outline" onClick={onRetryWriteUp} className="border-white/20 text-white hover:bg-white/10">Retry the write-up</Button>
             )}
           </div>
           <Badge variant="outline" className={badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : badge.startsWith('Quick scan') ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : badge === 'Sample report' ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
@@ -284,6 +289,9 @@ const ReportView: React.FC<{
           <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-gradient-to-r from-blue-400 to-purple-600" />
         </motion.div>
 
+        {retryNote && (
+          <div className="mb-8 rounded-xl border border-sky-400/40 bg-sky-500/10 px-4 py-3 text-sky-100" data-testid="retry-note">{retryNote}</div>
+        )}
         {status.badge === 'Partial report' && unreadCount(caseFile) > 0 && (
           <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-100" data-testid="partial-banner">
             {plainPartialDetail(caseFile)} Unread conversations: {unreadCount(caseFile)}. This is not saved as a complete success.

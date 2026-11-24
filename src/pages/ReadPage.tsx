@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { archiveExportFile, metadataFromParse } from '../lib/archive/client';
-import { archiveSkipNotice, uploadFailureMessage } from '../lib/archive/failure';
+import { ArchiveUploadError, archiveSkipNotice, uploadFailureMessage } from '../lib/archive/failure';
 import { isSampleRead } from '../lib/archive/policy';
 import { parseConversationExport, validateUploadFile } from '../lib/conversationParser';
 import type { NormalizedConversation } from '../lib/conversationParser/types';
@@ -16,17 +16,18 @@ import { maySaveAccountKey, rejectedKeyBlock, shouldSaveLocalRun, PROVIDER_AUTH_
 import { canShowCheckpoint } from '../lib/insights/localRead';
 import { packBatches } from '../lib/insights/pack';
 import { ProviderRequestError } from '../lib/insights/transport';
+import { isExpiredSession, requestSessionExpiry, SESSION_EXPIRED_EVENT, SESSION_EXPIRED_MESSAGE } from '../lib/authSession';
 import { forgetAllKeys, forgetKey, listKeys, rememberKey, revealKey, type KeySummary } from '../lib/insights/keyVault';
 import { runLocalPass, type LocalReport } from '../lib/insights/localPass';
 import { caseDownloadName } from '../lib/insights/hydratePremium';
-import { mergeCaseFiles, type CaseFile } from '../lib/insights/merge';
+import { mergeCaseFiles, plainPartialDetail, type CaseFile } from '../lib/insights/merge';
 import { parseExtraAllowlist } from '../lib/insights/proxyPolicy';
 import { catalogModel, defaultModel, providerPreset } from '../lib/insights/prices';
 import type { RunProgress } from '../lib/insights/runner';
-import { runRead } from '../lib/insights/runner';
+import { budgetBlocks, retryNarrative, runRead } from '../lib/insights/runner';
 import { buildSampleConversations, createDemoAdapter } from '../lib/insights/sample';
 import { exportFingerprint } from '../lib/insights/saveReport';
-import { loadAccountProviderKey, saveAccountProviderKey } from '../lib/providerKeys/client';
+import { loadAccountProviderKey, ProviderKeyError, saveAccountProviderKey } from '../lib/providerKeys/client';
 import { supabase } from '../lib/supabase';
 import { saveCaseFile } from '../services/caseFileService';
 import ProgressView from '../components/insights/ProgressView';
@@ -84,6 +85,8 @@ const ReadPage: React.FC = () => {
   const [paused, setPaused] = useState(false);
   const [caseFile, setCaseFile] = useState<CaseFile | null>(null);
   const [saveMessage, setSaveMessage] = useState('');
+  const [sessionNote, setSessionNote] = useState('');
+  const [retryNote, setRetryNote] = useState('');
   const [resumeIds, setResumeIds] = useState<string[]>([]);
   const pausedRef = useRef(false);
   const sampleLoaded = useRef(false);
@@ -189,8 +192,12 @@ const ReadPage: React.FC = () => {
         accountSecrets.current[provider] = saved;
         setAccountHint(saved.hint);
         setSetup((current) => current.providerId === provider ? { ...current, saveToAccount: true } : current);
-      } catch {
+      } catch (error) {
         if (cancelled) return;
+        if (error instanceof ProviderKeyError && isExpiredSession({ status: error.status, message: error.message })) {
+          setSessionNote(SESSION_EXPIRED_MESSAGE);
+          requestSessionExpiry();
+        }
         delete accountSecrets.current[provider];
         setAccountHint(null);
       }
@@ -199,6 +206,16 @@ const ReadPage: React.FC = () => {
       cancelled = true;
     };
   }, [user, setup.providerId]);
+
+  useEffect(() => {
+    const onExpired = () => {
+      setSessionNote(SESSION_EXPIRED_MESSAGE);
+      setAccountHint(null);
+      accountSecrets.current = {};
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+  }, []);
 
   useEffect(() => {
     if (sessionStorage.getItem('ci-read-in-progress') === '1') {
@@ -291,6 +308,10 @@ const ReadPage: React.FC = () => {
         });
         archived = true;
       } catch (error) {
+        if (error instanceof ArchiveUploadError && isExpiredSession({ status: error.status, message: error.message })) {
+          setSessionNote(SESSION_EXPIRED_MESSAGE);
+          requestSessionExpiry();
+        }
         setArchiveSkip(archiveSkipNotice(error));
       }
       setStage('parsing');
@@ -298,6 +319,7 @@ const ReadPage: React.FC = () => {
       setStage('counting');
       setConversations(parsed.conversations);
       setFilename(file.name);
+      setSetup((current) => ({ ...current, maxDollars: '', maxTokens: '' }));
       setLocal(runLocalPass(parsed.conversations));
       setCaseFile(null);
       setResumeIds([]);
@@ -623,15 +645,30 @@ const ReadPage: React.FC = () => {
     }
   };
 
+  const retryBudget = () => {
+    const dollars = setup.maxDollars.trim() ? Number(setup.maxDollars) : undefined;
+    const tokens = setup.maxTokens.trim() ? Number(setup.maxTokens) : undefined;
+    return {
+      maxDollars: Number.isFinite(dollars) ? dollars : undefined,
+      maxTokens: Number.isFinite(tokens) ? tokens : undefined,
+    };
+  };
+
   const retryUnread = async () => {
     if (!caseFile || !local) return;
     const previous = caseFile;
+    const budget = retryBudget();
+    if (budgetBlocks(budget, estimate.cost, estimate.inputTokens + estimate.outputTokens)) {
+      setRetryNote('No call went out. The dollar or token cap is below this estimate. Clear the cap and try again.');
+      return;
+    }
     const readIds = previous.coverage.topics.map((topic) => topic.c);
     setStep('run');
     setPaused(false);
     pausedRef.current = false;
     setSaveMessage('');
     setRunError('');
+    setRetryNote('');
     const secret = resolveSecret();
     const adapter = setup.providerId === 'demo'
       ? createDemoAdapter({ latencyMs: 900 })
@@ -657,16 +694,54 @@ const ReadPage: React.FC = () => {
         adapter,
         alreadyReadIds: readIds,
         isPaused: () => pausedRef.current,
+        budget,
         onProgress: setProgress,
       });
       const merged = mergeCaseFiles(previous, result);
       setCaseFile(merged);
+      const calls = result.coverage.batches;
+      setRetryNote(merged.coverage.partial
+        ? calls > 0
+          ? `Tried the unread conversations again (${calls} ${calls === 1 ? 'call' : 'calls'}). ${plainPartialDetail(merged)}`
+          : 'No call went out. The read stopped before the provider was asked.'
+        : '');
       setStep('report');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'The unread conversations could not be read.';
       setCaseFile(previous);
       setProgress(null);
       setRunError(message);
+      setRetryNote(message);
+      toast.error(message);
+      setStep('report');
+    }
+  };
+
+  const retryWriteUp = async () => {
+    if (!caseFile || !local) return;
+    setStep('run');
+    setPaused(false);
+    pausedRef.current = false;
+    setRetryNote('');
+    setRunError('');
+    const secret = resolveSecret();
+    const adapter = setup.providerId === 'demo'
+      ? createDemoAdapter({ latencyMs: 900 })
+      : createAdapter(setup.providerId, {
+        apiKey: secret,
+        model: setup.modelId,
+        baseUrl: setup.baseUrl || preset.baseUrl,
+        extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
+      });
+    try {
+      const next = await retryNarrative({ file: caseFile, adapter, onProgress: setProgress });
+      setCaseFile(next);
+      setRetryNote(next.coverage.partial ? 'The write-up was tried again and still did not finish.' : '');
+      setStep('report');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The write-up could not be tried again.';
+      setProgress(null);
+      setRetryNote(message);
       toast.error(message);
       setStep('report');
     }
@@ -746,7 +821,7 @@ const ReadPage: React.FC = () => {
             <button type="button" className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground" onClick={() => setStep('setup')}>
               Choose a model
             </button>
-            <button type="button" className="rounded-full border border-white/15 px-5 py-2 text-sm" onClick={() => { setStep('drop'); clearCheckpoint().catch(() => undefined); }}>
+            <button type="button" className="rounded-full border border-white/15 px-5 py-2 text-sm" onClick={() => { setSetup((current) => ({ ...current, maxDollars: '', maxTokens: '' })); setStep('drop'); clearCheckpoint().catch(() => undefined); }}>
               Start over
             </button>
           </div>
@@ -776,6 +851,7 @@ const ReadPage: React.FC = () => {
           onSaveAccountKey={() => { confirmAccountKey().catch(() => undefined); }}
           startBlockedMessage={keyBlock}
           runError={runError}
+          sessionNote={sessionNote}
         />
       )}
 
@@ -796,6 +872,8 @@ const ReadPage: React.FC = () => {
           onDownload={download}
           onSave={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => save()}
           onRetryUnread={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { retryUnread().catch(() => undefined); }}
+          onRetryWriteUp={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { retryWriteUp().catch(() => undefined); }}
+          retryNote={retryNote}
           demo={new URLSearchParams(window.location.search).get('sample') === '1'}
           onClose={() => {
             if (new URLSearchParams(window.location.search).get('sample') === '1') navigate('/');

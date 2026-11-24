@@ -6,6 +6,7 @@ import { clearCheckpoint, loadCheckpoint, subscribeLocalReadCleared, type LocalC
 import { canShowCheckpoint } from '../lib/insights/localRead';
 import { formatFiledDate } from '../lib/insights/hydratePremium';
 import { displayBadge, savedModelLabel } from '../lib/insights/merge';
+import { isExpiredSession, requestSessionExpiry } from '../lib/authSession';
 
 const DashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -34,7 +35,12 @@ const DashboardPage: React.FC = () => {
     listCaseFiles(user.id)
       .then(setRows)
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Could not load saved reports');
+        const message = err instanceof Error ? err.message : 'Could not load saved reports';
+        if (isExpiredSession({ message })) {
+          requestSessionExpiry();
+          return;
+        }
+        setError(message);
       })
       .finally(() => setLoading(false));
   }, [user, authLoading, navigate]);

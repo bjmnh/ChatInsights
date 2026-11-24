@@ -1,7 +1,10 @@
 export class ArchiveUploadError extends Error {
-  constructor(message = 'The copy could not be stored, so the analysis did not run.') {
+  readonly status: number;
+
+  constructor(message = 'The copy could not be stored, so the analysis did not run.', status = 0) {
     super(message);
     this.name = 'ArchiveUploadError';
+    this.status = status;
   }
 }
 

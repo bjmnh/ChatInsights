@@ -1,6 +1,6 @@
 import type { NormalizedConversation } from '../conversationParser/types.ts';
 import type { Adapter, CompleteRequest } from './adapters.ts';
-import { buildCaseFile, type CaseFile, type NarrativeStatus } from './merge.ts';
+import { applyNarrativeResult, buildCaseFile, type CaseFile, type NarrativeStatus } from './merge.ts';
 import { packBatches, packConversation, type PackedBatch } from './pack.ts';
 import { EXTRACTION_SYSTEM, NARRATIVE_SYSTEM, QUICK_ADDENDUM, VERIFY_SYSTEM } from './prompts.ts';
 import {
@@ -128,11 +128,14 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   };
 
   const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {
-    const seconds = Math.max(1, Math.round(info.waitMs / 1000));
+    const seconds = Math.max(1, Math.ceil(info.waitMs / 1000));
     input.onProgress?.(progress(
       'batch',
       `The provider is busy (${info.status}). Retrying in ${seconds}s… (attempt ${info.attempt} of 5).`,
     ));
+  };
+  const onAttempt = (attempt: number) => {
+    input.onProgress?.(progress('batch', `Trying again (attempt ${attempt} of 5).`));
   };
 
   input.onProgress?.(progress('packing', 'Packing the chats that this depth will send.'));
@@ -155,7 +158,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     }
     input.onProgress?.(progress('batch', batchMessage(batch, batch.wasRetry ? 'Retrying conversations the last reply skipped.' : undefined)));
     try {
-      const extracted = await extractBatch(input, batch, sleep, onRetry);
+      const extracted = await extractBatch(input, batch, sleep, onRetry, onAttempt);
       if (extracted.viaProxy) viaProxy = true;
       const known = new Set(batch.ids);
       for (const fact of extracted.facts) {
@@ -264,7 +267,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       stopReason = 'budget';
     } else {
       input.onProgress?.(progress('narrative', 'Writing the short cover.'));
-      const written = await writeNarrative(input, facts, topics, sleep, onRetry);
+      const written = await writeNarrative(input, facts, topics, sleep, onRetry, onAttempt);
       narrative = written.narrative;
       narrativeStatus = written.status;
       if (written.viaProxy) viaProxy = true;
@@ -305,6 +308,7 @@ async function extractBatch(
   batch: PackedBatch,
   sleep: (ms: number) => Promise<void>,
   onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
+  onAttempt?: (attempt: number) => void,
 ) {
   const request: CompleteRequest = {
     system: input.depth === 'quick' ? `${EXTRACTION_SYSTEM}\n${QUICK_ADDENDUM}` : EXTRACTION_SYSTEM,
@@ -312,7 +316,7 @@ async function extractBatch(
     schemaName: 'batch_extract',
     maxOutputTokens: 8000,
   };
-  const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry);
+  const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry, onAttempt);
   let parsed = parseBatchPayload(first.text);
   let viaProxy = first.viaProxy;
   let usage = first.usage;
@@ -321,6 +325,7 @@ async function extractBatch(
       () => input.adapter.complete({ ...request, user: buildRepairPrompt(first.text, parsed.ok ? '' : parsed.error) }),
       sleep,
       onRetry,
+      onAttempt,
     );
     viaProxy = viaProxy || repair.viaProxy;
     usage = repair.usage ?? usage;
@@ -345,6 +350,7 @@ async function writeNarrative(
   topics: { c: string; topic: string }[],
   sleep: (ms: number) => Promise<void>,
   onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
+  onAttempt?: (attempt: number) => void,
 ): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean }> {
   const request: CompleteRequest = {
     system: NARRATIVE_SYSTEM,
@@ -354,7 +360,7 @@ async function writeNarrative(
   };
   let viaProxy = false;
   try {
-    const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry);
+    const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry, onAttempt);
     viaProxy = first.viaProxy;
     let parsed = parseNarrativePayload(first.text);
     if (parsed.ok && !toneOk(parsed.value.cover)) {
@@ -364,6 +370,8 @@ async function writeNarrative(
           user: `${request.user}\nRewrite the cover in plainer language. No insults. Under 700 characters. JSON only.`,
         }),
         sleep,
+        onRetry,
+        onAttempt,
       );
       viaProxy = viaProxy || retry.viaProxy;
       const second = parseNarrativePayload(retry.text);
@@ -387,4 +395,67 @@ async function writeNarrative(
 
 export function packPreview(conversation: NormalizedConversation, depth: DepthId): string {
   return packConversation(conversation, depth).text;
+}
+
+export function budgetBlocks(budget: RunBudget | undefined, dollars: number, tokens: number): boolean {
+  if (!budget) return false;
+  if (budget.maxDollars != null && Number.isFinite(budget.maxDollars) && dollars > budget.maxDollars + 1e-9) return true;
+  if (budget.maxTokens != null && Number.isFinite(budget.maxTokens) && tokens > budget.maxTokens) return true;
+  return false;
+}
+
+function citedFacts(file: CaseFile): Fact[] {
+  const rows: Fact[] = [];
+  const add = (kind: Fact['k'], items: Array<{ v: string; quote: string | null; ev: string[]; first: string | null }>) => {
+    for (const item of items) {
+      if (!item.v.trim()) continue;
+      rows.push({ c: item.ev[0] || 'case', k: kind, v: item.v, q: item.quote, t: item.first, d: null });
+    }
+  };
+  add('person', file.people);
+  add('interest', file.interests);
+  add('belief', file.beliefs);
+  add('worry', file.worries);
+  add('health', file.health);
+  add('money', file.money);
+  add('decision', file.decisions);
+  add('loop', file.open_loops);
+  return rows.slice(0, 80);
+}
+
+/** Re-run only the cover step and fold it into the report already on screen. */
+export async function retryNarrative(input: {
+  file: CaseFile;
+  adapter: Adapter;
+  sleep?: (ms: number) => Promise<void>;
+  onProgress?: (progress: RunProgress) => void;
+}): Promise<CaseFile> {
+  const sleep = input.sleep ?? defaultSleep;
+  const snapshot = (message: string): RunProgress => ({
+    phase: 'narrative',
+    completedBatches: 0,
+    totalBatches: 1,
+    read: input.file.coverage.read,
+    planned: input.file.coverage.planned,
+    viaProxy: false,
+    message,
+  });
+  const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {
+    const seconds = Math.max(1, Math.ceil(info.waitMs / 1000));
+    input.onProgress?.(snapshot(`The provider is busy (${info.status}). Retrying in ${seconds}s… (attempt ${info.attempt} of 5).`));
+  };
+  const onAttempt = (attempt: number) => {
+    input.onProgress?.(snapshot(`Writing the cover again (attempt ${attempt} of 5).`));
+  };
+  input.onProgress?.(snapshot('Writing the short cover.'));
+  const topics = input.file.coverage.topics.length ? input.file.coverage.topics : [{ c: 'case', topic: 'this read' }];
+  const written = await writeNarrative(
+    { adapter: input.adapter, depth: input.file.model.depth } as RunInput,
+    citedFacts(input.file),
+    topics,
+    sleep,
+    onRetry,
+    onAttempt,
+  );
+  return applyNarrativeResult(input.file, written.narrative, written.status);
 }

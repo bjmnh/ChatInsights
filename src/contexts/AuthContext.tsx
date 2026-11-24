@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { config } from '../lib/config';
-import { readStoredSessionUser } from '../lib/authSession';
+import { clearStoredAuthTokens, isExpiredSession, readStoredSessionUser, SESSION_EXPIRED_EVENT, SESSION_EXPIRED_MESSAGE } from '../lib/authSession';
 import { clearLocalRead } from '../lib/insights/browserStore';
 import { shouldClearLocalRead } from '../lib/insights/localRead';
 import { toast } from 'sonner';
@@ -71,6 +71,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const userRef = useRef<User | null>(cachedUser);
   const settled = useRef(false);
   const accountCreated = useRef(false);
+  const suppressSignOutToast = useRef(false);
+
+  const dropLocalSession = (notice: 'expired' | 'silent') => {
+    userRef.current = null;
+    setUser(null);
+    setSession(null);
+    setLoading(false);
+    clearStoredAuthTokens();
+    void clearLocalRead();
+    if (notice === 'expired') toast.message(SESSION_EXPIRED_MESSAGE);
+  };
 
   useEffect(() => {
     const publish = (next: Session | null, event: string) => {
@@ -129,11 +140,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           toast.success('Signed in');
         }
       } else if (event === 'SIGNED_OUT') {
-        toast.success('Signed out');
+        if (suppressSignOutToast.current) suppressSignOutToast.current = false;
+        else toast.success('Signed out');
       }
     });
 
-    return () => subscription.unsubscribe();
+    const onExpired = () => {
+      suppressSignOutToast.current = true;
+      dropLocalSession('expired');
+      void supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -257,18 +279,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithApple = () => loginWithProvider('apple');
 
   const logout = async () => {
+    const hadUser = Boolean(userRef.current);
+    userRef.current = null;
+    setUser(null);
+    setSession(null);
+    setLoading(false);
+    if (hadUser) void clearLocalRead();
     try {
-      setLoading(true);
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
     } catch (error) {
-      const message = getAuthErrorMessage(error as AuthError);
-      toast.error(message);
-      throw new Error(message);
-    } finally {
-      setLoading(false);
+      const message = error instanceof Error
+        ? error.message
+        : error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+          ? error.message
+          : '';
+      suppressSignOutToast.current = true;
+      clearStoredAuthTokens();
+      void clearLocalRead();
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      if (isExpiredSession({ message })) toast.message(SESSION_EXPIRED_MESSAGE);
+      else toast.error(getAuthErrorMessage(error as AuthError));
     }
   };
 

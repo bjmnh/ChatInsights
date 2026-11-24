@@ -57,7 +57,7 @@ export async function archiveExportFile(options: ArchiveClientOptions): Promise<
       contentType: options.contentType,
     }),
   });
-  if (!started.ok) throw new ArchiveUploadError(await readError(started));
+  if (!started.ok) throw new ArchiveUploadError(await readError(started), started.status);
   const startBody = await started.json() as { token?: unknown };
   if (typeof startBody.token !== 'string') throw new ArchiveUploadError();
 
@@ -69,7 +69,7 @@ export async function archiveExportFile(options: ArchiveClientOptions): Promise<
     form.set('offset', String(offset));
     form.set('chunk', new Blob([chunk]));
     const uploaded = await call(endpoint, { method: 'POST', headers, body: form });
-    if (!uploaded.ok) throw new ArchiveUploadError(await readError(uploaded));
+    if (!uploaded.ok) throw new ArchiveUploadError(await readError(uploaded), uploaded.status);
     const chunkBody = await uploaded.json() as { token?: unknown };
     if (typeof chunkBody.token !== 'string') throw new ArchiveUploadError();
     token = chunkBody.token;
@@ -89,7 +89,7 @@ export async function archiveExportFile(options: ArchiveClientOptions): Promise<
       conversationCount: metadata.conversationCount,
     }),
   });
-  if (!finished.ok) throw new ArchiveUploadError(await readError(finished));
+  if (!finished.ok) throw new ArchiveUploadError(await readError(finished), finished.status);
   const done = await finished.json() as { id?: unknown };
   if (typeof done.id !== 'string') throw new ArchiveUploadError();
   return { id: done.id };

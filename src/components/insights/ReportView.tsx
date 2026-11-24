@@ -19,7 +19,7 @@ import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, filedStamp, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { decisionText, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
-import { conversationTitle, EMPTY_RECORD } from '../../lib/insights/hydratePremium';
+import { conversationTitle, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy } from '../../lib/insights/hydratePremium';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
 import { LinguisticFingerprintCard } from '../reports/LinguisticFingerprintCard';
@@ -101,25 +101,32 @@ function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> 
   );
 }
 
-function EmptyFile() {
+function EmptyFile({ title, message, nested = false }: { title: string; message: string; nested?: boolean }) {
   return (
-    <div className="mx-auto max-w-3xl px-6 py-24">
-      <p className="rounded-sm border border-dashed border-amber-200/40 bg-black/30 p-6 font-mono text-sm uppercase tracking-[0.16em] text-amber-100">
-        {EMPTY_RECORD}
+    <div className={nested ? '' : 'mx-auto max-w-3xl px-6 py-16'}>
+      {!nested && <h1 className="font-display text-4xl text-amber-50">{title}</h1>}
+      <p className={`${nested ? '' : 'mt-6 '}rounded-sm border border-dashed border-amber-200/40 bg-black/30 p-6 font-mono text-sm uppercase tracking-[0.16em] text-amber-100`}>
+        {message}
       </p>
     </div>
   );
 }
 
-function originalSlide(id: OriginalId, hydrated: PremiumReportShape): React.ReactNode {
-  if (id === 'fbi' && hydrated.fbiReport) return <FBIReportCard data={hydrated.fbiReport} />;
+function originalSlide(id: OriginalId, hydrated: PremiumReportShape, file: CaseFile, caseNo: string): React.ReactNode {
+  const insight = ORIGINAL.find((item) => item.id === id);
+  const title = insight?.dossier ?? 'Case file';
+  const searched = insight ? file.cardStatus[insight.card] !== 'not-searched' : true;
+  const blank = (message = emptyCardCopy(searched)) => <EmptyFile title={title} message={message} />;
+  if (id === 'fbi' && hydrated.fbiReport) return <FBIReportCard data={hydrated.fbiReport} caseNo={caseNo} filedAt={file.filedAt} />;
   if (id === 'linguistic' && hydrated.linguisticFingerprint) return <LinguisticFingerprintCard data={hydrated.linguisticFingerprint} />;
   if (id === 'top5' && hydrated.topInterestingConversations) return <Top5ConversationsCard data={hydrated.topInterestingConversations} />;
   if (id === 'reality' && hydrated.realityTVPersona) return <RealityTVPersonaCard data={hydrated.realityTVPersona} />;
-  if (id === 'mirror' && hydrated.unfilteredMirror && hydrated.unfilteredMirror.observation !== EMPTY_RECORD) return <UnfilteredMirrorCard data={hydrated.unfilteredMirror} />;
+  if (id === 'mirror' && hydrated.unfilteredMirror && hydrated.unfilteredMirror.observation !== EMPTY_RECORD && hydrated.unfilteredMirror.observation !== EMPTY_IN_CHATS) {
+    return <UnfilteredMirrorCard data={hydrated.unfilteredMirror} />;
+  }
   if (id === 'pii' && hydrated.piiSafetyCompass) return <PIISafetyCompassCard data={hydrated.piiSafetyCompass} />;
   if (id === 'doppelganger' && hydrated.digitalDoppelganger) return <DigitalDoppelgangerCard data={hydrated.digitalDoppelganger} />;
-  return <EmptyFile />;
+  return blank();
 }
 
 function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map<string, string>): React.ReactNode {
@@ -132,7 +139,7 @@ function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map
       title={insight.title}
       note={empty ? null : cardStateLabel(state, file.model.depth)}
     >
-      {empty ? <EmptyFile /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
+      {empty ? <EmptyFile nested title={insight.dossier} message={emptyCardCopy(state !== 'not-searched')} /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
     </ExtraScreen>
   );
 }
@@ -168,7 +175,8 @@ const ReportView: React.FC<{
   onSave?: () => void;
   onClose?: () => void;
   saveMessage?: string;
-}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage }) => {
+  demo?: boolean;
+}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo }) => {
   const titles = useMemo(() => {
     const map = new Map(conversations.map((conversation) => [conversation.id, conversation.title]));
     for (const item of caseFile.notable) {
@@ -186,9 +194,9 @@ const ReportView: React.FC<{
     <DossierFrame meta={{ caseNo, subject: codename }}>{node}</DossierFrame>
   );
   const slides = useMemo(() => [
-    ...ORIGINAL.map((insight) => ({ id: insight.id, node: originalSlide(insight.id, hydrated) })),
+    ...ORIGINAL.map((insight) => ({ id: insight.id, node: originalSlide(insight.id, hydrated, caseFile, caseNo) })),
     ...EXTRA.map((insight) => ({ id: insight.id, node: extraSlide(caseFile, insight, titles) })),
-  ], [caseFile, hydrated, titles]);
+  ], [caseFile, hydrated, titles, caseNo]);
 
   const moveViewer = (delta: number) => {
     setViewerIndex((current) => {
@@ -230,11 +238,11 @@ const ReportView: React.FC<{
               <Button variant="outline" onClick={onClose} className="border-white/20 text-white hover:bg-white/10">Close</Button>
             )}
             <Button onClick={onDownload} className="bg-blue-600 hover:bg-blue-700 text-white">Download JSON</Button>
-            {onSave && (
+            {onSave && !demo && (
               <Button variant="outline" onClick={onSave} className="border-white/20 text-white hover:bg-white/10">Save to account</Button>
             )}
           </div>
-          <Badge variant="outline" className={status.badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={status.badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
+          <Badge variant="outline" className={status.badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : status.badge.startsWith('Quick scan') ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={status.badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
             {status.badge}
           </Badge>
         </div>
@@ -247,6 +255,11 @@ const ReportView: React.FC<{
             {reportSubtitle(caseFile)}
           </p>
           <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-red-100">{filedStamp(caseFile)}</p>
+          {demo && (
+            <p className="mx-auto mt-4 max-w-xl rounded-xl border border-sky-400/40 bg-sky-500/15 px-4 py-3 text-sm text-sky-100" data-testid="sample-banner">
+              Sample report. These chats are fake and were not uploaded. Nothing here is saved to an account.
+            </p>
+          )}
           <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-300">{status.detail}</p>
           <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-gradient-to-r from-blue-400 to-purple-600" />
         </motion.div>
@@ -394,14 +407,12 @@ function Tile({
         </CardHeader>
         <CardContent>
           <p className="mb-6 text-base leading-relaxed text-gray-300">{description}</p>
-          {!quiet && (
-            <div className="flex items-center justify-between">
-              <div className={`bg-gradient-to-r ${gradient} bg-clip-text text-sm font-medium text-transparent transition-transform duration-300 group-hover:scale-105`}>
-                Explore Insight
-              </div>
-              <ArrowRight className="h-5 w-5 text-gray-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-white" />
+          <div className="flex items-center justify-between">
+            <div className={`bg-gradient-to-r ${gradient} bg-clip-text text-sm font-medium text-transparent transition-transform duration-300 group-hover:scale-105`}>
+              Explore Insight
             </div>
-          )}
+            <ArrowRight className="h-5 w-5 text-gray-400 transition-all duration-300 group-hover:translate-x-1 group-hover:text-white" />
+          </div>
         </CardContent>
       </Card>
     </motion.div>

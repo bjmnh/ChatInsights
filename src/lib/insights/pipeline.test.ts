@@ -7,8 +7,8 @@ import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from '
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
-import { cardPreviews, conversationTitle, EMPTY_RECORD, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag, uniqueDisplay } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, reportLabel, reportStatus, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
+import { cardPreviews, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag, uniqueDisplay } from './hydratePremium.ts';
+import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, normalizeTitleCase, reportLabel, reportStatus, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -444,7 +444,7 @@ describe('demo pipeline', () => {
     expect(previews.reality).not.toMatch(/You mention Dana as your sister/);
     expect(previews.reality).toMatch(/rewrites the call sheet/);
     expect(previews.reality).not.toMatch(/engineer|team lead|Phoenix/i);
-    expect(previews.top5).toMatch(/Contact card stood out for an identifier/);
+    expect(previews.top5).toMatch(/Contact card is one of the chats this read kept/);
     expect(previews.top5).toMatch(/threads on file/);
     expect(previews.top5).not.toBe('Contact card');
     expect(premium.realityTVPersona?.personaArchetype).toBe('The producer who rewrites the call sheet');
@@ -482,8 +482,9 @@ describe('demo pipeline', () => {
       sleep: async () => undefined,
     });
     expect(isComplete(quickFile)).toBe(true);
-    expect(reportStatus(quickFile).badge).toBe('Complete report');
-    expect(reportStatus(quickFile).badge).toBe(reportStatus(result).badge);
+    expect(reportStatus(quickFile).badge).toBe(`Quick scan, ${quickFile.coverage.read} of ${quickFile.coverage.conversations}`);
+    expect(reportStatus(quickFile).badge).not.toBe('Partial report');
+    expect(reportStatus(quickFile).badge).not.toBe(reportStatus(result).badge);
     expect(reportStatus(quickFile).detail).toMatch(/sample/);
     expect(standardFile.cardStatus.stranger).toBe('ready');
     expect(standardFile.cardStatus.file).not.toBe('partial');
@@ -543,10 +544,13 @@ describe('a real-shaped standard report', () => {
     };
     const hydrated = hydratePremiumReport(file, new Map());
     const previews = cardPreviews(file, hydrated);
-    expect(previews.decisions).toBe(EMPTY_RECORD);
-    expect(previews.mind).toBe(EMPTY_RECORD);
-    expect(previews.mirror).toBe(EMPTY_RECORD);
-    expect(hydrated.unfilteredMirror?.observation).toBe(EMPTY_RECORD);
+    expect(previews.decisions).toBe(EMPTY_IN_CHATS);
+    expect(previews.mind).toBe(EMPTY_IN_CHATS);
+    expect(previews.mirror).toBe(EMPTY_IN_CHATS);
+    expect(hydrated.unfilteredMirror?.observation).toBe(EMPTY_IN_CHATS);
+    expect(displayTitle('Cover letter for a data analyst role copy')).toBe('Cover letter for a data analyst role');
+    expect(normalizeTitleCase('Beakers And Budgets')).toBe('Beakers and Budgets');
+    expect(normalizeTitleCase('Spreadsheets and Sourdough Notebook')).toBe('Spreadsheets and Sourdough Notebook');
     expect(hydrated.realityTVPersona?.reportTitle).toBe('The ambitious pivot seeker building dashboards');
     expect(hydrated.realityTVPersona?.description).toBe('');
     expect(hydrated.realityTVPersona?.description).not.toBe(hydrated.fbiReport?.subjectCodename.justification);

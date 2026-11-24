@@ -121,7 +121,10 @@ export function reportStatus(file: CaseFile): { badge: string; detail: string } 
     return { badge: 'Complete report', detail: `${counts} ${noun}, so Standard left ${unread === 1 ? 'it' : 'them'} unread.` };
   }
   if (unread > 0 && file.model.depth === 'quick') {
-    return { badge: 'Complete report', detail: `${counts} Quick scan only sent a sample, so the rest were not read.` };
+    return {
+      badge: `Quick scan, ${read} of ${total}`,
+      detail: `${counts} Quick scan only sent a sample, so the rest were not read.`,
+    };
   }
   if (unread > 0) {
     return { badge: 'Complete report', detail: `${counts} The rest were not read.` };
@@ -158,7 +161,20 @@ function depthLabel(depth: DepthId): string {
 }
 
 export const NEUTRAL_CODENAME = 'Open notebook';
-export const NEUTRAL_CODENAME_REASON = 'A short name for this file, not a fact copied from one chat.';
+export const NEUTRAL_CODENAME_REASON = 'A plain name for this case file. It is not a claim taken from one chat.';
+
+const SMALL_TITLE_WORDS = new Set(['a', 'an', 'and', 'or', 'the', 'of', 'for', 'to', 'in', 'on']);
+
+/** One title style: small words stay lower case, except at the start or the end. */
+export function normalizeTitleCase(value: string): string {
+  const words = value.trim().split(/\s+/).filter(Boolean);
+  return words.map((word, index) => {
+    const lower = word.toLowerCase();
+    const edge = index === 0 || index === words.length - 1;
+    if (!edge && SMALL_TITLE_WORDS.has(lower)) return lower;
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join(' ');
+}
 
 export function settleArchetype(draft: string | undefined, codename: string, banned: string[]): string {
   const foldedBan = banned.map((item) => item.trim().toLowerCase()).filter((item) => item.length > 2);
@@ -174,7 +190,7 @@ export function settleArchetype(draft: string | undefined, codename: string, ban
     && !isEchoedPlaceholder(text)
     && toneOk(text);
   if (ok) return text;
-  const alias = codename.trim() || NEUTRAL_CODENAME;
+  const alias = normalizeTitleCase(codename.trim() || NEUTRAL_CODENAME);
   return `Cast as ${alias}`;
 }
 
@@ -198,7 +214,7 @@ export function settleCodename(
     && !leaks(reason)
     && toneOk(reason);
   return {
-    codename: nameOk ? name : NEUTRAL_CODENAME,
+    codename: nameOk ? normalizeTitleCase(name) : NEUTRAL_CODENAME,
     codename_reason: nameOk && reasonOk ? reason : NEUTRAL_CODENAME_REASON,
   };
 }

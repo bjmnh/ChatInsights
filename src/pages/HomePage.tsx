@@ -56,7 +56,21 @@ const HomePage: React.FC = () => {
         <p className="mt-3 max-w-2xl text-muted-foreground">
           The local pass always runs over every conversation. Depth is how much of that the model is allowed to see.
         </p>
-        <div className="mt-8 overflow-x-auto">
+        <div className="mt-8 space-y-4 md:hidden">
+          {[
+            ['Quick scan', 'About the top 10% of chats, user turns, a short summary.', 'Style, usage, and exposure counts. Several cards say they were not searched.'],
+            ['Standard', 'Every chat the local pass flagged. User turns, full extract.', 'Unflagged chats are skipped, and the report says so.'],
+            ['Deep', 'Every conversation’s user turns. Assistant replies shortened to a line.', 'Every card is in scope.'],
+            ['Forensic', 'Full threads, then a second pass that checks quotes.', 'The most expensive option. Still your key, still your provider.'],
+          ].map(([tier, sees, local]) => (
+            <article key={tier} className="rounded-2xl border border-white/10 p-4">
+              <h3 className="font-medium">{tier}</h3>
+              <p className="mt-2 text-sm text-muted-foreground"><span className="text-foreground">What the model sees. </span>{sees}</p>
+              <p className="mt-2 text-sm text-muted-foreground"><span className="text-foreground">What stays local. </span>{local}</p>
+            </article>
+          ))}
+        </div>
+        <div className="mt-8 hidden overflow-x-auto md:block">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="text-muted-foreground">
               <tr className="border-b border-white/10">

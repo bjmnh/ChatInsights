@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
@@ -11,12 +11,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { LogOut } from 'lucide-react';
+import { LogOut, Menu, X } from 'lucide-react';
 import DonateLink from '../insights/DonateLink';
 
 const Header: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -37,6 +38,16 @@ const Header: React.FC = () => {
           <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
           <DonateLink className="hover:text-foreground" />
         </nav>
+
+        <button
+          type="button"
+          className="ml-auto mr-2 rounded-full border border-white/15 p-2 md:hidden"
+          aria-expanded={menuOpen}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        </button>
 
         <div className="flex items-center gap-2">
           {loading && !user ? (
@@ -83,6 +94,14 @@ const Header: React.FC = () => {
           )}
         </div>
       </div>
+      {menuOpen && (
+        <nav className="space-y-3 border-t border-white/10 px-4 py-4 text-sm md:hidden" data-testid="mobile-menu">
+          <Link to="/read" className="block" onClick={() => setMenuOpen(false)}>Read</Link>
+          <a href="/#how" className="block" onClick={() => setMenuOpen(false)}>How it works</a>
+          <Link to="/privacy" className="block" onClick={() => setMenuOpen(false)}>Privacy</Link>
+          <DonateLink className="block" />
+        </nav>
+      )}
     </header>
   );
 };

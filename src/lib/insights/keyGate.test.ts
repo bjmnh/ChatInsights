@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PROVIDER_AUTH_MESSAGE, rejectedKeyBlock, shouldSaveLocalRun } from './keyGate';
+import { PROVIDER_AUTH_MESSAGE, maySaveAccountKey, rejectedKeyBlock, shouldSaveLocalRun } from './keyGate';
 
 describe('rejected keys', () => {
   const rejected = {
@@ -23,6 +23,13 @@ describe('rejected keys', () => {
       secret: 'ant',
       providerId: 'anthropic',
     }, 'anthropic', 'ant')).toBeNull();
+  });
+
+  it('does not save an account key that has not been tested or used successfully', () => {
+    expect(maySaveAccountKey({ optedIn: true, typedSecret: 'bad-key', testedOk: false, runSucceeded: false })).toBe(false);
+    expect(maySaveAccountKey({ optedIn: true, typedSecret: 'good-key', testedOk: true, runSucceeded: false })).toBe(true);
+    expect(maySaveAccountKey({ optedIn: true, typedSecret: 'good-key', testedOk: false, runSucceeded: true })).toBe(true);
+    expect(maySaveAccountKey({ optedIn: false, typedSecret: 'good-key', testedOk: true, runSucceeded: true })).toBe(false);
   });
 
   it('does not keep an auth rejection as a report', () => {

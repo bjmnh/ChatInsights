@@ -182,7 +182,7 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
               <p className="text-white/90 text-lg leading-relaxed font-light">
                 {data[currentSlide]?.justification}
               </p>
-              {data[currentSlide]?.significance && (
+              {data[currentSlide]?.significance && !/model read this chat|not model-read/i.test(data[currentSlide].significance) && (
                 <p className="text-yellow-400/80 text-sm mt-4 italic">
                   {data[currentSlide].significance}
                 </p>
@@ -216,15 +216,6 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
               </motion.div>
             )}
 
-            {/* Conversation ID (subtle) */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2 }}
-              className="mt-8 text-white/30 text-xs font-mono"
-            >
-              ID: {data[currentSlide]?.conversationId}
-            </motion.div>
           </div>
         </motion.div>
       </AnimatePresence>

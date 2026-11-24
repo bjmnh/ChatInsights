@@ -27,12 +27,13 @@ export interface SavedCaseSummary {
   model_provider: string | null;
   model_id: string | null;
   updated_at: string;
+  created_at: string;
 }
 
 export async function listCaseFiles(userId: string): Promise<SavedCaseSummary[]> {
   const { data, error } = await supabase
     .from('case_files')
-    .select('id, filename, partial, depth, model_provider, model_id, updated_at')
+    .select('id, filename, partial, depth, model_provider, model_id, updated_at, created_at')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false });
   if (error) throw new Error(error.message);

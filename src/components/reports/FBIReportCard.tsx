@@ -33,15 +33,24 @@ interface FBIReportData {
 
 interface FBIReportCardProps {
   data: FBIReportData;
+  caseNo?: string;
+  filedAt?: string;
   onNavigate?: (direction: 'prev' | 'next') => void;
   showNavigation?: boolean;
 }
 
 export const FBIReportCard: React.FC<FBIReportCardProps> = ({ 
-  data, 
+  data,
+  caseNo,
+  filedAt,
   onNavigate, 
   showNavigation = false 
 }) => {
+  const filed = filedAt ? new Date(filedAt) : null;
+  const filedLabel = filed && !Number.isNaN(filed.getTime())
+    ? filed.toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: 'numeric' })
+    : 'Undated';
+  const documentId = caseNo || 'CASEFILE';
   const [revealedPII, setRevealedPII] = useState<Set<number>>(new Set());
 
   const togglePIIReveal = (index: number) => {
@@ -154,10 +163,10 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
             initial={{ scale: 0, rotate: -45 }}
             animate={{ scale: 1, rotate: 12 }}
             transition={{ delay: 1, duration: 0.6 }}
-            className="absolute top-6 right-6 z-20"
+            className="absolute right-3 top-3 z-20 max-sm:scale-75 max-sm:origin-top-right sm:right-6 sm:top-6"
           >
             <div 
-              className="bg-red-600 text-white px-6 py-3 font-black text-lg tracking-widest border-4 border-red-700 shadow-lg transform rotate-12"
+              className="bg-red-600 text-white px-3 py-1.5 font-black text-xs tracking-widest border-4 border-red-700 shadow-lg transform rotate-12 sm:px-6 sm:py-3 sm:text-lg"
               style={{
                 fontFamily: 'Impact, Arial Black, sans-serif',
                 textShadow: '2px 2px 0px rgba(0,0,0,0.3)',
@@ -173,7 +182,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
             initial={{ scale: 0, rotate: 45 }}
             animate={{ scale: 1, rotate: -8 }}
             transition={{ delay: 1.2, duration: 0.6 }}
-            className="absolute top-32 right-12 z-20"
+            className="absolute right-4 top-20 z-20 max-sm:scale-75 max-sm:origin-top-right sm:right-12 sm:top-32"
           >
             <div 
               className="bg-red-600 text-white px-4 py-2 font-black text-sm tracking-widest border-3 border-red-700 shadow-lg transform -rotate-8"
@@ -187,7 +196,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
             </div>
           </motion.div>
 
-          <div className="p-12 relative z-10">
+          <div className="relative z-10 p-6 pt-16 sm:p-12 sm:pt-12">
             {/* Header */}
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
@@ -210,7 +219,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
                 CLASSIFICATION: CONFIDENTIAL • DISTRIBUTION: RESTRICTED • EYES ONLY
               </div>
               <div className="font-mono text-xs text-amber-600 mt-2">
-                DOCUMENT ID: {data.reportTitle.replace(/\s+/g, '').slice(0, 9).toUpperCase() || 'CASEFILE'} • DATE: {new Date().toLocaleDateString()}
+                DOCUMENT ID: {documentId} • DATE: {filedLabel}
               </div>
             </motion.div>
 
@@ -572,7 +581,7 @@ export const FBIReportCard: React.FC<FBIReportCardProps> = ({
                 className="text-center font-mono text-xs text-amber-500 mt-4"
                 style={{ fontFamily: 'Courier Prime, Courier New, monospace' }}
               >
-                DOCUMENT GENERATED: {new Date().toLocaleDateString()} • CLASSIFICATION: CONFIDENTIAL • DISTRIBUTION: RESTRICTED
+                DOCUMENT GENERATED: {filedLabel} • CLASSIFICATION: CONFIDENTIAL • DISTRIBUTION: RESTRICTED
               </div>
             </motion.div> : null}
           </div>

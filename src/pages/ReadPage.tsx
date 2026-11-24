@@ -25,6 +25,7 @@ import { parseExtraAllowlist } from '../lib/insights/proxyPolicy';
 import { catalogModel, defaultModel, providerPreset } from '../lib/insights/prices';
 import type { RunProgress } from '../lib/insights/runner';
 import { budgetBlocks, retryNarrative, runRead } from '../lib/insights/runner';
+import { EMPTY_READ_NOTICES, noticesAfter } from '../lib/insights/readSession';
 import { buildSampleConversations, createDemoAdapter } from '../lib/insights/sample';
 import { exportFingerprint } from '../lib/insights/saveReport';
 import { loadAccountProviderKey, ProviderKeyError, saveAccountProviderKey } from '../lib/providerKeys/client';
@@ -114,10 +115,12 @@ const ReadPage: React.FC = () => {
     setProgress(null);
     setPaused(false);
     pausedRef.current = false;
-    setSaveMessage('');
+    const cleared = noticesAfter('start-over', EMPTY_READ_NOTICES);
+    setRetryNote(cleared.retryNote);
+    setSaveMessage(cleared.saveMessage);
     setTestMessage('');
     setTestedKey(null);
-    setRunError('');
+    setRunError(cleared.runError);
     setUploadError(null);
     setSetup(DEFAULT_SETUP);
     accountSecrets.current = {};
@@ -247,6 +250,10 @@ const ReadPage: React.FC = () => {
     setFilename('sample-not-a-real-person.json');
     setLocal(localReport);
     setSetup((current) => applyProvider('demo', current));
+    const sampleNotes = noticesAfter('new-read', EMPTY_READ_NOTICES);
+    setRetryNote(sampleNotes.retryNote);
+    setRunError(sampleNotes.runError);
+    setSaveMessage(sampleNotes.saveMessage);
     setStep('run');
     runRead({
       conversations: sample,
@@ -324,6 +331,11 @@ const ReadPage: React.FC = () => {
       setCaseFile(null);
       setResumeIds([]);
       setUploadError(null);
+      const cleared = noticesAfter('new-file', EMPTY_READ_NOTICES);
+      setRetryNote(cleared.retryNote);
+      setRunError(cleared.runError);
+      setSaveMessage(cleared.saveMessage);
+      setProgress(null);
       setStep('preview');
       parsed.warnings.forEach((warning) => toast.message(warning));
     } catch (error) {
@@ -536,8 +548,10 @@ const ReadPage: React.FC = () => {
     setStep('run');
     setPaused(false);
     pausedRef.current = false;
-    setSaveMessage('');
-    setRunError('');
+    const cleared = noticesAfter('new-read', EMPTY_READ_NOTICES);
+    setRetryNote(cleared.retryNote);
+    setSaveMessage(cleared.saveMessage);
+    setRunError(cleared.runError);
     const adapter = setup.providerId === 'demo'
       ? createDemoAdapter({ latencyMs: 900 })
       : createAdapter(setup.providerId, {
@@ -821,7 +835,16 @@ const ReadPage: React.FC = () => {
             <button type="button" className="rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground" onClick={() => setStep('setup')}>
               Choose a model
             </button>
-            <button type="button" className="rounded-full border border-white/15 px-5 py-2 text-sm" onClick={() => { setSetup((current) => ({ ...current, maxDollars: '', maxTokens: '' })); setStep('drop'); clearCheckpoint().catch(() => undefined); }}>
+            <button type="button" className="rounded-full border border-white/15 px-5 py-2 text-sm" onClick={() => {
+              const cleared = noticesAfter('start-over', EMPTY_READ_NOTICES);
+              setRetryNote(cleared.retryNote);
+              setRunError(cleared.runError);
+              setSaveMessage(cleared.saveMessage);
+              setProgress(null);
+              setSetup((current) => ({ ...current, maxDollars: '', maxTokens: '' }));
+              setStep('drop');
+              clearCheckpoint().catch(() => undefined);
+            }}>
               Start over
             </button>
           </div>

@@ -19,7 +19,7 @@ import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, publicSubjectName, reportSubtitle, sentenceCase, sourceLabels, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { decisionText, displayBadge, plainPartialDetail, reportStatus, unreadCount, WRITE_UP_MISSING, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
-import { caseFileNumber } from '../../lib/insights/caseNumber';
+import { caseNumberFor } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
 import { LinguisticFingerprintCard } from '../reports/LinguisticFingerprintCard';
 import { Top5ConversationsCard } from '../reports/Top5ConversationsCard';
@@ -198,7 +198,7 @@ const ReportView: React.FC<{
   useEffect(() => {
     setSavedLabel('Save to account');
   }, [caseFile.coverage.partial, caseFile.coverage.read, caseFile.coverage.failed, caseFile.coverage.narrative]);
-  const caseNo = caseFileNumber(`${codename}|${caseFile.model.id}|${caseFile.coverage.read}`);
+  const caseNo = caseNumberFor(caseFile, conversations.map((conversation) => conversation.id));
   const frame = (node: React.ReactNode) => (
     <DossierFrame meta={{ caseNo, subject: codename }}>{node}</DossierFrame>
   );

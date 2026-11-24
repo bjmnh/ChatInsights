@@ -76,6 +76,8 @@ export interface CaseFile {
     archetype: string;
   };
   filedAt?: string;
+  /** Unique to this run, so two fallback reports do not share a case number. */
+  runId?: string;
   supportNote?: string;
   cardStatus: Record<CardId, CardState>;
 }
@@ -143,6 +145,7 @@ export function plainPartialDetail(file: CaseFile): string {
   const missed = unreadCount(file);
   const noun = `${missed} conversation${missed === 1 ? '' : 's'}`;
   if (missed === 0) return WRITE_UP_MISSING;
+  if (/^the provider /i.test(reason)) return reason.endsWith('.') ? reason : `${reason}.`;
   if (!reason || reason === 'batch-failed' || reason === 'server') {
     return `The provider failed on ${noun} after several retries.`;
   }
@@ -152,6 +155,17 @@ export function plainPartialDetail(file: CaseFile): string {
   if (reason === 'verification') return 'The quote check did not finish.';
   if (/^the provider failed on/i.test(reason)) return reason.endsWith('.') ? reason : `${reason}.`;
   return `Stopped early (${reason}). This is not a finished pass.`;
+}
+
+export function providerFailureDetail(kind: 'rate' | 'server' | 'other', count: number): string {
+  const noun = `${count} conversation${count === 1 ? '' : 's'}`;
+  if (kind === 'rate') {
+    return `The provider kept rate-limiting (429) on ${noun} after several retries. Wait a few minutes, or check the provider quota, then try again.`;
+  }
+  if (kind === 'server') {
+    return `The provider was busy (503) on ${noun} after several retries. Wait a few minutes and try again.`;
+  }
+  return `The provider failed on ${noun} after several retries.`;
 }
 
 export function displayBadge(file: CaseFile, demo = false): string {
@@ -530,6 +544,7 @@ export function buildCaseFile(input: {
     schema_version: '1.0',
     model: { provider: input.provider, id: input.model, depth: input.depth },
     filedAt: new Date().toISOString(),
+    runId: crypto.randomUUID(),
     coverage,
     subject: {
       nameGuess: subjectField('name'),

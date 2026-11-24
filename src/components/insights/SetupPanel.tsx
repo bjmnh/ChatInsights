@@ -230,8 +230,11 @@ const SetupPanel: React.FC<{
             >
               {accountHint ? 'Replace saved key' : 'Save key to my account'}
             </button>
-            {!values.apiKey.trim() && (
+            {!values.apiKey.trim() && accountHint && (
               <p className="mt-2 text-xs text-muted-foreground">Type a new key to replace the one on your account. It is saved only after it checks out.</p>
+            )}
+            {!values.apiKey.trim() && !accountHint && (
+              <p className="mt-2 text-xs text-muted-foreground">Type a key to save it to your account. It is saved only after it checks out.</p>
             )}
           </div>
         )}

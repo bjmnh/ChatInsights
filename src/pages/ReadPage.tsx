@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { archiveExportFile, metadataFromParse } from '../lib/archive/client';
 import { archiveSkipNotice, uploadFailureMessage } from '../lib/archive/failure';
@@ -69,6 +69,8 @@ function applyProvider(providerId: string, current: SetupValues): SetupValues {
 const ReadPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [interrupted, setInterrupted] = useState(false);
   const [step, setStep] = useState<'drop' | 'preview' | 'setup' | 'run' | 'report'>('drop');
   const [stage, setStage] = useState<UploadStage>('idle');
   const [filename, setFilename] = useState('');
@@ -198,8 +200,28 @@ const ReadPage: React.FC = () => {
   }, [user, setup.providerId]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('sample') !== '1' || sampleLoaded.current) return;
+    if (sessionStorage.getItem('ci-read-in-progress') === '1') {
+      sessionStorage.removeItem('ci-read-in-progress');
+      setInterrupted(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (step === 'run') {
+      sessionStorage.setItem('ci-read-in-progress', '1');
+      const warn = (event: BeforeUnloadEvent) => {
+        event.preventDefault();
+        event.returnValue = '';
+      };
+      window.addEventListener('beforeunload', warn);
+      return () => window.removeEventListener('beforeunload', warn);
+    }
+    sessionStorage.removeItem('ci-read-in-progress');
+    return undefined;
+  }, [step]);
+
+  useEffect(() => {
+    if (searchParams.get('sample') !== '1' || sampleLoaded.current) return;
     sampleLoaded.current = true;
     const sample = buildSampleConversations();
     const localReport = runLocalPass(sample);
@@ -228,7 +250,7 @@ const ReadPage: React.FC = () => {
       toast.error('The sample did not open.');
       setStep('preview');
     });
-  }, []);
+  }, [searchParams]);
 
   const resolveSecret = () => setup.apiKey.trim() || accountSecrets.current[setup.providerId]?.secret || '';
 
@@ -603,6 +625,11 @@ const ReadPage: React.FC = () => {
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="font-display text-4xl sm:text-5xl">Drop the export</h1>
           <p className="mt-3 text-muted-foreground">Parsing runs in your browser. The notice below is the storage step.</p>
+          {interrupted && (
+            <p className="mt-4 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" data-testid="read-interrupted">
+              The last read was interrupted before it finished. Start again when you are ready. A closed tab does not keep a half-finished read.
+            </p>
+          )}
           <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-4 text-sm" data-testid="archive-notice">
             <p>{ARCHIVE_NOTICE}</p>
             <label className="mt-4 flex items-start gap-3">

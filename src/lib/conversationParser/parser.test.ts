@@ -370,8 +370,9 @@ Leave the last line open.
 
   it('lists supported formats when detection fails', async () => {
     await expect(parseConversationExport('notes.txt', 'Just a grocery list with no speakers.')).rejects.toBeInstanceOf(ConversationParseError);
-    await expect(parseConversationExport('data.json', '{"hello":"world"}')).rejects.toThrow(/ChatGPT conversations\.json/);
-    await expect(parseConversationExport('data.json', '{"hello":"world"}')).rejects.toThrow(/ZIP archives/);
+    await expect(parseConversationExport('data.json', '{"hello":"world"}')).rejects.toThrow(/ChatGPT, Claude, Gemini, or Grok/);
+    await expect(parseConversationExport('notes.txt', 'Just a grocery list with no speakers.')).rejects.toThrow(/\.md, \.txt, or \.csv/);
+    await expect(parseConversationExport('data.json', '{"hello":"world"}')).rejects.not.toThrow(/ZIP archives/);
     await expect(parseConversationExport('empty.csv', 'name,age\nAda,36\n')).rejects.toThrow(/role column and a content column/);
   });
 });

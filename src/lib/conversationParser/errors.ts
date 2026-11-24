@@ -14,7 +14,7 @@ export function unsupportedFormatMessage(detail?: string): string {
   const lead = detail
     ? `Couldn't read this file as a conversation export (${detail}).`
     : `Couldn't detect a conversation export in this file.`;
-  return `${lead} Supported formats: ${SUPPORTED_FORMAT_LINES.join('; ')}.`;
+  return `${lead} Use a ChatGPT, Claude, Gemini, or Grok export (.json, .zip, or .html), or a .md, .txt, or .csv transcript.`;
 }
 
 export class ConversationParseError extends Error {

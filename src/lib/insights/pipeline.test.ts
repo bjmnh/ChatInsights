@@ -7,8 +7,8 @@ import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from '
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
-import { cardPreviews, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag, uniqueDisplay } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, normalizeTitleCase, reportLabel, reportStatus, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
+import { cardPreviews, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, reportSubtitle, scrubRawCodes, sentenceCase, toHashtag, uniqueDisplay } from './hydratePremium.ts';
+import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, NEUTRAL_CODENAME, normalizeTitleCase, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -472,6 +472,15 @@ describe('demo pipeline', () => {
     });
     expect(reportStatus(standardFile).badge).toBe('Complete report');
     expect(reportStatus(standardFile).detail).toMatch(/not flagged/);
+    expect(reportSubtitle(standardFile)).toMatch(/unflagged chats were not sent/);
+    expect(displayBadge(standardFile, true)).toBe('Sample report');
+    expect(displayBadge(standardFile)).toBe('Complete report');
+    expect(savedModelLabel('gemini', 'gemini-3.5-flash-lite')).toBe('gemini-3.5-flash-lite');
+    expect(savedModelLabel('openai', 'gpt-5.4-mini')).toBe('openai gpt-5.4-mini');
+    expect(sentenceCase('high school chemistry teacher')).toBe('High school chemistry teacher');
+    expect(sentenceCase('High school chemistry teacher')).toBe('High school chemistry teacher');
+    const traits = hydratePremiumReport(standardFile, new Map()).realityTVPersona?.characterTraits ?? [];
+    expect(traits.join(' ')).not.toMatch(/Dana/);
     const quickFile = await runRead({
       conversations,
       local,

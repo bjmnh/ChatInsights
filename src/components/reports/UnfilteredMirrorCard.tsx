@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
-import { Eye, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface UnfilteredMirrorData {
   reportTitle: string;
@@ -113,14 +113,12 @@ export const UnfilteredMirrorCard: React.FC<UnfilteredMirrorCardProps> = ({
           transition={{ delay: 0.5, duration: 1 }}
           className="mb-16"
         >
-          <div className="flex items-center justify-center mb-4">
-            <Eye className="h-8 w-8 text-white/60 mr-3" />
-            <p className="mb-1 font-mono text-[11px] uppercase tracking-[0.2em] text-red-200">Psychological Assessment</p>
-            <h1 className="text-2xl font-light text-white/80 tracking-wider">
-              {data.reportTitle}
-            </h1>
-            <p className="font-mono text-xs text-white/50">The Unfiltered Mirror</p>
-            <Eye className="h-8 w-8 text-white/60 ml-3" />
+          <div className="mb-4 px-4 pt-6">
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-red-200">The Unfiltered Mirror</p>
+            <h1 className="mt-2 font-display text-3xl text-white sm:text-5xl">Psychological Assessment</h1>
+            {data.reportTitle && data.reportTitle !== 'The unfiltered mirror' && (
+              <p className="mt-2 font-mono text-xs text-white/60">{data.reportTitle}</p>
+            )}
           </div>
           <div className="w-32 h-px bg-white/30 mx-auto" />
         </motion.div>

@@ -118,7 +118,7 @@ export function reportStatus(file: CaseFile): { badge: string; detail: string } 
   }
   if (unread > 0 && file.model.depth === 'standard') {
     const noun = unread === 1 ? '1 conversation was not flagged' : `${unread} conversations were not flagged`;
-    return { badge: 'Complete report', detail: `${counts} ${noun}, so Standard left ${unread === 1 ? 'it' : 'them'} unread.` };
+    return { badge: 'Complete report', detail: `${counts} ${noun}, so Standard left ${unread === 1 ? 'it' : 'them'} unread. The chats this depth did send were read.` };
   }
   if (unread > 0 && file.model.depth === 'quick') {
     return {
@@ -130,6 +130,21 @@ export function reportStatus(file: CaseFile): { badge: string; detail: string } 
     return { badge: 'Complete report', detail: `${counts} The rest were not read.` };
   }
   return { badge: 'Complete report', detail: counts };
+}
+
+/** The badge on screen. A fake sample is never labeled like a finished personal read. */
+export function displayBadge(file: CaseFile, demo = false): string {
+  if (demo) return 'Sample report';
+  return reportStatus(file).badge;
+}
+
+export function savedModelLabel(provider: string | null | undefined, modelId: string | null | undefined): string {
+  const source = provider?.trim() ?? '';
+  const model = modelId?.trim() ?? '';
+  if (!source) return model;
+  if (!model) return source;
+  if (model.toLowerCase().startsWith(source.toLowerCase())) return model;
+  return `${source} ${model}`;
 }
 
 export function decisionText(question: string, value: string): string {

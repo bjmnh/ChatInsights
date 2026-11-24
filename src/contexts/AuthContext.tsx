@@ -68,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const authReady = useRef(false);
   const userRef = useRef<User | null>(cachedUser);
   const settled = useRef(false);
+  const accountCreated = useRef(false);
 
   useEffect(() => {
     const publish = (next: Session | null, event: string) => {
@@ -117,7 +118,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (event === 'SIGNED_IN') {
-        toast.success('Signed in');
+        if (accountCreated.current) {
+          accountCreated.current = false;
+          toast.success('Account created and signed in');
+        } else {
+          toast.success('Signed in');
+        }
       } else if (event === 'SIGNED_OUT') {
         toast.success('Signed out');
       }
@@ -166,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Password must be at least 8 characters long');
       }
 
+      accountCreated.current = true;
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -183,6 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Check if email confirmation is required
       if (data.user && !data.session) {
+        accountCreated.current = false;
         toast.dismiss();
         toast.success('Registration successful! Please check your email for a confirmation link.');
         return;
@@ -193,6 +201,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
     } catch (error) {
+      accountCreated.current = false;
       const message = getAuthErrorMessage(error as AuthError);
       toast.error(message);
       throw new Error(message);

@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { listCaseFiles, type SavedCaseSummary } from '../services/caseFileService';
 import { clearCheckpoint, loadCheckpoint, subscribeLocalReadCleared, type LocalCheckpoint } from '../lib/insights/browserStore';
 import { canShowCheckpoint } from '../lib/insights/localRead';
+import { formatFiledDate } from '../lib/insights/hydratePremium';
+import { displayBadge, savedModelLabel } from '../lib/insights/merge';
 
 const DashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -66,8 +68,13 @@ const DashboardPage: React.FC = () => {
             <Link to={`/saved/${row.id}`} className="block rounded-2xl border border-white/10 px-4 py-3 hover:border-white/30">
               <span className="font-medium">{row.filename || 'Export'}</span>
               <span className="mt-1 block text-sm text-muted-foreground">
-                {row.partial ? 'Partial' : 'Complete'} · {row.depth} · {row.model_provider} {row.model_id}
-                {row.created_at ? ` · Created ${new Date(row.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}
+                {(row.case_file ? displayBadge(row.case_file) : (row.partial ? 'Partial report' : 'Complete report'))}
+                {' · '}
+                {savedModelLabel(row.model_provider, row.model_id)}
+                {formatFiledDate(row.case_file?.filedAt || row.updated_at) ? ` · Updated ${formatFiledDate(row.case_file?.filedAt || row.updated_at)}` : ''}
+                {row.created_at && formatFiledDate(row.created_at) !== formatFiledDate(row.case_file?.filedAt || row.updated_at)
+                  ? ` · Created ${formatFiledDate(row.created_at)}`
+                  : ''}
               </span>
             </Link>
           </li>

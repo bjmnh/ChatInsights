@@ -114,6 +114,16 @@ export function emptyCardCopy(searchedThisDepth: boolean): string {
   return searchedThisDepth ? EMPTY_IN_CHATS : EMPTY_RECORD;
 }
 
+function isPersonTrait(value: string, file: CaseFile): boolean {
+  const text = value.trim().toLowerCase();
+  if (!text) return false;
+  return file.people.some((person) => {
+    const name = person.name.trim().toLowerCase();
+    if (name.length < 2) return false;
+    return text === name || text.startsWith(`${name} (`) || text.startsWith(`${name} `);
+  });
+}
+
 /** Drop a duplicated "copy" suffix left by some exports and test files. */
 export function displayTitle(title: string): string {
   return title.replace(/\s+copy$/i, '').replace(/\s{2,}/g, ' ').trim();
@@ -142,6 +152,13 @@ function distinct(value: string | undefined, shared: string[]): string | undefin
   return text;
 }
 
+/** Capitalize a fully lowercase phrase. Leave text that already has capitals alone. */
+export function sentenceCase(value: string): string {
+  const text = value.trim();
+  if (!text || /[A-Z]/.test(text)) return text;
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export function reportSubtitle(file: CaseFile): string {
   const depth = file.model.depth === 'quick'
     ? 'Quick scan'
@@ -151,17 +168,25 @@ export function reportSubtitle(file: CaseFile): string {
         ? 'Forensic read'
         : 'Standard read';
   const model = file.model.id === 'demo-extractor' ? 'Demo extractor' : file.model.id;
-  return `${depth} · ${file.coverage.read} of ${file.coverage.conversations} conversations · ${model}`;
+  const unread = Math.max(0, file.coverage.conversations - file.coverage.read);
+  const scope = file.model.depth === 'standard' && unread > 0
+    ? `${file.coverage.read} of ${file.coverage.conversations} conversations (unflagged chats were not sent)`
+    : `${file.coverage.read} of ${file.coverage.conversations} conversations`;
+  return `${depth} · ${scope} · ${model}`;
 }
 
 const FILED_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+export function formatFiledDate(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${String(parsed.getUTCDate()).padStart(2, '0')} ${FILED_MONTHS[parsed.getUTCMonth()]} ${parsed.getUTCFullYear()}`;
+}
+
 export function filedStamp(file: CaseFile): string {
   const analyst = file.model.id === 'demo-extractor' ? 'Demo extractor' : file.model.id;
-  const parsed = file.filedAt ? new Date(file.filedAt) : null;
-  const filed = parsed && !Number.isNaN(parsed.getTime())
-    ? `${String(parsed.getUTCDate()).padStart(2, '0')} ${FILED_MONTHS[parsed.getUTCMonth()]} ${parsed.getUTCFullYear()}`
-    : 'undated';
+  const filed = formatFiledDate(file.filedAt) || 'undated';
   return `Filed: ${filed} · Analyst: ${analyst}`;
 }
 
@@ -283,9 +308,6 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   const cover = claim(file.narrative.cover, used) || 'No cover was written for this read.';
   if (file.narrative.codename_reason.trim()) used.add(normText(file.narrative.codename_reason));
   const interestLines = uniqueDisplay(file.interests.map((item) => item.v), true);
-  const peopleLine = file.people.slice(0, 6).map((person) => (
-    person.relationship ? `${person.name} (${person.relationship})` : person.name
-  ));
   const codename = file.narrative.codename;
   const codenameReason = file.narrative.codename_reason;
 
@@ -299,7 +321,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
         justification: codenameReason,
         operationalSignificance: titlesOf(file.narrative.ev, titles) || undefined,
       },
-      subjectProfileSummary: cover,
+      subjectProfileSummary: sentenceCase(cover),
       psychologicalProfile: keptProse(file.beliefs.map((item) => item.v).join(' ')) || keptProse(file.worries.map((item) => item.v).join(' ')),
       dominantInterests: uniqueDisplay(
         interestLines.length ? interestLines : file.coverage.topics.map((topic) => topic.topic),
@@ -330,9 +352,9 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
         ? `Phrases that repeat: ${file.style.topPhrases.join(', ')}.`
         : 'The local pass did not find a repeated phrase.',
       behavioralPatterns: [
-        ...peopleLine.slice(0, 4),
+        ...interestLines.slice(0, 3),
         file.routines.peakHours.length ? `Peak hours (UTC): ${file.routines.peakHours.join(', ')}` : '',
-      ].filter(Boolean),
+      ].filter((item) => item && !isPersonTrait(item, file)),
       potentialVulnerabilities: file.health.slice(0, 3).map((item) => item.v),
       operationalAssessment: (() => {
         const note = file.narrative.blurbs.file?.trim();
@@ -390,7 +412,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       personaArchetype: archetype,
       description: strangerNote && normText(strangerNote) !== normText(archetype) ? strangerNote : '',
       popCultureComparisons: uniqueDisplay(interestLines).slice(0, 4),
-      characterTraits: uniqueDisplay(peopleLine).slice(0, 4),
+      characterTraits: uniqueDisplay(interestLines).filter((item) => !isPersonTrait(item, file)).slice(0, 4),
       likelyStoryArcs: file.decisions.slice(0, 3).map((item) => decisionText(item.question, item.v)),
       viewerAppeal: file.subject.location ? `You place yourself in ${file.subject.location.v}.` : undefined,
       conflictStyle: file.contradictions[0]
@@ -468,9 +490,9 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     report.digitalDoppelganger = {
       reportTitle: 'A playful sketch, not a real profile',
       handle: file.subject.nameGuess?.v ? `@${file.subject.nameGuess.v.toLowerCase().replace(/\s+/g, '')}` : '@your-chats',
-      bio: claim([file.subject.occupation?.v, file.subject.location?.v].filter(Boolean).join(' · '), used) || 'Imagined from this case file. Not a real account.',
+      bio: claim([file.subject.occupation?.v, file.subject.location?.v].filter((part): part is string => Boolean(part)).map((part) => sentenceCase(part)).join(' · '), used) || 'Imagined from this case file. Not a real account.',
       topHashtags: uniqueDisplay((interestLines.length ? interestLines : file.style.topPhrases.filter(notablePhraseOk)).slice(0, 4).map(toHashtag)),
-      personalityTraits: uniqueDisplay(peopleLine).slice(0, 4),
+      personalityTraits: uniqueDisplay(interestLines).filter((item) => !isPersonTrait(item, file)).slice(0, 4),
       posts: posts.length ? posts : [],
       disclaimer: 'A playful sketch from this case file. Follower counts and join dates are not invented here.',
     };

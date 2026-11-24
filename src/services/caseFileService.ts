@@ -28,16 +28,20 @@ export interface SavedCaseSummary {
   model_id: string | null;
   updated_at: string;
   created_at: string;
+  case_file: CaseFile | null;
 }
 
 export async function listCaseFiles(userId: string): Promise<SavedCaseSummary[]> {
   const { data, error } = await supabase
     .from('case_files')
-    .select('id, filename, partial, depth, model_provider, model_id, updated_at, created_at')
+    .select('id, filename, partial, depth, model_provider, model_id, updated_at, created_at, case_file')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return data ?? [];
+  return (data ?? []).map((row) => ({
+    ...row,
+    case_file: (row.case_file ?? null) as unknown as CaseFile | null,
+  }));
 }
 
 export async function getCaseFile(userId: string, id: string): Promise<{ filename: string | null; case_file: CaseFile } | null> {

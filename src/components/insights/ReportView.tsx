@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -17,7 +17,7 @@ import type { NormalizedConversation } from '../../lib/conversationParser/types'
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, filedStamp, hydratePremiumReport, reportSubtitle, type PremiumReportShape } from '../../lib/insights/hydratePremium';
-import { decisionText, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
+import { decisionText, displayBadge, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
 import { conversationTitle, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy } from '../../lib/insights/hydratePremium';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
@@ -188,6 +188,8 @@ const ReportView: React.FC<{
   const previews = useMemo(() => cardPreviews(caseFile, hydrated), [caseFile, hydrated]);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const status = reportStatus(caseFile);
+  const badge = displayBadge(caseFile, Boolean(demo));
+  const detailRef = useRef<HTMLDivElement>(null);
   const codename = caseFile.narrative.codename;
   const caseNo = caseFileNumber(`${codename}|${caseFile.model.id}|${caseFile.coverage.read}`);
   const frame = (node: React.ReactNode) => (
@@ -197,6 +199,12 @@ const ReportView: React.FC<{
     ...ORIGINAL.map((insight) => ({ id: insight.id, node: originalSlide(insight.id, hydrated, caseFile, caseNo) })),
     ...EXTRA.map((insight) => ({ id: insight.id, node: extraSlide(caseFile, insight, titles) })),
   ], [caseFile, hydrated, titles, caseNo]);
+
+  useEffect(() => {
+    if (viewerIndex == null) return;
+    detailRef.current?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+  }, [viewerIndex]);
 
   const moveViewer = (delta: number) => {
     setViewerIndex((current) => {
@@ -208,8 +216,8 @@ const ReportView: React.FC<{
   if (viewerIndex != null) {
     const index = Math.min(viewerIndex, slides.length - 1);
     return frame(
-      <div className="fixed inset-x-0 bottom-0 top-16 z-[60] overflow-y-auto bg-slate-950 pb-16">
-        <div className="sticky top-12 z-50 flex flex-wrap items-center justify-between gap-2 bg-slate-950/90 px-4 py-3">
+      <div ref={detailRef} className="fixed inset-x-0 bottom-0 top-28 z-[70] overflow-y-auto bg-slate-950 pb-16">
+        <div className="sticky top-0 z-50 flex flex-wrap items-center justify-between gap-2 bg-slate-950/95 px-4 py-3">
           <Button variant="ghost" onClick={() => setViewerIndex(null)} className="border border-white/20 bg-black/50 text-white hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Overview
@@ -224,7 +232,7 @@ const ReportView: React.FC<{
             </Button>
           </div>
         </div>
-        <div key={slides[index]?.id}>{slides[index]?.node}</div>
+        <div key={slides[index]?.id} className="pt-4">{slides[index]?.node}</div>
       </div>,
     );
   }
@@ -242,8 +250,8 @@ const ReportView: React.FC<{
               <Button variant="outline" onClick={onSave} className="border-white/20 text-white hover:bg-white/10">Save to account</Button>
             )}
           </div>
-          <Badge variant="outline" className={status.badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : status.badge.startsWith('Quick scan') ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={status.badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
-            {status.badge}
+          <Badge variant="outline" className={badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : badge.startsWith('Quick scan') ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : badge === 'Sample report' ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
+            {badge}
           </Badge>
         </div>
 

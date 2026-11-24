@@ -14,7 +14,7 @@ import {
 import { selectConversations, type DepthId } from './depth.ts';
 import type { LocalReport } from './localPass.ts';
 import { toneOk } from './checks.ts';
-import { completeWithRetry, providerAuthError, ProviderRequestError } from './transport.ts';
+import { completeWithRetry, providerAuthError, providerWaitMessage, ProviderRequestError } from './transport.ts';
 
 export interface RunModel {
   provider: string;
@@ -48,6 +48,8 @@ export interface RunInput {
   budget?: RunBudget;
   adapter: Adapter;
   alreadyReadIds?: string[];
+  /** Original plan. When set, retry does not recompute a Quick or Standard selection. */
+  selectedIds?: string[];
   sleep?: (ms: number) => Promise<void>;
   isPaused?: () => boolean;
   signal?: AbortSignal;
@@ -83,8 +85,18 @@ async function waitIfPaused(input: RunInput, sleep: (ms: number) => Promise<void
 
 export async function runRead(input: RunInput): Promise<CaseFile> {
   const sleep = input.sleep ?? defaultSleep;
-  const selection = selectConversations(input.local, input.depth, input.quickFraction ?? 0.1);
   const byId = new Map(input.conversations.map((conversation) => [conversation.id, conversation]));
+  const computed = selectConversations(input.local, input.depth, input.quickFraction ?? 0.1);
+  const chosenIds = input.selectedIds?.length
+    ? input.selectedIds.filter((id) => byId.has(id))
+    : computed.chosenIds;
+  const chosen = new Set(chosenIds);
+  const selection = {
+    chosenIds,
+    skippedIds: input.selectedIds?.length
+      ? input.conversations.map((conversation) => conversation.id).filter((id) => !chosen.has(id))
+      : computed.skippedIds,
+  };
   const already = new Set(input.alreadyReadIds ?? []);
   const pendingIds = selection.chosenIds.filter((id) => !already.has(id));
   const queue = packBatches(
@@ -129,10 +141,9 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   };
 
   const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {
-    const seconds = Math.max(1, Math.ceil(info.waitMs / 1000));
     input.onProgress?.(progress(
       'batch',
-      `The provider is busy (${info.status}). Retrying in ${seconds}s… (attempt ${info.attempt} of 5).`,
+      providerWaitMessage(info.status, info.waitMs, info.attempt),
     ));
   };
   const onAttempt = (attempt: number) => {
@@ -445,8 +456,7 @@ export async function retryNarrative(input: {
     message,
   });
   const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {
-    const seconds = Math.max(1, Math.ceil(info.waitMs / 1000));
-    input.onProgress?.(snapshot(`The provider is busy (${info.status}). Retrying in ${seconds}s… (attempt ${info.attempt} of 5).`));
+    input.onProgress?.(snapshot(providerWaitMessage(info.status, info.waitMs, info.attempt)));
   };
   const onAttempt = (attempt: number) => {
     input.onProgress?.(snapshot(`Writing the cover again (attempt ${attempt} of 5).`));

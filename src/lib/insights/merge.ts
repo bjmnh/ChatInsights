@@ -37,6 +37,8 @@ export interface Coverage {
   viaProxy: boolean;
   dateRange: { first: string | null; last: string | null };
   topics: { c: string; topic: string }[];
+  /** The chats this read planned to send. Retry uses this list, not a fresh depth selection. */
+  selectedIds?: string[];
 }
 
 export interface CaseFile {
@@ -528,6 +530,7 @@ export function buildCaseFile(input: {
     viaProxy: input.viaProxy,
     partial: Boolean(input.partialReason),
     partialReason: input.partialReason,
+    selectedIds: input.plannedIds,
     dateRange: { first: input.local.firstAt, last: input.local.lastAt },
     topics: input.topics.filter((topic) => read.includes(topic.c)),
   });
@@ -647,8 +650,13 @@ export function mergeCaseFiles(base: CaseFile, extra: CaseFile): CaseFile {
     : cardStates(base.model.depth);
   return {
     ...base,
-    filedAt: extra.filedAt || base.filedAt,
-    coverage: { ...coverage, partialReason: coverage.partial ? partialReason : undefined },
+    runId: base.runId,
+    filedAt: base.filedAt,
+    coverage: {
+      ...coverage,
+      selectedIds: base.coverage.selectedIds?.length ? base.coverage.selectedIds : extra.coverage.selectedIds,
+      partialReason: coverage.partial ? partialReason : undefined,
+    },
     narrative,
     cardStatus,
     people: unionBy(base.people, extra.people, (item) => item.name.trim().toLowerCase()),

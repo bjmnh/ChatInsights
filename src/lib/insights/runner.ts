@@ -119,10 +119,20 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     message,
   });
 
-  const batchMessage = () => {
-    if (!plannedBatchCount) return 'Reading.';
+  const batchMessage = (batch: PackedBatch, note?: string) => {
+    if (!plannedBatchCount) return note || 'Reading.';
     const index = Math.min(completed + 1, plannedBatchCount);
-    return `Reading batch ${index} of ${plannedBatchCount}.`;
+    const size = `${batch.ids.length} conversation${batch.ids.length === 1 ? '' : 's'} in this call`;
+    const head = `Reading batch ${index} of ${plannedBatchCount} (${size}).`;
+    return note ? `${head} ${note}` : head;
+  };
+
+  const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {
+    const seconds = Math.max(1, Math.round(info.waitMs / 1000));
+    input.onProgress?.(progress(
+      'batch',
+      `The provider is busy (${info.status}). Retrying in ${seconds}s… (attempt ${info.attempt} of 5).`,
+    ));
   };
 
   input.onProgress?.(progress('packing', 'Packing the chats that this depth will send.'));
@@ -143,9 +153,9 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       stopReason = 'budget';
       break;
     }
-    input.onProgress?.(progress('batch', batchMessage()));
+    input.onProgress?.(progress('batch', batchMessage(batch, batch.wasRetry ? 'Retrying conversations the last reply skipped.' : undefined)));
     try {
-      const extracted = await extractBatch(input, batch, sleep);
+      const extracted = await extractBatch(input, batch, sleep, onRetry);
       if (extracted.viaProxy) viaProxy = true;
       const known = new Set(batch.ids);
       for (const fact of extracted.facts) {
@@ -160,15 +170,17 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       spentTokens += extracted.usage ? extracted.usage.input + extracted.usage.output : estimate.inputTokens + estimate.outputTokens;
       queue.shift();
       completed += 1;
-      // Count the batch as soon as it returns so the "accounted for" number
-      // stays with the plan, even when a missing id is retried quietly.
-      batch.ids.forEach((id) => accounted.add(id));
-      if (missing.length && !batch.wasRetry) {
+      const retryMissing = missing.length > 0 && !batch.wasRetry;
+      batch.ids.forEach((id) => {
+        if (!retryMissing || !missing.includes(id)) accounted.add(id);
+      });
+      if (retryMissing) {
         const again = missing.map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
         const [repacked] = packBatches(again, input.depth, input.model.contextWindow || 32_000);
         if (repacked) queue.unshift({ ...repacked, wasRetry: true });
+        else missing.forEach((id) => { failed.add(id); accounted.add(id); });
       } else {
-        missing.forEach((id) => failed.add(id));
+        missing.forEach((id) => { failed.add(id); accounted.add(id); });
       }
     } catch (error) {
       const authError = providerAuthError(error);
@@ -183,13 +195,15 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
         stopReason = stopReason ?? 'safety';
         continue;
       }
-      if (batch.ids.length > 1 && !(error instanceof ProviderRequestError && error.kind === 'cors')) {
+      const overload = error instanceof ProviderRequestError && (error.kind === 'server' || error.kind === 'rate');
+      if (!overload && batch.ids.length > 1 && !(error instanceof ProviderRequestError && error.kind === 'cors')) {
         queue.shift();
         const mid = Math.ceil(batch.ids.length / 2);
         const left = batch.ids.slice(0, mid).map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
         const right = batch.ids.slice(mid).map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
         const pieces = [...packBatches(left, input.depth, input.model.contextWindow || 32_000), ...packBatches(right, input.depth, input.model.contextWindow || 32_000)];
         queue.unshift(...pieces);
+        input.onProgress?.(progress('batch', batchMessage(batch, 'The last reply could not be read, so this batch was split into smaller pieces.')));
         continue;
       }
       if (error instanceof ProviderRequestError && error.kind === 'cors') throw error;
@@ -201,6 +215,11 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       completed += 1;
       stopReason = stopReason ?? 'batch-failed';
     }
+  }
+
+  if (failed.size > 0 && (!stopReason || stopReason === 'batch-failed')) {
+    const count = failed.size;
+    stopReason = `The provider failed on ${count} conversation${count === 1 ? '' : 's'} after several retries.`;
   }
 
   let narrativeStatus: NarrativeStatus = input.depth === 'quick' ? 'not-in-depth' : 'templated';
@@ -275,14 +294,19 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   return caseFile;
 }
 
-async function extractBatch(input: RunInput, batch: PackedBatch, sleep: (ms: number) => Promise<void>) {
+async function extractBatch(
+  input: RunInput,
+  batch: PackedBatch,
+  sleep: (ms: number) => Promise<void>,
+  onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
+) {
   const request: CompleteRequest = {
     system: input.depth === 'quick' ? `${EXTRACTION_SYSTEM}\n${QUICK_ADDENDUM}` : EXTRACTION_SYSTEM,
     user: batch.text,
     schemaName: 'batch_extract',
     maxOutputTokens: 8000,
   };
-  const first = await completeWithRetry(() => input.adapter.complete(request), sleep);
+  const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry);
   let parsed = parseBatchPayload(first.text);
   let viaProxy = first.viaProxy;
   let usage = first.usage;
@@ -290,6 +314,7 @@ async function extractBatch(input: RunInput, batch: PackedBatch, sleep: (ms: num
     const repair = await completeWithRetry(
       () => input.adapter.complete({ ...request, user: buildRepairPrompt(first.text, parsed.ok ? '' : parsed.error) }),
       sleep,
+      onRetry,
     );
     viaProxy = viaProxy || repair.viaProxy;
     usage = repair.usage ?? usage;

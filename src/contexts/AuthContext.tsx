@@ -59,6 +59,8 @@ const getAuthErrorMessage = (error: AuthError | Error): string => {
   return error.message || 'An unexpected error occurred. Please try again.';
 };
 
+const SIGN_IN_TOAST = 'ci-user-sign-in';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const cachedUser = readStoredSessionUser() as User | null;
   const [user, setUser] = useState<User | null>(cachedUser);
@@ -118,10 +120,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (event === 'SIGNED_IN') {
+        const userStarted = sessionStorage.getItem(SIGN_IN_TOAST) === '1';
+        if (userStarted) sessionStorage.removeItem(SIGN_IN_TOAST);
         if (accountCreated.current) {
           accountCreated.current = false;
           toast.success('Account created and signed in');
-        } else {
+        } else if (userStarted) {
           toast.success('Signed in');
         }
       } else if (event === 'SIGNED_OUT') {
@@ -135,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
+      sessionStorage.setItem(SIGN_IN_TOAST, '1');
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
@@ -149,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
     } catch (error) {
+      sessionStorage.removeItem(SIGN_IN_TOAST);
       const message = getAuthErrorMessage(error as AuthError);
       toast.error(message);
       throw new Error(message);
@@ -173,6 +179,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       accountCreated.current = true;
+      sessionStorage.setItem(SIGN_IN_TOAST, '1');
       const { data, error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
@@ -191,6 +198,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Check if email confirmation is required
       if (data.user && !data.session) {
         accountCreated.current = false;
+        sessionStorage.removeItem(SIGN_IN_TOAST);
         toast.dismiss();
         toast.success('Registration successful! Please check your email for a confirmation link.');
         return;
@@ -202,6 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     } catch (error) {
       accountCreated.current = false;
+      sessionStorage.removeItem(SIGN_IN_TOAST);
       const message = getAuthErrorMessage(error as AuthError);
       toast.error(message);
       throw new Error(message);
@@ -220,6 +229,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     try {
+      sessionStorage.setItem(SIGN_IN_TOAST, '1');
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
@@ -232,6 +242,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) throw error;
     } catch (error) {
+      sessionStorage.removeItem(SIGN_IN_TOAST);
       const raw = error instanceof Error ? error.message : '';
       const unavailable = /provider|not enabled|unsupported|disabled|validation/i.test(raw);
       const message = unavailable

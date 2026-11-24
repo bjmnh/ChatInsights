@@ -145,6 +145,7 @@ function clip(text: string): string {
 export async function completeWithRetry<T>(
   run: () => Promise<T>,
   sleep: (ms: number) => Promise<void>,
+  onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
 ): Promise<T> {
   let last: unknown;
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -153,7 +154,9 @@ export async function completeWithRetry<T>(
     } catch (error) {
       if (error instanceof ProviderRequestError && (error.kind === 'rate' || error.kind === 'server')) {
         last = error;
+        if (attempt >= 4) break;
         const wait = error.retryAfterMs ?? Math.min(30_000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 250);
+        onRetry?.({ attempt: attempt + 1, waitMs: wait, status: error.status || (error.kind === 'rate' ? 429 : 503) });
         await sleep(wait);
         continue;
       }

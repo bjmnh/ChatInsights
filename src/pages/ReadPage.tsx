@@ -18,7 +18,8 @@ import { packBatches } from '../lib/insights/pack';
 import { ProviderRequestError } from '../lib/insights/transport';
 import { forgetAllKeys, forgetKey, listKeys, rememberKey, revealKey, type KeySummary } from '../lib/insights/keyVault';
 import { runLocalPass, type LocalReport } from '../lib/insights/localPass';
-import type { CaseFile } from '../lib/insights/merge';
+import { caseDownloadName } from '../lib/insights/hydratePremium';
+import { mergeCaseFiles, type CaseFile } from '../lib/insights/merge';
 import { parseExtraAllowlist } from '../lib/insights/proxyPolicy';
 import { catalogModel, defaultModel, providerPreset } from '../lib/insights/prices';
 import type { RunProgress } from '../lib/insights/runner';
@@ -264,6 +265,7 @@ const ReadPage: React.FC = () => {
       return;
     }
     retryFile.current = file;
+    setInterrupted(false);
     if (!ackRef.current) {
       pendingFile.current = file;
       setUploadError('Confirm the storage notice to open this file. It stays selected.');
@@ -594,7 +596,7 @@ const ReadPage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${filename.replace(/\.\w+$/, '') || 'chat-insights'}-case-file.json`;
+    link.download = caseDownloadName(filename);
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -604,7 +606,7 @@ const ReadPage: React.FC = () => {
     if (!user) {
       toast.message('Sign in to save the case file. The key stays on this device.');
       navigate('/auth');
-      return;
+      throw new Error('Sign in to save the case file.');
     }
     try {
       const fingerprint = await exportFingerprint(conversations);
@@ -615,7 +617,58 @@ const ReadPage: React.FC = () => {
       setSaveMessage(saved);
       toast.success(saved);
     } catch (error) {
-      setSaveMessage(error instanceof Error ? error.message : 'Could not save. If the case file table is not migrated yet, download the JSON.');
+      const message = error instanceof Error ? error.message : 'Could not save. If the case file table is not migrated yet, download the JSON.';
+      setSaveMessage(message);
+      throw new Error(message);
+    }
+  };
+
+  const retryUnread = async () => {
+    if (!caseFile || !local) return;
+    const previous = caseFile;
+    const readIds = previous.coverage.topics.map((topic) => topic.c);
+    setStep('run');
+    setPaused(false);
+    pausedRef.current = false;
+    setSaveMessage('');
+    setRunError('');
+    const secret = resolveSecret();
+    const adapter = setup.providerId === 'demo'
+      ? createDemoAdapter({ latencyMs: 900 })
+      : createAdapter(setup.providerId, {
+        apiKey: secret,
+        model: setup.modelId,
+        baseUrl: setup.baseUrl || preset.baseUrl,
+        extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
+      });
+    try {
+      const result = await runRead({
+        conversations,
+        local,
+        depth: setup.depth,
+        quickFraction: setup.quickFraction,
+        model: {
+          provider: setup.providerId,
+          id: setup.modelId,
+          inputPricePerMillion: Number(setup.inputPrice) || 0,
+          outputPricePerMillion: Number(setup.outputPrice) || 0,
+          contextWindow: priced?.context ?? (preset.local ? 8192 : 128_000),
+        },
+        adapter,
+        alreadyReadIds: readIds,
+        isPaused: () => pausedRef.current,
+        onProgress: setProgress,
+      });
+      const merged = mergeCaseFiles(previous, result);
+      setCaseFile(merged);
+      setStep('report');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The unread conversations could not be read.';
+      setCaseFile(previous);
+      setProgress(null);
+      setRunError(message);
+      toast.error(message);
+      setStep('report');
     }
   };
 
@@ -741,7 +794,8 @@ const ReadPage: React.FC = () => {
           caseFile={caseFile}
           conversations={conversations}
           onDownload={download}
-          onSave={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { save().catch(() => undefined); }}
+          onSave={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => save()}
+          onRetryUnread={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { retryUnread().catch(() => undefined); }}
           demo={new URLSearchParams(window.location.search).get('sample') === '1'}
           onClose={() => {
             if (new URLSearchParams(window.location.search).get('sample') === '1') navigate('/');

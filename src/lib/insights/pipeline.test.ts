@@ -7,8 +7,8 @@ import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from '
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
-import { cardPreviews, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, reportSubtitle, scrubRawCodes, sentenceCase, toHashtag, uniqueDisplay } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, NEUTRAL_CODENAME, normalizeTitleCase, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
+import { cardPreviews, caseDownloadName, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, isThinProfileLabel, reportSubtitle, scrubRawCodes, sentenceCase, toHashtag, uniqueDisplay } from './hydratePremium.ts';
+import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -380,6 +380,45 @@ describe('budget cap and partial reports', () => {
     expect(reads[reads.length - 1]).toBe(conversations.length);
   });
 
+  it('retries a 503 without splitting the batch and says the provider is busy', async () => {
+    const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
+    const seen: string[] = [];
+    let calls = 0;
+    const result = await runRead({
+      conversations,
+      local: runLocalPass(conversations),
+      depth: 'quick',
+      quickFraction: 1,
+      model: { provider: 'script', id: 'script', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 1_000_000 },
+      adapter: {
+        id: 'script',
+        async complete() {
+          calls += 1;
+          throw new ProviderRequestError('overloaded', 503, 'server');
+        },
+      },
+      sleep: async () => undefined,
+      onProgress: (progress) => seen.push(progress.message),
+    });
+    expect(calls).toBe(5);
+    expect(seen.some((line) => line.includes('The provider is busy (503)') && line.includes('Retrying'))).toBe(true);
+    expect(result.coverage.partialReason).toMatch(/The provider failed on 3 conversations after several retries/);
+    expect(plainPartialDetail(result)).toMatch(/failed on 3 conversations/);
+    expect(result.coverage.failed).toBe(3);
+    const merged = mergeCaseFiles(result, {
+      ...result,
+      coverage: {
+        ...result.coverage,
+        failed: 0,
+        partial: false,
+        partialReason: undefined,
+        topics: [{ c: 'c0', topic: 'note' }],
+      },
+    });
+    expect(merged.coverage.partial).toBe(false);
+    expect(merged.coverage.topics.some((topic) => topic.c === 'c0')).toBe(true);
+  });
+
   it('stops on an invalid key instead of a batch-failed report', async () => {
     const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index}.`));
     let calls = 0;
@@ -479,6 +518,16 @@ describe('demo pipeline', () => {
     expect(savedModelLabel('openai', 'gpt-5.4-mini')).toBe('openai gpt-5.4-mini');
     expect(sentenceCase('high school chemistry teacher')).toBe('High school chemistry teacher');
     expect(sentenceCase('High school chemistry teacher')).toBe('High school chemistry teacher');
+    expect(sentenceCase('overspending on eating out')).toBe('Overspending on eating out');
+    expect(sentenceCase('daughter')).toBe('Daughter');
+    expect(sentenceCase('“worried about the launch deadline”')).toBe('“Worried about the launch deadline”');
+    expect(sentenceCase('iPhone notes')).toBe('iPhone notes');
+    expect(publicCodenameReason('A short name for this file, not a fact copied from one chat.')).toBe('A name for this case file.');
+    expect(publicCodenameReason('A plain name for this case file. It is not a claim taken from one chat.')).toBe('A name for this case file.');
+    expect(caseDownloadName('claude_conversations.json')).toBe('claude_conversations-case-file.json');
+    expect(caseDownloadName('claude_conversations.json.json')).toBe('claude_conversations-case-file.json');
+    expect(isThinProfileLabel('8 years')).toBe(true);
+    expect(isThinProfileLabel('8years')).toBe(true);
     const traits = hydratePremiumReport(standardFile, new Map()).realityTVPersona?.characterTraits ?? [];
     expect(traits.join(' ')).not.toMatch(/Dana/);
     const quickFile = await runRead({
@@ -563,7 +612,7 @@ describe('a real-shaped standard report', () => {
     expect(hydrated.realityTVPersona?.reportTitle).toBe('The ambitious pivot seeker building dashboards');
     expect(hydrated.realityTVPersona?.description).toBe('');
     expect(hydrated.realityTVPersona?.description).not.toBe(hydrated.fbiReport?.subjectCodename.justification);
-    expect(hydrated.fbiReport?.dominantInterests).toEqual(['#dataanalytics', '##mealpreponSundays', 'data analytics']);
+    expect(hydrated.fbiReport?.dominantInterests).toEqual(['#dataanalytics', '##mealpreponSundays', 'Data analytics']);
     expect(hydrated.fbiReport?.dominantInterests).not.toContain('resumed');
     expect(hydrated.fbiReport?.subjectCodename.operationalSignificance).toBeUndefined();
     expect(JSON.stringify(hydrated.fbiReport)).not.toMatch(/32e1c0dd/);

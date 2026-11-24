@@ -1,6 +1,6 @@
 import React from 'react';
+import { isThinProfileLabel, sentenceCase, toHashtag } from '../../lib/insights/hydratePremium';
 import { motion } from 'framer-motion';
-import { toHashtag } from '../../lib/insights/hydratePremium';
 import { Button } from '../ui/button';
 import { Hash, MessageSquare, Heart, Repeat2, MoreHorizontal } from 'lucide-react';
 
@@ -42,6 +42,8 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
   };
 
   const profileBgColor = getProfilePicture(data.handle);
+  const rawName = data.handle.replace('@', '').split(/(?=[A-Z])/).join(' ').trim();
+  const headline = isThinProfileLabel(rawName) || rawName === 'your-chats' ? 'A sketch from your chats' : sentenceCase(rawName);
   const posts = (data.posts ?? []).filter((post) => post.content.trim());
 
   return (
@@ -119,7 +121,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
             transition={{ delay: 0.8 }}
           >
             <h2 className="text-xl font-bold mb-1">
-              {data.handle.replace('@', '').split(/(?=[A-Z])/).join(' ')}
+              {headline}
             </h2>
             <p className="text-gray-500 mb-3">{data.handle}</p>
             
@@ -190,7 +192,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 mb-1">
                     <span className="font-bold text-white">
-                      {data.handle.replace('@', '').split(/(?=[A-Z])/).join(' ')}
+                      {headline}
                     </span>
                     <span className="text-gray-500">{data.handle}</span>
                     <span className="text-gray-500">·</span>

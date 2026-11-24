@@ -25,8 +25,14 @@ function Shell() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[80] focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-foreground focus:shadow"
+      >
+        Skip to content
+      </a>
       {!immersive && <Header />}
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/read" element={<ReadPage />} />

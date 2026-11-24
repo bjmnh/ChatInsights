@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import ReportView from '../components/insights/ReportView';
+import { caseDownloadName } from '../lib/insights/hydratePremium';
 import type { CaseFile } from '../lib/insights/merge';
 import { getCaseFile } from '../services/caseFileService';
 
@@ -36,7 +37,7 @@ const SavedCasePage: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${file.filename || 'case-file'}.json`;
+    link.download = caseDownloadName(file.filename);
     link.click();
     URL.revokeObjectURL(url);
   };

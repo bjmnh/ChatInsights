@@ -4,7 +4,7 @@ import { cardStates, QUICK_KINDS, type CardId, type CardState, type DepthId } fr
 import type { LocalReport } from './localPass.ts';
 import type { Fact, NarrativeDraft } from './schema.ts';
 
-export type NarrativeStatus = 'written' | 'templated' | 'not-in-depth' | 'skipped-budget' | 'failed';
+export type NarrativeStatus = 'written' | 'templated' | 'not-in-depth' | 'skipped-budget' | 'failed' | 'failed-provider';
 
 export interface Cited {
   v: string;
@@ -98,7 +98,7 @@ export function isComplete(caseFile: CaseFile): boolean {
   if (coverage.partial || coverage.failed > 0) return false;
   if (coverage.read !== coverage.planned) return false;
   if (coverage.read + coverage.skipped !== coverage.conversations) return false;
-  if (coverage.narrative === 'skipped-budget' || coverage.narrative === 'failed') return false;
+  if (coverage.narrative === 'skipped-budget' || coverage.narrative === 'failed' || coverage.narrative === 'failed-provider') return false;
   return coverage.narrative === 'written' || coverage.narrative === 'templated' || coverage.narrative === 'not-in-depth';
 }
 
@@ -132,10 +132,17 @@ export function reportStatus(file: CaseFile): { badge: string; detail: string } 
 }
 
 /** The badge on screen. A fake sample is never labeled like a finished personal read. */
+export const WRITE_UP_MISSING = 'The write-up step did not finish for this read.';
+
+export function unreadCount(file: CaseFile): number {
+  return Math.max(file.coverage.failed, file.coverage.planned - file.coverage.read, 0);
+}
+
 export function plainPartialDetail(file: CaseFile): string {
   const reason = file.coverage.partialReason ?? '';
-  const missed = Math.max(file.coverage.failed, file.coverage.planned - file.coverage.read, 0);
+  const missed = unreadCount(file);
   const noun = `${missed} conversation${missed === 1 ? '' : 's'}`;
+  if (missed === 0) return WRITE_UP_MISSING;
   if (!reason || reason === 'batch-failed' || reason === 'server') {
     return `The provider failed on ${noun} after several retries.`;
   }
@@ -178,7 +185,8 @@ export function finalizeCoverage(coverage: Omit<Coverage, 'partial'> & { partial
     coverage.read !== coverage.planned ||
     coverage.read + coverage.skipped !== coverage.conversations ||
     coverage.narrative === 'skipped-budget' ||
-    coverage.narrative === 'failed';
+    coverage.narrative === 'failed' ||
+    coverage.narrative === 'failed-provider';
   return { ...coverage, partial: forced };
 }
 
@@ -194,10 +202,25 @@ export const NEUTRAL_CODENAME_REASON = 'A name for this case file.';
 
 const INTERNAL_CODENAME_REASON = /not a fact copied from one chat|not a claim taken from one chat|short name for this file|plain name for this case file/i;
 
-/** Saved reports may still carry the old internal fallback. Show a plain sentence instead. */
+const PLACEHOLDER_COPY = /^(open notebook|cast as open notebook|a name for this case file\.?)$/i;
+
+/** Saved reports may still carry the internal fallback. Show an honest empty state instead. */
+export function isPlaceholderCopy(value: string | null | undefined): boolean {
+  const text = (value ?? '').trim();
+  if (!text) return true;
+  if (PLACEHOLDER_COPY.test(text)) return true;
+  return INTERNAL_CODENAME_REASON.test(text);
+}
+
 export function publicCodenameReason(reason: string): string {
   const text = reason.trim();
-  if (!text || INTERNAL_CODENAME_REASON.test(text)) return NEUTRAL_CODENAME_REASON;
+  if (isPlaceholderCopy(text)) return WRITE_UP_MISSING;
+  return text;
+}
+
+export function publicArchetype(value: string): string {
+  const text = value.trim();
+  if (isPlaceholderCopy(text)) return '';
   return text;
 }
 
@@ -560,24 +583,59 @@ function unionBy<T>(current: T[], extra: T[], key: (item: T) => string): T[] {
   })];
 }
 
+function coverWithCounts(cover: string, read: number, total: number): string {
+  if (!/It looked at /.test(cover)) return cover;
+  return cover.replace(/in \d+ of \d+ conversations/, `in ${read} of ${total} conversations`);
+}
+
 /** Fold a retry of the unread chats into the report already on screen. */
 export function mergeCaseFiles(base: CaseFile, extra: CaseFile): CaseFile {
   const topics = unionBy(base.coverage.topics, extra.coverage.topics, (item) => item.c);
-  const read = Math.min(base.coverage.conversations, topics.length);
+  const read = Math.min(base.coverage.conversations, Math.max(topics.length, extra.coverage.read, base.coverage.read));
   const failed = extra.coverage.failed;
-  const partial = extra.coverage.partial || failed > 0;
+  const chatsDone = failed === 0 && read >= base.coverage.planned;
+  const budgetStop = extra.coverage.narrative === 'skipped-budget' && /budget/i.test(extra.coverage.partialReason ?? '');
+  const narrativeStatus: NarrativeStatus = budgetStop
+    ? 'skipped-budget'
+    : chatsDone && (extra.coverage.narrative === 'written' || extra.coverage.narrative === 'templated' || extra.coverage.narrative === 'not-in-depth')
+      ? extra.coverage.narrative
+      : chatsDone
+        ? (base.model.depth === 'quick' ? 'not-in-depth' : 'templated')
+        : (extra.coverage.narrative === 'skipped-budget' ? 'failed-provider' : extra.coverage.narrative);
+  const missed = Math.max(failed, base.coverage.planned - read, 0);
+  const partialReason = missed > 0
+    ? (extra.coverage.partialReason && !/failed on 0/i.test(extra.coverage.partialReason) ? extra.coverage.partialReason : `The provider failed on ${missed} conversation${missed === 1 ? '' : 's'} after several retries.`)
+    : narrativeStatus === 'skipped-budget'
+      ? 'budget'
+      : narrativeStatus === 'failed-provider' || narrativeStatus === 'failed'
+        ? WRITE_UP_MISSING
+        : undefined;
+  const coverage = finalizeCoverage({
+    ...base.coverage,
+    read,
+    failed,
+    batches: base.coverage.batches + extra.coverage.batches,
+    narrative: narrativeStatus,
+    topics,
+    partial: false,
+    partialReason,
+  });
+  const written = extra.coverage.narrative === 'written' && extra.narrative.cover && !/It looked at /.test(extra.narrative.cover);
+  const narrative = written
+    ? extra.narrative
+    : {
+      ...base.narrative,
+      cover: coverWithCounts(base.narrative.cover, read, base.coverage.conversations),
+    };
+  const cardStatus = coverage.partial
+    ? (Object.fromEntries(Object.entries(cardStates(base.model.depth)).map(([id, state]) => [id, state === 'ready' ? 'partial' : state])) as Record<CardId, CardState>)
+    : cardStates(base.model.depth);
   return {
     ...base,
     filedAt: extra.filedAt || base.filedAt,
-    coverage: {
-      ...base.coverage,
-      read,
-      failed,
-      partial,
-      partialReason: partial ? extra.coverage.partialReason : undefined,
-      topics,
-      batches: base.coverage.batches + extra.coverage.batches,
-    },
+    coverage: { ...coverage, partialReason: coverage.partial ? partialReason : undefined },
+    narrative,
+    cardStatus,
     people: unionBy(base.people, extra.people, (item) => item.name.trim().toLowerCase()),
     places: unionBy(base.places, extra.places, (item) => item.v.trim().toLowerCase()),
     orgs: unionBy(base.orgs, extra.orgs, (item) => item.v.trim().toLowerCase()),

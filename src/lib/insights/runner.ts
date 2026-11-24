@@ -264,13 +264,19 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       stopReason = 'budget';
     } else {
       input.onProgress?.(progress('narrative', 'Writing the short cover.'));
-      const written = await writeNarrative(input, facts, topics, sleep);
+      const written = await writeNarrative(input, facts, topics, sleep, onRetry);
       narrative = written.narrative;
       narrativeStatus = written.status;
       if (written.viaProxy) viaProxy = true;
     }
-  } else if (input.depth !== 'quick' && (stopReason === 'budget' || extractIncomplete)) {
+  } else if (input.depth !== 'quick' && stopReason === 'budget') {
     narrativeStatus = 'skipped-budget';
+  } else if (input.depth !== 'quick' && extractIncomplete) {
+    narrativeStatus = 'failed-provider';
+  }
+
+  if (!stopReason && narrativeStatus === 'failed-provider') {
+    stopReason = 'The write-up step did not finish for this read.';
   }
 
   const caseFile = buildCaseFile({
@@ -338,6 +344,7 @@ async function writeNarrative(
   facts: Fact[],
   topics: { c: string; topic: string }[],
   sleep: (ms: number) => Promise<void>,
+  onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
 ): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean }> {
   const request: CompleteRequest = {
     system: NARRATIVE_SYSTEM,
@@ -347,7 +354,7 @@ async function writeNarrative(
   };
   let viaProxy = false;
   try {
-    const first = await completeWithRetry(() => input.adapter.complete(request), sleep);
+    const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry);
     viaProxy = first.viaProxy;
     let parsed = parseNarrativePayload(first.text);
     if (parsed.ok && !toneOk(parsed.value.cover)) {
@@ -371,6 +378,9 @@ async function writeNarrative(
     };
   } catch (error) {
     if (error instanceof ProviderRequestError && (error.kind === 'auth' || error.kind === 'cors')) throw error;
+    if (error instanceof ProviderRequestError && (error.kind === 'server' || error.kind === 'rate')) {
+      return { narrative: null, status: 'failed-provider', viaProxy };
+    }
     return { narrative: null, status: 'templated', viaProxy };
   }
 }

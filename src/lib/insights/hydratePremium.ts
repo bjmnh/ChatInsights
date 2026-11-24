@@ -1,6 +1,6 @@
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk } from './localPass.ts';
-import { decisionText, publicCodenameReason, type CaseFile } from './merge.ts';
+import { decisionText, isPlaceholderCopy, publicArchetype, publicCodenameReason, type CaseFile } from './merge.ts';
 
 export interface PremiumReportShape {
   fbiReport?: {
@@ -152,17 +152,74 @@ function distinct(value: string | undefined, shared: string[]): string | undefin
   return text;
 }
 
+function wordShape(word: string): 'acronym' | 'internal' | 'title' | 'lower' | 'other' {
+  const letters = word.replace(/[^A-Za-z]/g, '');
+  if (!letters) return 'other';
+  if (/^[A-Z]{2,5}$/.test(letters)) return 'acronym';
+  if (/[a-z]/.test(letters) && /[A-Z]/.test(letters) && !/^[A-Z][a-z'’-]*$/.test(letters)) return 'internal';
+  if (/^[A-Z][a-z'’-]*$/.test(letters)) return 'title';
+  if (letters === letters.toLowerCase()) return 'lower';
+  return 'other';
+}
+
 /**
- * Capitalize the first letter of a finding, name, or headline.
- * Later capitals stay put, so "iPhone notes" is unchanged only when it already
- * starts with a capital. Verbatim evidence quotes are not passed through this.
+ * Sentence case for findings and labels. The first letter is capitalized.
+ * A phrase that is already title case ("High School Chemistry Teacher") becomes
+ * sentence case. Acronyms, internal capitals (iPhone), and later proper nouns
+ * (Google Sheets) stay. Hashtags and evidence quotes are not passed through this.
  */
 export function sentenceCase(value: string): string {
   const text = value.trim();
-  if (!text || /[A-Z#]/.test(text)) return text;
-  const index = text.search(/[a-z]/);
-  if (index < 0) return text;
-  return text.slice(0, index) + text.charAt(index).toUpperCase() + text.slice(index + 1);
+  if (!text || text.startsWith('#')) return text;
+  const parts = text.split(/(\s+)/);
+  const shapes = parts.filter((part) => /[A-Za-z]/.test(part)).map(wordShape);
+  const titled = shapes.filter((shape) => shape === 'title').length;
+  const lower = shapes.filter((shape) => shape === 'lower').length;
+  const uniformTitle = titled >= 2 && lower === 0;
+  let seen = false;
+  return parts.map((part) => {
+    if (!/[A-Za-z]/.test(part)) return part;
+    const shape = wordShape(part);
+    const first = !seen;
+    seen = true;
+    if (shape === 'acronym' || shape === 'internal') return part;
+    if (uniformTitle) {
+      const index = part.search(/[A-Za-z]/);
+      if (first) return part.slice(0, index) + part.charAt(index).toUpperCase() + part.slice(index + 1).toLowerCase();
+      return part.slice(0, index) + part.slice(index).toLowerCase();
+    }
+    if (!first) return part;
+    const index = part.search(/[a-z]/);
+    if (index < 0) return part;
+    const before = part.slice(0, index);
+    if (/[A-Za-z]/.test(before)) return part;
+    return before + part.charAt(index).toUpperCase() + part.slice(index + 1);
+  }).join('');
+}
+
+/** Vocabulary is unique words per message, not the question-share ratio. */
+export function vocabularyMeterValue(style: { vocabulary: number; wordsPerMessage: number }): number {
+  const uniquePerMessage = Math.max(0, style.vocabulary) * Math.max(0, style.wordsPerMessage);
+  return Math.max(0, Math.min(1, uniquePerMessage / 20));
+}
+
+export function publicSubjectName(file: CaseFile): string {
+  const name = file.narrative.codename.trim();
+  if (name && !isPlaceholderCopy(name)) return name;
+  const seed = [...file.interests, ...file.decisions].map((item) => item.v.trim()).find((value) => {
+    const words = value.split(/\s+/);
+    return words.length >= 1 && words.length <= 4 && !value.includes('#') && !/^\d/.test(value);
+  });
+  return seed ? sentenceCase(seed) : 'This read';
+}
+
+export function sourceLabels(ids: string[], titles: Map<string, string>, order: Map<string, number>): string[] {
+  return ids.map((id) => {
+    const title = conversationTitle(id, titles);
+    const index = order.get(id);
+    if (index == null) return title || 'Source chat';
+    return title ? `Conversation ${index + 1} · ${title}` : `Conversation ${index + 1}`;
+  });
 }
 
 export function isThinProfileLabel(value: string): boolean {
@@ -327,7 +384,6 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   const cover = claim(file.narrative.cover, used) || 'No cover was written for this read.';
   if (file.narrative.codename_reason.trim()) used.add(normText(file.narrative.codename_reason));
   const interestLines = uniqueDisplay(file.interests.map((item) => sentenceCase(item.v)), true);
-  const codename = file.narrative.codename;
   const codenameReason = file.narrative.codename_reason;
 
   const report: PremiumReportShape = {};
@@ -336,7 +392,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     report.fbiReport = {
       reportTitle: 'A read of your chats',
       subjectCodename: {
-        name: codename,
+        name: publicSubjectName(file),
         justification: publicCodenameReason(codenameReason),
         operationalSignificance: titlesOf(file.narrative.ev, titles) || undefined,
       },
@@ -410,7 +466,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       ],
       meters: [
         { label: 'Questions', value: file.style.questionShare },
-        { label: 'Vocabulary', value: Math.min(1, file.style.vocabulary) },
+        { label: 'Vocabulary', value: vocabularyMeterValue(file.style) },
       ],
       potentialInterestsIndicatedByLanguage: interestLines,
       disclaimer: 'From the local pass. No model call for these counts.',
@@ -421,14 +477,14 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     const rows = file.notable.slice(0, 5).map((item) => ({
       conversationId: item.id,
       title: displayTitle(item.title),
-      justification: item.reasons.map((reason) => REASON_LINE[reason]).filter(Boolean).join(', ') || `Score ${item.score}`,
+      justification: sentenceCase(item.reasons.map((reason) => REASON_LINE[reason]).filter(Boolean).join(', ') || `Score ${item.score}`),
       insights: [`Score ${item.score}`],
     }));
     if (rows.length) report.topInterestingConversations = rows;
   }
 
   if (searched(file, 'stranger')) {
-    const archetype = file.narrative.archetype;
+    const archetype = publicArchetype(file.narrative.archetype) || 'A sketch from these chats';
     const strangerNote = claim(keptProse(file.narrative.blurbs.stranger), used);
     report.realityTVPersona = {
       reportTitle: archetype,
@@ -460,9 +516,9 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
 
   if (searched(file, 'sensitive') || file.cardStatus.sensitive === 'local' || file.cardStatus.sensitive === 'partial') {
     const count = file.exposure.emails.length + file.exposure.phones.length + file.exposure.cardLike;
-    const awarenessScore: 'Low Risk' | 'Medium Risk' | 'High Risk' = file.exposure.cardLike > 0 || count > 4
+    const awarenessScore: 'Low Risk' | 'Medium Risk' | 'High Risk' = file.health.length > 0 || file.exposure.cardLike > 0 || count > 4
       ? 'High Risk'
-      : count > 0
+      : file.money.length > 0 || count > 0
         ? 'Medium Risk'
         : 'Low Risk';
     report.piiSafetyCompass = {

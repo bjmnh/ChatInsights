@@ -16,8 +16,8 @@ import {
 import type { NormalizedConversation } from '../../lib/conversationParser/types';
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
-import { cardPreviews, conversationTitle, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, reportSubtitle, sentenceCase, type PremiumReportShape } from '../../lib/insights/hydratePremium';
-import { decisionText, displayBadge, plainPartialDetail, reportStatus, type CaseFile, type Cited } from '../../lib/insights/merge';
+import { cardPreviews, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, publicSubjectName, reportSubtitle, sentenceCase, sourceLabels, type PremiumReportShape } from '../../lib/insights/hydratePremium';
+import { decisionText, displayBadge, plainPartialDetail, reportStatus, unreadCount, WRITE_UP_MISSING, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
 import { caseFileNumber } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
@@ -77,8 +77,8 @@ const EXTRA: Array<{
   { id: 'mind', title: 'What’s been on your mind', dossier: 'Psychological Notes', icon: Eye, gradient: 'from-slate-500 via-slate-600 to-slate-700', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-700', textColor: 'text-slate-100', borderColor: 'border-slate-500/30', hoverBorder: 'hover:border-slate-400', badgeClass: 'bg-slate-500/20 text-slate-200 border-slate-400/40' },
 ];
 
-function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> }) {
-  const from = item.ev.map((id) => conversationTitle(id, titles)).filter((label): label is string => Boolean(label));
+function FactBlock({ item, titles, order }: { item: Cited; titles: Map<string, string>; order: Map<string, number> }) {
+  const from = sourceLabels(item.ev, titles, order);
   return (
     <div className="rounded-2xl border border-amber-700/40 bg-[#1a140c]/80 p-5 shadow-lg" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(255,220,160,0.04) 23px)' }}>
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-amber-200">Finding</p>
@@ -93,7 +93,7 @@ function FactBlock({ item, titles }: { item: Cited; titles: Map<string, string> 
       {from.length > 0 && (
         <div className="text-amber-200">
           <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em]">Source</p>
-          <EvidenceChips labels={from.map((label, index) => `conversation #${index + 1} ${label}`)} />
+          <EvidenceChips labels={from} />
         </div>
       )}
     </div>
@@ -128,7 +128,7 @@ function originalSlide(id: OriginalId, hydrated: PremiumReportShape, file: CaseF
   return blank();
 }
 
-function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map<string, string>): React.ReactNode {
+function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map<string, string>, order: Map<string, number>): React.ReactNode {
   const state = file.cardStatus[insight.id];
   const blocks = extraFacts(file, insight.id).filter((item) => item.v.trim());
   const empty = state === 'not-searched' || blocks.length === 0;
@@ -138,7 +138,7 @@ function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map
       title={insight.title}
       note={empty ? null : cardStateLabel(state, file.model.depth)}
     >
-      {empty ? <EmptyFile nested title={insight.dossier} message={emptyCardCopy(state !== 'not-searched')} /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} />)}
+      {empty ? <EmptyFile nested title={insight.dossier} message={emptyCardCopy(state !== 'not-searched')} /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} order={order} />)}
     </ExtraScreen>
   );
 }
@@ -178,6 +178,7 @@ const ReportView: React.FC<{
   demo?: boolean;
 }> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread }) => {
   const [savedLabel, setSavedLabel] = useState<'Save to account' | 'Saved' | 'Update saved copy'>('Save to account');
+  const order = useMemo(() => new Map(conversations.map((conversation, index) => [conversation.id, index])), [conversations]);
   const titles = useMemo(() => {
     const map = new Map(conversations.map((conversation) => [conversation.id, conversation.title]));
     for (const item of caseFile.notable) {
@@ -191,15 +192,18 @@ const ReportView: React.FC<{
   const status = reportStatus(caseFile);
   const badge = displayBadge(caseFile, Boolean(demo));
   const detailRef = useRef<HTMLDivElement>(null);
-  const codename = caseFile.narrative.codename;
+  const codename = publicSubjectName(caseFile);
+  useEffect(() => {
+    setSavedLabel('Save to account');
+  }, [caseFile.coverage.partial, caseFile.coverage.read, caseFile.coverage.failed, caseFile.coverage.narrative]);
   const caseNo = caseFileNumber(`${codename}|${caseFile.model.id}|${caseFile.coverage.read}`);
   const frame = (node: React.ReactNode) => (
     <DossierFrame meta={{ caseNo, subject: codename }}>{node}</DossierFrame>
   );
   const slides = useMemo(() => [
     ...ORIGINAL.map((insight) => ({ id: insight.id, node: originalSlide(insight.id, hydrated, caseFile, caseNo) })),
-    ...EXTRA.map((insight) => ({ id: insight.id, node: extraSlide(caseFile, insight, titles) })),
-  ], [caseFile, hydrated, titles, caseNo]);
+    ...EXTRA.map((insight) => ({ id: insight.id, node: extraSlide(caseFile, insight, titles, order) })),
+  ], [caseFile, hydrated, titles, order, caseNo]);
 
   useEffect(() => {
     if (viewerIndex == null) return;
@@ -280,9 +284,14 @@ const ReportView: React.FC<{
           <div className="mx-auto mt-6 h-1 w-32 rounded-full bg-gradient-to-r from-blue-400 to-purple-600" />
         </motion.div>
 
-        {status.badge === 'Partial report' && (
+        {status.badge === 'Partial report' && unreadCount(caseFile) > 0 && (
           <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-100" data-testid="partial-banner">
-            {plainPartialDetail(caseFile)} Unread conversations: {Math.max(0, caseFile.coverage.planned - caseFile.coverage.read)}. This is not saved as a complete success.
+            {plainPartialDetail(caseFile)} Unread conversations: {unreadCount(caseFile)}. This is not saved as a complete success.
+          </div>
+        )}
+        {status.badge === 'Partial report' && unreadCount(caseFile) === 0 && (
+          <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-100" data-testid="partial-banner">
+            {WRITE_UP_MISSING}
           </div>
         )}
         {caseFile.coverage.viaProxy && (

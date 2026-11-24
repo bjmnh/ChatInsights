@@ -8,8 +8,10 @@ const ProgressView: React.FC<{
   onPause: () => void;
   onResume: () => void;
 }> = ({ progress, paused, onPause, onResume }) => {
-  const denom = Math.max(1, progress.totalBatches);
-  const value = progress.phase === 'done' ? 100 : Math.min(99, Math.round((progress.completedBatches / denom) * 100));
+  const tracked = progress.planned > 0 ? progress.planned : progress.totalBatches;
+  const done = progress.planned > 0 ? progress.read : progress.completedBatches;
+  const denom = Math.max(1, tracked);
+  const value = progress.phase === 'done' ? 100 : Math.min(99, Math.round((done / denom) * 100));
   return (
     <div data-testid="progress" className="mx-auto max-w-3xl px-4 py-16">
       <p className="text-sm uppercase tracking-[0.16em] text-muted-foreground">Reading</p>

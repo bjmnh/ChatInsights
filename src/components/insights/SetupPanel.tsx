@@ -42,10 +42,12 @@ const SetupPanel: React.FC<{
   signedIn: boolean;
   accountHint: string | null;
   onSaveAccountKey: () => void;
+  startBlockedMessage?: string | null;
+  runError?: string | null;
 }> = ({
   values, onChange, estimate, selected, total, flagged, preset, savedKeys,
   testMessage, onTest, onRemember, onForget, onForgetAll, onUseSaved, onRun, busy,
-  signedIn, accountHint, onSaveAccountKey,
+  signedIn, accountHint, onSaveAccountKey, startBlockedMessage, runError,
 }) => {
   const models = MODEL_CATALOG.filter((model) => model.provider === values.providerId);
   const needsKey = preset.kind !== 'demo';
@@ -286,10 +288,13 @@ const SetupPanel: React.FC<{
           </label>
         </div>
 
+        {(startBlockedMessage || runError) && (
+          <p className="text-sm text-amber-200" data-testid="read-block">{startBlockedMessage || runError}</p>
+        )}
         <button
           type="button"
           data-testid="start-read"
-          disabled={busy || !values.consent || !values.modelId || (needsKey && !hasKey)}
+          disabled={busy || !values.consent || !values.modelId || (needsKey && !hasKey) || Boolean(startBlockedMessage)}
           onClick={onRun}
           className="rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground disabled:opacity-40"
         >

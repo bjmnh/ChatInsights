@@ -99,24 +99,43 @@ export async function providerFetch(
   }
 }
 
-export function throwForStatus(status: number, text: string, headers: Headers): void {
-  if (status === 401 || status === 403) {
-    throw new ProviderRequestError(readableAuth(text), status, 'auth');
+export const PROVIDER_AUTH_MESSAGE = 'Your API key was rejected by the provider. Check the key and try again.';
+
+const AUTH_TEXT = /api[_ -]?key|api_key_invalid|unauthenticated|permission denied|invalid[_ ]?key/i;
+
+/** 401/403, and the 400 Gemini (and some compatible hosts) return for a bad key. */
+export function isProviderAuthFailure(status: number, text: string): boolean {
+  if (status === 401 || status === 403) return true;
+  if (status !== 400 && status !== 422 && status !== 0) return false;
+  return AUTH_TEXT.test(text);
+}
+
+export function providerAuthError(error: unknown): ProviderRequestError | null {
+  if (!(error instanceof Error)) return null;
+  if (error instanceof ProviderRequestError && (error.kind === 'cors' || error.kind === 'rate' || error.kind === 'server' || error.kind === 'safety' || error.kind === 'schema')) {
+    return null;
   }
+  const status = error instanceof ProviderRequestError ? error.status : 0;
+  const kind = error instanceof ProviderRequestError ? error.kind : null;
+  if (kind === 'auth' || isProviderAuthFailure(status, error.message)) {
+    return new ProviderRequestError(PROVIDER_AUTH_MESSAGE, status || 401, 'auth');
+  }
+  return null;
+}
+
+export function throwForStatus(status: number, text: string, headers: Headers): void {
   if (status === 429) {
     throw new ProviderRequestError('The provider asked us to slow down.', status, 'rate', retryDelayMs(headers, 0));
   }
   if (status >= 500) {
     throw new ProviderRequestError('The provider had a server error.', status, 'server', retryDelayMs(headers, 0));
   }
+  if (isProviderAuthFailure(status, text)) {
+    throw new ProviderRequestError(PROVIDER_AUTH_MESSAGE, status, 'auth');
+  }
   if (status >= 400) {
     throw new ProviderRequestError(clip(text) || `Provider returned ${status}`, status, 'bad');
   }
-}
-
-function readableAuth(text: string): string {
-  if (/credit|billing|quota|payment/i.test(text)) return 'The key was rejected. The account may be out of credit or missing billing.';
-  return 'That key was rejected.';
 }
 
 function clip(text: string): string {

@@ -8,10 +8,14 @@ import { isSampleRead } from '../lib/archive/policy';
 import { parseConversationExport, validateUploadFile } from '../lib/conversationParser';
 import type { NormalizedConversation } from '../lib/conversationParser/types';
 import { createAdapter } from '../lib/insights/adapters';
-import { clearCheckpoint, idbVaultStore, loadCheckpoint, saveCheckpoint } from '../lib/insights/browserStore';
+import { clearCheckpoint, idbVaultStore, loadCheckpoint, saveCheckpoint, subscribeLocalReadCleared } from '../lib/insights/browserStore';
 import { ARCHIVE_ACK, ARCHIVE_NOTICE, EXPORT_GUIDES } from '../lib/insights/copy';
 import { selectConversations } from '../lib/insights/depth';
 import { estimateRead } from '../lib/insights/estimate';
+import { rejectedKeyBlock, shouldSaveLocalRun, PROVIDER_AUTH_MESSAGE, type KeyTestSnapshot } from '../lib/insights/keyGate';
+import { canShowCheckpoint } from '../lib/insights/localRead';
+import { packBatches } from '../lib/insights/pack';
+import { ProviderRequestError } from '../lib/insights/transport';
 import { forgetAllKeys, forgetKey, listKeys, rememberKey, revealKey, type KeySummary } from '../lib/insights/keyVault';
 import { runLocalPass, type LocalReport } from '../lib/insights/localPass';
 import type { CaseFile } from '../lib/insights/merge';
@@ -64,7 +68,7 @@ function applyProvider(providerId: string, current: SetupValues): SetupValues {
 }
 
 const ReadPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<'drop' | 'preview' | 'setup' | 'run' | 'report'>('drop');
   const [stage, setStage] = useState<UploadStage>('idle');
@@ -85,7 +89,32 @@ const ReadPage: React.FC = () => {
   const [accountHint, setAccountHint] = useState<string | null>(null);
   const [archiveAcknowledged, setArchiveAcknowledged] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [testedKey, setTestedKey] = useState<KeyTestSnapshot | null>(null);
+  const [runError, setRunError] = useState('');
   const retryFile = useRef<File | null>(null);
+  const readEpoch = useRef(0);
+
+  const resetRead = useCallback(() => {
+    readEpoch.current += 1;
+    setStep('drop');
+    setStage('idle');
+    setFilename('');
+    setConversations([]);
+    setLocal(null);
+    setCaseFile(null);
+    setResumeIds([]);
+    setProgress(null);
+    setPaused(false);
+    pausedRef.current = false;
+    setSaveMessage('');
+    setTestMessage('');
+    setTestedKey(null);
+    setRunError('');
+    setUploadError(null);
+    setSetup(DEFAULT_SETUP);
+    accountSecrets.current = {};
+    setAccountHint(null);
+  }, []);
 
   const refreshKeys = useCallback(async () => {
     try {
@@ -95,10 +124,24 @@ const ReadPage: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => subscribeLocalReadCleared(resetRead), [resetRead]);
+
   useEffect(() => {
     refreshKeys().catch(() => undefined);
-    loadCheckpoint().then((checkpoint) => {
-      if (!checkpoint || sampleLoaded.current) return;
+    if (authLoading) return;
+    const epoch = readEpoch.current;
+    const userId = user?.id ?? null;
+    let cancelled = false;
+    loadCheckpoint().then(async (checkpoint) => {
+      if (cancelled || epoch !== readEpoch.current || !checkpoint || sampleLoaded.current) return;
+      if (!canShowCheckpoint(checkpoint, userId)) {
+        await clearCheckpoint().catch(() => undefined);
+        return;
+      }
+      if (userId && checkpoint.ownerId == null) {
+        await saveCheckpoint({ ...checkpoint, ownerId: userId }).catch(() => undefined);
+      }
+      if (cancelled || epoch !== readEpoch.current) return;
       setConversations(checkpoint.conversations);
       setFilename(checkpoint.filename);
       setLocal(runLocalPass(checkpoint.conversations));
@@ -108,7 +151,10 @@ const ReadPage: React.FC = () => {
         setStep('report');
       }
     }).catch(() => undefined);
-  }, [refreshKeys]);
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, refreshKeys, user?.id]);
 
   useEffect(() => {
     if (!user) {
@@ -247,6 +293,7 @@ const ReadPage: React.FC = () => {
   });
 
   const patchSetup = (patch: Partial<SetupValues>) => {
+    if (patch.apiKey !== undefined || patch.providerId) setRunError('');
     setSetup((current) => {
       if (patch.providerId && patch.providerId !== current.providerId) return applyProvider(patch.providerId, { ...current, ...patch });
       if (patch.modelId && patch.modelId !== current.modelId) {
@@ -273,16 +320,29 @@ const ReadPage: React.FC = () => {
     return local.conversations.filter((conversation) => ids.has(conversation.id));
   }, [local, selection]);
   const priced = catalogModel(setup.providerId, setup.modelId);
+  const contextWindow = priced?.context ?? (preset.local ? 8192 : 128_000);
+  const plannedBatches = useMemo(() => {
+    if (!selection) return undefined;
+    const byId = new Map(conversations.map((conversation) => [conversation.id, conversation]));
+    const resumed = new Set(resumeIds);
+    const ordered = selection.chosenIds
+      .filter((id) => !resumed.has(id))
+      .map((id) => byId.get(id))
+      .filter((conversation): conversation is NormalizedConversation => Boolean(conversation));
+    return packBatches(ordered, setup.depth, contextWindow);
+  }, [selection, conversations, resumeIds, setup.depth, contextWindow]);
   const estimate = estimateRead({
     depth: setup.depth,
     conversationCount: chosen.length,
     userTokens: chosen.reduce((sum, item) => sum + item.userTokens, 0),
     fullTokens: chosen.reduce((sum, item) => sum + item.fullTokens, 0),
-    contextWindow: priced?.context ?? (preset.local ? 8192 : 128_000),
+    contextWindow,
     inputPricePerMillion: Number(setup.inputPrice) || 0,
     outputPricePerMillion: Number(setup.outputPrice) || 0,
     pacing: 'slow',
+    plannedBatches: plannedBatches?.map((batch) => ({ tokens: batch.tokens, userTokens: batch.userTokens })),
   });
+  const keyBlock = rejectedKeyBlock(testedKey, setup.providerId, resolveSecret());
 
   const remember = async () => {
     try {
@@ -327,9 +387,13 @@ const ReadPage: React.FC = () => {
         extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
       });
       const result = await adapter.testConnection!();
+      setTestedKey({ providerId: setup.providerId, secret: resolveSecret(), ok: result.ok, message: result.message });
       setTestMessage(result.message);
+      if (result.ok) setRunError('');
     } catch (error) {
-      setTestMessage(error instanceof Error ? error.message : 'The test call failed');
+      const message = error instanceof Error ? error.message : 'The test call failed';
+      setTestedKey({ providerId: setup.providerId, secret: resolveSecret(), ok: false, message });
+      setTestMessage(message);
     }
   };
 
@@ -357,6 +421,12 @@ const ReadPage: React.FC = () => {
 
   const start = async () => {
     if (!local) return;
+    const block = rejectedKeyBlock(testedKey, setup.providerId, resolveSecret());
+    if (block) {
+      setRunError(block);
+      toast.error(block);
+      return;
+    }
     if (user && setup.saveToAccount && setup.apiKey.trim()) {
       try {
         await saveAccountKey();
@@ -370,6 +440,7 @@ const ReadPage: React.FC = () => {
     setPaused(false);
     pausedRef.current = false;
     setSaveMessage('');
+    setRunError('');
     const adapter = setup.providerId === 'demo'
       ? createDemoAdapter({ latencyMs: 900 })
       : createAdapter(setup.providerId, {
@@ -402,6 +473,14 @@ const ReadPage: React.FC = () => {
         isPaused: () => pausedRef.current,
         onProgress: setProgress,
       });
+      if (!shouldSaveLocalRun(result.coverage)) {
+        setCaseFile(null);
+        setProgress(null);
+        setRunError(PROVIDER_AUTH_MESSAGE);
+        toast.error(PROVIDER_AUTH_MESSAGE);
+        setStep('setup');
+        return;
+      }
       setCaseFile(result);
       setStep('report');
       const fingerprint = await exportFingerprint(conversations);
@@ -415,9 +494,16 @@ const ReadPage: React.FC = () => {
         readIds: result.coverage.topics.map((topic) => topic.c),
         caseFile: result,
         updatedAt: new Date().toISOString(),
+        ownerId: user?.id ?? null,
       }).catch(() => undefined);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'The read stopped');
+      const message = error instanceof ProviderRequestError && error.kind === 'auth'
+        ? PROVIDER_AUTH_MESSAGE
+        : error instanceof Error ? error.message : 'The read stopped';
+      setCaseFile(null);
+      setProgress(null);
+      setRunError(message);
+      toast.error(message);
       setStep('setup');
     }
   };
@@ -545,6 +631,8 @@ const ReadPage: React.FC = () => {
           signedIn={Boolean(user)}
           accountHint={accountHint}
           onSaveAccountKey={() => { saveAccountKey().catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'The key could not be saved to your account.')); }}
+          startBlockedMessage={keyBlock}
+          runError={runError}
         />
       )}
 

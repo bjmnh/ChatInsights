@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { CONTENT_SECURITY_POLICY } from './csp.ts';
 import { donationHref } from './donation.ts';
 import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
-import { estimateRead, estimateWorkedExample, formatCost } from './estimate.ts';
+import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from './estimate.ts';
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
 import { cardPreviews, conversationTitle, EMPTY_RECORD, hydratePremiumReport, reportSubtitle, scrubRawCodes, toHashtag, uniqueDisplay } from './hydratePremium.ts';
 import { buildCaseFile, computeConfidence, decisionText, isComplete, NEUTRAL_CODENAME, reportLabel, reportStatus, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
-import { maskSensitive, packConversation } from './pack.ts';
+import { maskSensitive, packBatches, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
 import { createRateLimiter, handleProxyRequest } from './proxyHandler.ts';
@@ -20,7 +20,8 @@ import {
 } from './schema.ts';
 import { buildSampleConversations, createDemoAdapter } from './sample.ts';
 import { caseFileRow, exportFingerprint, persistenceFields, upsertByConflict } from './saveReport.ts';
-import { runRead } from './runner.ts';
+import { runRead, type RunProgress } from './runner.ts';
+import { ProviderRequestError, PROVIDER_AUTH_MESSAGE } from './transport.ts';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
   forgetAllKeys,
@@ -142,6 +143,67 @@ describe('cost estimate', () => {
     expect(tiny.cost).toBeLessThan(larger.cost);
     expect(pricey.cost).toBeGreaterThan(tiny.cost);
     expect(estimateRead({ ...prices, depth: 'quick', conversationCount: 2, userTokens: 278, fullTokens: 400 }).calls).toBe(1);
+  });
+
+  it('quotes a four-call quick scan as a range that covers several minutes', () => {
+    const estimate = estimateRead({
+      depth: 'quick',
+      conversationCount: 175,
+      userTokens: 150_000,
+      fullTokens: 162_000,
+      contextWindow: 1_000_000,
+      inputPricePerMillion: 0.3,
+      outputPricePerMillion: 2.5,
+    });
+    expect(estimate.calls).toBe(4);
+    expect(estimate.inputTokens).toBeGreaterThan(160_000);
+    expect(estimate.inputTokens).toBeLessThan(170_000);
+    expect(estimate.minutesLow).toBeLessThanOrEqual(4.5);
+    expect(estimate.minutesHigh).toBeGreaterThanOrEqual(4.5);
+    expect(formatMinutes(estimate.minutesLow, estimate.minutesHigh)).not.toBe('about 1 minute');
+    const tiny = estimateRead({
+      depth: 'quick',
+      conversationCount: 2,
+      userTokens: 278,
+      fullTokens: 400,
+      contextWindow: 1_000_000,
+      inputPricePerMillion: 0.3,
+      outputPricePerMillion: 2.5,
+    });
+    expect(tiny.calls).toBe(1);
+    expect(tiny.minutesHigh).toBeLessThan(3);
+  });
+
+  it('uses the packed batch plan when one is supplied', () => {
+    const heavy = Array.from({ length: 140 }, () => 'word '.repeat(20).trim()).join('\n');
+    const conversations = [
+      ...Array.from({ length: 5 }, (_, index) => convo(`heavy-${index}`, heavy)),
+      ...Array.from({ length: 15 }, (_, index) => convo(`light-${index}`, 'short note')),
+    ];
+    const userTokens = conversations.reduce((sum, item) => sum + Math.ceil(item.messages[0].text.length / 4), 0);
+    const batches = packBatches(conversations, 'quick', 12_000);
+    const averageCalls = estimateRead({
+      depth: 'quick',
+      conversationCount: conversations.length,
+      userTokens,
+      fullTokens: userTokens,
+      contextWindow: 12_000,
+      inputPricePerMillion: 0.3,
+      outputPricePerMillion: 2.5,
+    }).calls;
+    const planned = estimateRead({
+      depth: 'quick',
+      conversationCount: conversations.length,
+      userTokens,
+      fullTokens: userTokens,
+      contextWindow: 12_000,
+      inputPricePerMillion: 0.3,
+      outputPricePerMillion: 2.5,
+      plannedBatches: batches.map((batch) => ({ tokens: batch.tokens, userTokens: batch.userTokens })),
+    });
+    expect(batches.length).toBeGreaterThan(1);
+    expect(planned.calls).toBe(batches.length);
+    expect(planned.calls).not.toBe(averageCalls);
   });
 });
 
@@ -279,6 +341,66 @@ describe('budget cap and partial reports', () => {
     expect(result.coverage.partial).toBe(true);
     expect(reportLabel(result)).toBe('Partial');
   });
+
+  it('keeps the planned batch count stable when a batch is split', async () => {
+    const conversations = [0, 1, 2, 3].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
+    const seen: RunProgress[] = [];
+    let calls = 0;
+    await runRead({
+      conversations,
+      local: runLocalPass(conversations),
+      depth: 'quick',
+      quickFraction: 1,
+      model: { provider: 'script', id: 'script', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 1_000_000 },
+      adapter: {
+        id: 'script',
+        async complete(request: { user: string }) {
+          calls += 1;
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          if (ids.length > 1) throw new Error('parse failed');
+          return {
+            text: JSON.stringify({
+              convs: ids.map((id) => ({ c: id, topic: 'note' })),
+              facts: [],
+            }),
+            viaProxy: false,
+          };
+        },
+      },
+      sleep: async () => undefined,
+      onProgress: (progress) => seen.push(progress),
+    });
+    expect(calls).toBeGreaterThan(1);
+    expect(seen.some((progress) => progress.phase === 'batch')).toBe(true);
+    expect(new Set(seen.map((progress) => progress.totalBatches))).toEqual(new Set([seen[0]?.totalBatches]));
+    const batchLines = seen.filter((progress) => progress.phase === 'batch').map((progress) => progress.message);
+    expect(batchLines.every((line) => line.includes(`of ${seen[0]?.totalBatches}`))).toBe(true);
+    const reads = seen.map((progress) => progress.read);
+    expect(reads).toEqual([...reads].sort((a, b) => a - b));
+    expect(reads[reads.length - 1]).toBe(conversations.length);
+  });
+
+  it('stops on an invalid key instead of a batch-failed report', async () => {
+    const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index}.`));
+    let calls = 0;
+    const run = runRead({
+      conversations,
+      local: runLocalPass(conversations),
+      depth: 'quick',
+      quickFraction: 1,
+      model: { provider: 'gemini', id: 'gemini-3.5-flash-lite', inputPricePerMillion: 0.3, outputPricePerMillion: 2.5, contextWindow: 1_000_000 },
+      adapter: {
+        id: 'gemini',
+        async complete() {
+          calls += 1;
+          throw new ProviderRequestError('API key not valid. Please pass a valid API key.', 400, 'bad');
+        },
+      },
+      sleep: async () => undefined,
+    });
+    await expect(run).rejects.toThrow(PROVIDER_AUTH_MESSAGE);
+    expect(calls).toBe(1);
+  });
 });
 
 describe('demo pipeline', () => {
@@ -348,8 +470,21 @@ describe('demo pipeline', () => {
       adapter: createDemoAdapter({ latencyMs: 0 }),
       sleep: async () => undefined,
     });
-    expect(reportStatus(standardFile).badge).toBe('Finished');
+    expect(reportStatus(standardFile).badge).toBe('Complete report');
     expect(reportStatus(standardFile).detail).toMatch(/not flagged/);
+    const quickFile = await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 0.5,
+      model: { provider: 'demo', id: 'demo-extractor', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 },
+      adapter: createDemoAdapter({ latencyMs: 0 }),
+      sleep: async () => undefined,
+    });
+    expect(isComplete(quickFile)).toBe(true);
+    expect(reportStatus(quickFile).badge).toBe('Complete report');
+    expect(reportStatus(quickFile).badge).toBe(reportStatus(result).badge);
+    expect(reportStatus(quickFile).detail).toMatch(/sample/);
     expect(standardFile.cardStatus.stranger).toBe('ready');
     expect(standardFile.cardStatus.file).not.toBe('partial');
     expect(isEchoedPlaceholder('A profound, unvarnished observation about your inner patterns and motivations.')).toBe(true);
@@ -502,6 +637,20 @@ describe('provider adapters', () => {
     expect(header).toBe('gem-key');
     expect(captured).toContain('responseSchema');
     expect(captured).toContain('OBJECT');
+  });
+
+  it('treats a Gemini 400 for a bad key as an auth rejection', async () => {
+    const fetchImpl = async () => jsonResponse({
+      error: { code: 400, message: 'API key not valid. Please pass a valid API key.', status: 'INVALID_ARGUMENT' },
+    }, 400);
+    const adapter = createGeminiAdapter({
+      apiKey: 'not-a-key',
+      model: 'gemini-3.5-flash-lite',
+      fetchImpl: fetchImpl as never,
+      proxy: 'never',
+    });
+    await expect(adapter.complete({ system: 's', user: 'u', schemaName: 'batch_extract', maxOutputTokens: 20 }))
+      .rejects.toMatchObject({ kind: 'auth', message: PROVIDER_AUTH_MESSAGE });
   });
 
   it('sends Anthropic the browser opt-in header', async () => {

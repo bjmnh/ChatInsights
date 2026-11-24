@@ -4,9 +4,12 @@ export interface SavedProviderKey {
 }
 
 export class ProviderKeyError extends Error {
-  constructor(message: string) {
+  readonly status: number;
+
+  constructor(message: string, status = 0) {
     super(message);
     this.name = 'ProviderKeyError';
+    this.status = status;
   }
 }
 
@@ -31,7 +34,7 @@ async function post(options: KeyClientOptions, body: unknown): Promise<unknown> 
   });
   const payload = await response.json().catch(() => ({})) as { error?: unknown; saved?: unknown; hint?: unknown; key?: unknown };
   if (!response.ok) {
-    throw new ProviderKeyError(typeof payload.error === 'string' ? payload.error : 'The key could not be saved to your account.');
+    throw new ProviderKeyError(typeof payload.error === 'string' ? payload.error : 'The key could not be saved to your account.', response.status);
   }
   return payload;
 }

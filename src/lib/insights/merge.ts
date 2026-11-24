@@ -654,3 +654,44 @@ export function mergeCaseFiles(base: CaseFile, extra: CaseFile): CaseFile {
     }),
   };
 }
+
+export function applyNarrativeResult(
+  file: CaseFile,
+  draft: { cover?: string; blurbs?: Record<string, string>; codename?: string; codename_reason?: string; archetype?: string } | null,
+  status: NarrativeStatus,
+): CaseFile {
+  const written = status === 'written' && Boolean(draft?.cover) && !/It looked at /.test(draft?.cover ?? '');
+  const narrative = written && draft
+    ? {
+      ...file.narrative,
+      cover: draft.cover ?? file.narrative.cover,
+      blurbs: draft.blurbs ?? file.narrative.blurbs,
+      codename: draft.codename?.trim() || file.narrative.codename,
+      codename_reason: draft.codename_reason?.trim() || file.narrative.codename_reason,
+      archetype: draft.archetype?.trim() || file.narrative.archetype,
+    }
+    : file.narrative;
+  const missed = unreadCount(file);
+  const partialReason = missed > 0
+    ? file.coverage.partialReason
+    : status === 'skipped-budget'
+      ? 'budget'
+      : status === 'failed-provider' || status === 'failed'
+        ? WRITE_UP_MISSING
+        : undefined;
+  const coverage = finalizeCoverage({
+    ...file.coverage,
+    narrative: status,
+    partial: false,
+    partialReason,
+  });
+  const cardStatus = coverage.partial
+    ? (Object.fromEntries(Object.entries(cardStates(file.model.depth)).map(([id, state]) => [id, state === 'ready' ? 'partial' : state])) as Record<CardId, CardState>)
+    : cardStates(file.model.depth);
+  return {
+    ...file,
+    narrative,
+    coverage: { ...coverage, partialReason: coverage.partial ? partialReason : undefined },
+    cardStatus,
+  };
+}

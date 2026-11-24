@@ -21,7 +21,7 @@ import {
 import { buildSampleConversations, createDemoAdapter } from './sample.ts';
 import { caseFileRow, exportFingerprint, persistenceFields, upsertByConflict } from './saveReport.ts';
 import { runRead, type RunProgress } from './runner.ts';
-import { ProviderRequestError, PROVIDER_AUTH_MESSAGE } from './transport.ts';
+import { completeWithRetry, ProviderRequestError, PROVIDER_AUTH_MESSAGE, retryWaitMs } from './transport.ts';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
   forgetAllKeys,
@@ -503,6 +503,28 @@ describe('budget cap and partial reports', () => {
     expect(sentenceCase(merged.interests[0].v)).toBe('Monthly budget spreadsheet in Google Sheets');
   });
 
+  it('counts down the real retry wait, and a later attempt waits longer', async () => {
+    expect(retryWaitMs(0)).toBe(2000);
+    expect(retryWaitMs(1)).toBe(4000);
+    expect(retryWaitMs(0, 90_000)).toBe(90_000);
+    const seen: number[] = [];
+    let calls = 0;
+    await completeWithRetry(
+      async () => {
+        calls += 1;
+        if (calls < 3) throw new ProviderRequestError('overloaded', 503, 'server');
+        return 'ok';
+      },
+      async () => undefined,
+      (info) => seen.push(info.waitMs),
+    );
+    expect(calls).toBe(3);
+    expect(seen[0]).toBe(2000);
+    expect(seen[1]).toBe(1000);
+    expect(seen).toContain(4000);
+    expect(Math.max(...seen)).toBeGreaterThan(2000);
+  });
+
   it('stops on an invalid key instead of a batch-failed report', async () => {
     const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index}.`));
     let calls = 0;
@@ -617,7 +639,8 @@ describe('demo pipeline', () => {
       'Conversation 3 · Budget',
       'Conversation 1 · Rent',
     ]);
-    expect(vocabularyMeterValue({ vocabulary: 0.6, wordsPerMessage: 10 })).not.toBe(0.6);
+    expect(vocabularyMeterValue({ vocabulary: 0.603, wordsPerMessage: 40 })).toBeCloseTo(0.603);
+    expect(vocabularyMeterValue({ vocabulary: 0.603, wordsPerMessage: 40 })).not.toBe(1);
     expect(caseDownloadName('claude_conversations.json')).toBe('claude_conversations-case-file.json');
     expect(caseDownloadName('claude_conversations.json.json')).toBe('claude_conversations-case-file.json');
     expect(isThinProfileLabel('8 years')).toBe(true);

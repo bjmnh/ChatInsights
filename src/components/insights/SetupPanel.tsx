@@ -44,10 +44,11 @@ const SetupPanel: React.FC<{
   onSaveAccountKey: () => void;
   startBlockedMessage?: string | null;
   runError?: string | null;
+  sessionNote?: string | null;
 }> = ({
   values, onChange, estimate, selected, total, flagged, preset, savedKeys,
   testMessage, onTest, onRemember, onForget, onForgetAll, onUseSaved, onRun, busy,
-  signedIn, accountHint, onSaveAccountKey, startBlockedMessage, runError,
+  signedIn, accountHint, onSaveAccountKey, startBlockedMessage, runError, sessionNote,
 }) => {
   const models = MODEL_CATALOG.filter((model) => model.provider === values.providerId);
   const needsKey = preset.kind !== 'demo';
@@ -86,6 +87,10 @@ const SetupPanel: React.FC<{
           </label>
         )}
 
+        {sessionNote && (
+          <p className="rounded-2xl border border-amber-400/50 bg-amber-500/15 px-4 py-3 text-sm text-amber-100" data-testid="session-expired" role="alert">{sessionNote}</p>
+        )}
+
         {needsKey && (
           <label className="block text-sm">
             API key
@@ -95,7 +100,7 @@ const SetupPanel: React.FC<{
               className="mt-2 w-full rounded-xl border border-white/15 bg-transparent px-3 py-2"
               value={values.apiKey}
               onChange={(event) => onChange({ apiKey: event.target.value })}
-              placeholder={accountHint ? `Saved key ••••${accountHint}. Type a new key to replace it.` : 'Stays in memory unless you opt in below'}
+              placeholder={sessionNote ? 'Sign in again to load the saved key' : accountHint ? `Saved key ••••${accountHint}. Type a new key to replace it.` : 'Stays in memory unless you opt in below'}
             />
           </label>
         )}
@@ -324,7 +329,22 @@ const SetupPanel: React.FC<{
           <div className="flex justify-between gap-4"><dt>Output tokens</dt><dd>{formatTokens(estimate.outputTokens)}</dd></div>
           <div className="flex justify-between gap-4"><dt>Calls</dt><dd>{estimate.calls}</dd></div>
           <div className="flex justify-between gap-4"><dt>Time</dt><dd>{formatMinutes(estimate.minutesLow, estimate.minutesHigh)}</dd></div>
+          {(values.maxDollars.trim() || values.maxTokens.trim()) && (
+            <div className="flex justify-between gap-4"><dt>Active cap</dt><dd>{[values.maxDollars.trim() ? `$${values.maxDollars.trim()}` : '', values.maxTokens.trim() ? `${values.maxTokens.trim()} tokens` : ''].filter(Boolean).join(' · ')}</dd></div>
+          )}
         </dl>
+        {(() => {
+          const dollars = Number(values.maxDollars);
+          const tokens = Number(values.maxTokens);
+          const dollarShort = values.maxDollars.trim() !== '' && Number.isFinite(dollars) && dollars < estimate.cost;
+          const tokenShort = values.maxTokens.trim() !== '' && Number.isFinite(tokens) && tokens < estimate.inputTokens + estimate.outputTokens;
+          if (!dollarShort && !tokenShort) return null;
+          return (
+            <p className="mt-4 rounded-2xl border border-amber-400/50 bg-amber-500/15 px-4 py-3 text-sm text-amber-100" data-testid="cap-warning">
+              This cap is below the estimate ({formatCost(estimate.cost)}, about {formatTokens(estimate.inputTokens + estimate.outputTokens)} tokens), so the read can stop early and come back partial.
+            </p>
+          );
+        })()}
         <p className="mt-4 text-xs text-muted-foreground">One batch at a time, so a free-tier key can finish. It will just be slow. A hard cap stops after the last finished batch and labels the report partial.</p>
       </aside>
     </div>

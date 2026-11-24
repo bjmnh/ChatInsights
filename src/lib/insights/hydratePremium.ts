@@ -197,10 +197,9 @@ export function sentenceCase(value: string): string {
   }).join('');
 }
 
-/** Vocabulary is unique words per message, not the question-share ratio. */
+/** Type-token ratio on a 0–1 bar. 0.603 displays as 60%, not 100%. */
 export function vocabularyMeterValue(style: { vocabulary: number; wordsPerMessage: number }): number {
-  const uniquePerMessage = Math.max(0, style.vocabulary) * Math.max(0, style.wordsPerMessage);
-  return Math.max(0, Math.min(1, uniquePerMessage / 20));
+  return Math.max(0, Math.min(1, style.vocabulary));
 }
 
 export function publicSubjectName(file: CaseFile): string {
@@ -210,7 +209,7 @@ export function publicSubjectName(file: CaseFile): string {
     const words = value.split(/\s+/);
     return words.length >= 1 && words.length <= 4 && !value.includes('#') && !/^\d/.test(value);
   });
-  return seed ? sentenceCase(seed) : 'This read';
+  return seed ? sentenceCase(seed) : 'Untitled case file';
 }
 
 export function sourceLabels(ids: string[], titles: Map<string, string>, order: Map<string, number>): string[] {
@@ -466,7 +465,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
       ],
       meters: [
         { label: 'Questions', value: file.style.questionShare },
-        { label: 'Vocabulary', value: vocabularyMeterValue(file.style) },
+        { label: `Type-token ${file.style.vocabulary.toFixed(2)}`, value: vocabularyMeterValue(file.style) },
       ],
       potentialInterestsIndicatedByLanguage: interestLines,
       disclaimer: 'From the local pass. No model call for these counts.',
@@ -545,9 +544,13 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
           examples: [titlesOf(item.ev, titles) || item.v],
         })),
       ],
-      overallSecurityPosture: titlesOf(file.exposure.ev, titles)
-        ? `Identifiers showed up in: ${titlesOf(file.exposure.ev, titles)}.`
-        : 'No identifier turned up in the local pass.',
+      overallSecurityPosture: awarenessScore === 'High Risk'
+        ? (file.health.length
+          ? 'High risk. A health note is in these chats.'
+          : 'High risk. Several identifiers showed up in these chats.')
+        : awarenessScore === 'Medium Risk'
+          ? 'Medium risk. An identifier or a money note showed up.'
+          : 'Low risk. No identifier turned up in the local pass.',
       recommendedActions: ['Download the case file if you want a copy of the report. The uploaded export is stored separately for security review.'],
       disclaimer: 'This is not a security audit.',
     };

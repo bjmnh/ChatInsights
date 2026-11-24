@@ -16,13 +16,25 @@ export class ProviderRequestError extends Error {
   }
 }
 
+/** Retry-After as seconds or an HTTP date. Absent or unreadable headers return undefined. */
+export function headerRetryAfterMs(headers: Headers): number | undefined {
+  const retryAfter = headers.get('retry-after')?.trim();
+  if (!retryAfter) return undefined;
+  if (/^\d+(\.\d+)?$/.test(retryAfter)) return Math.min(120_000, Math.round(Number(retryAfter) * 1000));
+  const when = Date.parse(retryAfter);
+  if (Number.isNaN(when)) return undefined;
+  return Math.min(120_000, Math.max(0, when - Date.now()));
+}
+
+/** The wait before the next try. Attempt 0 waits 2s, then 4s, 8s, 16s, 32s, capped at 60s. A Retry-After longer than that wins, up to 2 minutes. */
+export function retryWaitMs(attempt: number, headerMs?: number): number {
+  const backoff = Math.min(60_000, 2000 * 2 ** Math.max(0, attempt));
+  if (headerMs && headerMs > backoff) return Math.min(120_000, headerMs);
+  return backoff;
+}
+
 export function retryDelayMs(headers: Headers, attempt: number): number {
-  const retryAfter = headers.get('retry-after');
-  if (retryAfter && /^\d+(\.\d+)?$/.test(retryAfter.trim())) {
-    return Math.min(120_000, Math.round(Number(retryAfter) * 1000));
-  }
-  const base = Math.min(30_000, 1000 * 2 ** attempt);
-  return base + Math.floor(Math.random() * 250);
+  return retryWaitMs(attempt, headerRetryAfterMs(headers));
 }
 
 export function isSchemaRejection(status: number, body: string): boolean {
@@ -125,10 +137,10 @@ export function providerAuthError(error: unknown): ProviderRequestError | null {
 
 export function throwForStatus(status: number, text: string, headers: Headers): void {
   if (status === 429) {
-    throw new ProviderRequestError('The provider asked us to slow down.', status, 'rate', retryDelayMs(headers, 0));
+    throw new ProviderRequestError('The provider asked us to slow down.', status, 'rate', headerRetryAfterMs(headers));
   }
   if (status >= 500) {
-    throw new ProviderRequestError('The provider had a server error.', status, 'server', retryDelayMs(headers, 0));
+    throw new ProviderRequestError('The provider had a server error.', status, 'server', headerRetryAfterMs(headers));
   }
   if (isProviderAuthFailure(status, text)) {
     throw new ProviderRequestError(PROVIDER_AUTH_MESSAGE, status, 'auth');
@@ -146,16 +158,18 @@ export async function completeWithRetry<T>(
   run: () => Promise<T>,
   sleep: (ms: number) => Promise<void>,
   onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
+  onAttempt?: (attempt: number) => void,
 ): Promise<T> {
   let last: unknown;
   for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (attempt > 0) onAttempt?.(attempt + 1);
     try {
       return await run();
     } catch (error) {
       if (error instanceof ProviderRequestError && (error.kind === 'rate' || error.kind === 'server')) {
         last = error;
         if (attempt >= 4) break;
-        const wait = error.retryAfterMs ?? Math.min(30_000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 250);
+        const wait = retryWaitMs(attempt, error.retryAfterMs);
         const status = error.status || (error.kind === 'rate' ? 429 : 503);
         let remaining = wait;
         while (remaining > 0) {

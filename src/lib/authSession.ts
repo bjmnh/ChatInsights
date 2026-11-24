@@ -27,6 +27,30 @@ export function isSupabaseSessionKey(key: string): boolean {
   return key.startsWith('sb-') && key.endsWith('-auth-token');
 }
 
+export const SESSION_EXPIRED_MESSAGE = 'Your session expired. Please sign in again.';
+export const SESSION_EXPIRED_EVENT = 'ci-session-expired';
+
+export function isExpiredSession(input: { status?: number; message?: string }): boolean {
+  const message = input.message ?? '';
+  if (/auth session missing|session missing|invalid refresh token|refresh token|jwt expired|invalid jwt/i.test(message)) return true;
+  return input.status === 401;
+}
+
+export function clearStoredAuthTokens(storage: Pick<Storage, 'length' | 'key' | 'removeItem'> | null | undefined = globalThis.localStorage): void {
+  if (!storage) return;
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key && isSupabaseSessionKey(key)) keys.push(key);
+  }
+  keys.forEach((key) => storage.removeItem(key));
+}
+
+export function requestSessionExpiry(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+}
+
 export function readStoredSessionUser(storage: Pick<Storage, 'length' | 'key' | 'getItem'> | null | undefined = globalThis.localStorage): StoredSessionUser | null {
   if (!storage) return null;
   try {

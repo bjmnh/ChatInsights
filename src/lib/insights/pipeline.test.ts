@@ -7,6 +7,7 @@ import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from '
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber, caseNumberFor } from './caseNumber.ts';
+import { checkpointAfterRetry } from './browserStore.ts';
 import { cardPreviews, caseDownloadName, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, isThinProfileLabel, publicSubjectName, reportSubtitle, scrubRawCodes, sentenceCase, sourceLabels, toHashtag, uniqueDisplay, vocabularyMeterValue } from './hydratePremium.ts';
 import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, WRITE_UP_MISSING, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
@@ -20,8 +21,8 @@ import {
 } from './schema.ts';
 import { buildSampleConversations, createDemoAdapter } from './sample.ts';
 import { caseFileRow, exportFingerprint, persistenceFields, upsertByConflict } from './saveReport.ts';
-import { runRead, type RunProgress } from './runner.ts';
-import { completeWithRetry, headerRetryAfterMs, ProviderRequestError, PROVIDER_AUTH_MESSAGE, retryWaitMs } from './transport.ts';
+import { retryNarrative, runRead, type RunProgress } from './runner.ts';
+import { completeWithRetry, headerRetryAfterMs, ProviderRequestError, PROVIDER_AUTH_MESSAGE, providerWaitMessage, retryWaitMs } from './transport.ts';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
   forgetAllKeys,
@@ -445,6 +446,7 @@ describe('budget cap and partial reports', () => {
       schema_version: '1.0' as const,
       model: { provider: 'gemini', id: 'gemini', depth: 'standard' as const },
       filedAt: '2026-11-24T00:00:00.000Z',
+      runId: 'run-rent',
       coverage: {
         conversations: 3, planned: 3, read: 2, skipped: 0, batches: 2, failed: 1,
         depth: 'standard' as const, partial: true, partialReason: 'The provider failed on 1 conversation after several retries.',
@@ -499,6 +501,9 @@ describe('budget cap and partial reports', () => {
     expect(persistenceFields(merged).partial).toBe(false);
     expect(merged.narrative.cover).toBe('You keep coming back to the rent.');
     expect(merged.narrative.cover).not.toMatch(/in 0 of 3/);
+    expect(merged.runId).toBe(base.runId);
+    expect(merged.filedAt).toBe(base.filedAt);
+    expect(caseNumberFor(merged)).toBe(caseNumberFor(base));
     expect(publicSubjectName(merged)).toBe('Second Draft');
     expect(publicCodenameReason(base.narrative.codename_reason)).toBe(WRITE_UP_MISSING);
     expect(sentenceCase(merged.interests[0].v)).toBe('Monthly budget spreadsheet in Google Sheets');
@@ -537,6 +542,123 @@ describe('budget cap and partial reports', () => {
       (info) => paced.push(info.waitMs),
     );
     expect(paced[0]).toBe(30_000);
+  });
+
+  it('retries only the original selection, then a finished retry is complete and saveable', async () => {
+    const conversations = [0, 1, 2, 3, 4].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
+    const local = runLocalPass(conversations);
+    const plan = ['c0', 'c1'];
+    let fail = true;
+    const seen: number[] = [];
+    const adapter = {
+      id: 'script',
+      async complete(request: { user: string; schemaName?: string }) {
+        if (request.schemaName === 'narrative') return { text: '{}', viaProxy: false };
+        const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+        if (fail && ids.includes('c1')) throw new ProviderRequestError('overloaded', 503, 'server');
+        return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false };
+      },
+    };
+    const first = await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 0.1,
+      selectedIds: plan,
+      model: { provider: 'script', id: 'script', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 3500 },
+      adapter,
+      sleep: async () => undefined,
+      onProgress: (progress) => seen.push(progress.planned),
+    });
+    expect(seen.every((planned) => planned === 2)).toBe(true);
+    expect(first.coverage.selectedIds).toEqual(plan);
+    expect(first.coverage.planned).toBe(2);
+    expect(first.coverage.partial).toBe(true);
+    fail = false;
+    const retriedPlans: number[] = [];
+    const second = await runRead({
+      conversations,
+      local,
+      depth: 'standard',
+      selectedIds: first.coverage.selectedIds,
+      alreadyReadIds: first.coverage.topics.map((topic) => topic.c),
+      model: { provider: 'script', id: 'script', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 3500 },
+      adapter,
+      sleep: async () => undefined,
+      onProgress: (progress) => retriedPlans.push(progress.planned),
+    });
+    expect(retriedPlans.every((planned) => planned === 2)).toBe(true);
+    expect(second.coverage.planned).toBe(2);
+    const merged = mergeCaseFiles(first, second);
+    expect(merged.coverage.read).toBe(2);
+    expect(merged.coverage.failed).toBe(0);
+    expect(isComplete(merged)).toBe(true);
+    expect(reportStatus(merged).badge).not.toBe('Partial report');
+    expect(persistenceFields(merged).partial).toBe(false);
+    expect(merged.narrative.cover).toMatch(/in 2 of 5 conversations/);
+    expect(caseNumberFor(merged)).toBe(caseNumberFor(first));
+    const stored = checkpointAfterRetry({
+      fingerprint: 'fp',
+      filename: 'export.json',
+      depth: 'quick',
+      provider: 'script',
+      model: 'script',
+      conversations,
+      readIds: first.coverage.topics.map((topic) => topic.c),
+      caseFile: first,
+      updatedAt: '2026-11-24T00:00:00.000Z',
+      selectedIds: plan,
+    }, merged);
+    expect(stored.caseFile).toBe(merged);
+    expect(stored.readIds).toEqual(merged.coverage.topics.map((topic) => topic.c));
+    expect(stored.selectedIds).toEqual(plan);
+    expect(stored.caseFile?.coverage.read).toBe(2);
+  });
+
+  it('retries only the write-up when every selected chat was already read', async () => {
+    const conversations = [convo('c0', 'My sister Dana wrote about the rent.')];
+    const local = runLocalPass(conversations);
+    const blocked = await runRead({
+      conversations,
+      local,
+      depth: 'standard',
+      model: { provider: 'script', id: 'script', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 },
+      adapter: {
+        id: 'script',
+        async complete(request: { user: string; schemaName?: string }) {
+          if (request.schemaName === 'narrative') throw new ProviderRequestError('overloaded', 503, 'server');
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(blocked.coverage.read).toBe(blocked.coverage.planned);
+    expect(blocked.coverage.narrative).toBe('failed-provider');
+    expect(isComplete(blocked)).toBe(false);
+    const written = await retryNarrative({
+      file: blocked,
+      sleep: async () => undefined,
+      adapter: {
+        id: 'script',
+        async complete() {
+          return {
+            text: JSON.stringify({
+              cover: 'You keep coming back to the rent.',
+              codename: 'Second Draft',
+              codename_reason: 'You rewrite the rent note until it sounds like you.',
+              archetype: 'The person who rewrites the rent note',
+            }),
+            viaProxy: false,
+          };
+        },
+      },
+    });
+    expect(written.coverage.narrative).toBe('written');
+    expect(isComplete(written)).toBe(true);
+    expect(persistenceFields(written).partial).toBe(false);
+    expect(written.narrative.cover).toBe('You keep coming back to the rent.');
+    expect(caseNumberFor(written)).toBe(caseNumberFor(blocked));
   });
 
   it('sends Quick scan batches one at a time', async () => {
@@ -655,6 +777,10 @@ describe('demo pipeline', () => {
     expect(firstFile).toMatch(/^CI-\d{4}$/);
     expect(secondFile).not.toBe(firstFile);
     expect(caseNumberFor({ ...shared, runId: 'run-a', filedAt: '2026-11-24T00:00:00.000Z' }, ['a'])).toBe(firstFile);
+    expect(caseNumberFor({ ...shared, runId: 'run-a', filedAt: '2026-11-24T12:00:00.000Z' }, ['other-file'])).toBe(firstFile);
+    expect(providerWaitMessage(429, 4000, 2)).toMatch(/rate-limiting \(429\)/);
+    expect(providerWaitMessage(429, 4000, 2)).not.toMatch(/busy/);
+    expect(providerWaitMessage(503, 8000, 3)).toMatch(/busy \(503\)/);
     expect(settleCodename({ codename: 'backend engineer', codename_reason: 'Because of the job title.' }, ['backend engineer']).codename).toBe(NEUTRAL_CODENAME);
     expect(settleArchetype('backend engineer, moved into team lead', 'Second Draft', ['backend engineer, moved into team lead'])).toBe('Cast as Second Draft');
     expect(settleArchetype('The Determined Career Pivot Strategist', 'Second Draft', [])).toBe('Cast as Second Draft');

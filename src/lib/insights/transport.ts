@@ -37,6 +37,13 @@ export function retryDelayMs(headers: Headers, attempt: number): number {
   return retryWaitMs(attempt, headerRetryAfterMs(headers));
 }
 
+/** 429 is rate limiting. 503 and other server errors are the provider being busy. */
+export function providerWaitMessage(status: number, waitMs: number, attempt: number): string {
+  const seconds = Math.max(1, Math.ceil(waitMs / 1000));
+  const cause = status === 429 ? 'rate-limiting' : 'busy';
+  return `The provider is ${cause} (${status}). Retrying in ${seconds}s… (attempt ${attempt} of 5).`;
+}
+
 export function isSchemaRejection(status: number, body: string): boolean {
   if (status !== 400 && status !== 422) return false;
   return /response_format|json_schema|structured|output_config|unknown field|response_schema|invalid schema|tool_choice/i.test(body);

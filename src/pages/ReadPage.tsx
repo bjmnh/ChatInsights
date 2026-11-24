@@ -8,7 +8,7 @@ import { isSampleRead } from '../lib/archive/policy';
 import { parseConversationExport, validateUploadFile } from '../lib/conversationParser';
 import type { NormalizedConversation } from '../lib/conversationParser/types';
 import { createAdapter } from '../lib/insights/adapters';
-import { clearCheckpoint, idbVaultStore, loadCheckpoint, saveCheckpoint, subscribeLocalReadCleared } from '../lib/insights/browserStore';
+import { checkpointAfterRetry, clearCheckpoint, idbVaultStore, loadCheckpoint, saveCheckpoint, subscribeLocalReadCleared } from '../lib/insights/browserStore';
 import { ARCHIVE_ACK, ARCHIVE_NOTICE, EXPORT_GUIDES } from '../lib/insights/copy';
 import { selectConversations } from '../lib/insights/depth';
 import { estimateRead } from '../lib/insights/estimate';
@@ -157,6 +157,15 @@ const ReadPage: React.FC = () => {
       setFilename(checkpoint.filename);
       setLocal(runLocalPass(checkpoint.conversations));
       setResumeIds(checkpoint.readIds);
+      setSetup((current) => {
+        const next = applyProvider(checkpoint.provider, current);
+        return {
+          ...next,
+          depth: checkpoint.depth,
+          modelId: checkpoint.model || next.modelId,
+          quickFraction: checkpoint.quickFraction ?? current.quickFraction,
+        };
+      });
       if (checkpoint.caseFile) {
         setCaseFile(checkpoint.caseFile);
         setStep('report');
@@ -601,19 +610,7 @@ const ReadPage: React.FC = () => {
       }
       setCaseFile(result);
       setStep('report');
-      const fingerprint = await exportFingerprint(conversations);
-      await saveCheckpoint({
-        fingerprint,
-        filename,
-        depth: setup.depth,
-        provider: setup.providerId,
-        model: setup.modelId,
-        conversations,
-        readIds: result.coverage.topics.map((topic) => topic.c),
-        caseFile: result,
-        updatedAt: new Date().toISOString(),
-        ownerId: user?.id ?? null,
-      }).catch(() => undefined);
+      await persistRead(result);
     } catch (error) {
       const message = error instanceof ProviderRequestError && error.kind === 'auth'
         ? PROVIDER_AUTH_MESSAGE
@@ -624,6 +621,25 @@ const ReadPage: React.FC = () => {
       toast.error(message);
       setStep('setup');
     }
+  };
+
+  const persistRead = async (file: CaseFile) => {
+    const fingerprint = await exportFingerprint(conversations);
+    const stored = await loadCheckpoint().catch(() => null);
+    await saveCheckpoint(checkpointAfterRetry({
+      fingerprint,
+      filename,
+      depth: file.model.depth,
+      provider: file.model.provider,
+      model: file.model.id,
+      conversations,
+      readIds: file.coverage.topics.map((topic) => topic.c),
+      caseFile: file,
+      updatedAt: new Date().toISOString(),
+      ownerId: user?.id ?? stored?.ownerId ?? null,
+      selectedIds: file.coverage.selectedIds ?? stored?.selectedIds,
+      quickFraction: setup.quickFraction,
+    }, file)).catch(() => undefined);
   };
 
   const download = () => {
@@ -707,12 +723,14 @@ const ReadPage: React.FC = () => {
         },
         adapter,
         alreadyReadIds: readIds,
+        selectedIds: previous.coverage.selectedIds,
         isPaused: () => pausedRef.current,
         budget,
         onProgress: setProgress,
       });
       const merged = mergeCaseFiles(previous, result);
       setCaseFile(merged);
+      await persistRead(merged);
       const calls = result.coverage.batches;
       setRetryNote(merged.coverage.partial
         ? calls > 0
@@ -750,6 +768,7 @@ const ReadPage: React.FC = () => {
     try {
       const next = await retryNarrative({ file: caseFile, adapter, onProgress: setProgress });
       setCaseFile(next);
+      await persistRead(next);
       setRetryNote(next.coverage.partial ? 'The write-up was tried again and still did not finish.' : '');
       setStep('report');
     } catch (error) {

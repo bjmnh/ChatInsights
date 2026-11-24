@@ -62,6 +62,20 @@ export interface LocalCheckpoint {
   updatedAt: string;
   /** Account that produced the read. Null means it was anonymous and may be adopted by a new account. */
   ownerId?: string | null;
+  /** Chats the original depth planned to send. Retry must not recompute this. */
+  selectedIds?: string[];
+  quickFraction?: number;
+}
+
+/** Replace the stored report with the merged retry, keeping the original plan. */
+export function checkpointAfterRetry(checkpoint: LocalCheckpoint, merged: CaseFile): LocalCheckpoint {
+  return {
+    ...checkpoint,
+    caseFile: merged,
+    readIds: merged.coverage.topics.map((topic) => topic.c),
+    selectedIds: merged.coverage.selectedIds?.length ? merged.coverage.selectedIds : checkpoint.selectedIds,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 export async function saveCheckpoint(checkpoint: LocalCheckpoint): Promise<void> {

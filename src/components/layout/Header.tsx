@@ -15,7 +15,7 @@ import { LogOut } from 'lucide-react';
 import DonateLink from '../insights/DonateLink';
 
 const Header: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -39,7 +39,9 @@ const Header: React.FC = () => {
         </nav>
 
         <div className="flex items-center gap-2">
-          {user ? (
+          {loading && !user ? (
+            <div className="h-10 w-24" aria-hidden="true" data-testid="header-auth-pending" />
+          ) : user ? (
             <>
               <Button variant="ghost" className="hidden sm:inline-flex" onClick={() => navigate('/read')}>
                 Read
@@ -71,7 +73,9 @@ const Header: React.FC = () => {
             </>
           ) : (
             <>
-              <Button variant="ghost" onClick={() => navigate('/auth')}>Sign in</Button>
+              <Button asChild variant="ghost">
+                <Link to="/auth">Sign in</Link>
+              </Button>
               <Button onClick={() => navigate('/read')} className="rounded-full px-4">
                 Read an export
               </Button>

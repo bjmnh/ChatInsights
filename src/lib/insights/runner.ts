@@ -14,7 +14,7 @@ import {
 import { selectConversations, type DepthId } from './depth.ts';
 import type { LocalReport } from './localPass.ts';
 import { toneOk } from './checks.ts';
-import { completeWithRetry, ProviderRequestError } from './transport.ts';
+import { completeWithRetry, providerAuthError, ProviderRequestError } from './transport.ts';
 
 export interface RunModel {
   provider: string;
@@ -103,17 +103,27 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   let spentTokens = 0;
   let completed = 0;
   let stopReason: string | undefined;
-  const totalAtStart = queue.length;
+  const plannedBatchCount = queue.length;
+  const accounted = new Set<string>();
+  for (const id of selection.chosenIds) {
+    if (already.has(id)) accounted.add(id);
+  }
 
   const progress = (phase: RunProgress['phase'], message: string): RunProgress => ({
     phase,
-    completedBatches: completed,
-    totalBatches: Math.max(totalAtStart, completed + queue.length),
-    read: topics.length,
+    completedBatches: Math.min(completed, plannedBatchCount),
+    totalBatches: plannedBatchCount,
+    read: accounted.size,
     planned: selection.chosenIds.length,
     viaProxy,
     message,
   });
+
+  const batchMessage = () => {
+    if (!plannedBatchCount) return 'Reading.';
+    const index = Math.min(completed + 1, plannedBatchCount);
+    return `Reading batch ${index} of ${plannedBatchCount}.`;
+  };
 
   input.onProgress?.(progress('packing', 'Packing the chats that this depth will send.'));
 
@@ -133,7 +143,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       stopReason = 'budget';
       break;
     }
-    input.onProgress?.(progress('batch', `Reading batch ${completed + 1} of ${completed + queue.length}.`));
+    input.onProgress?.(progress('batch', batchMessage()));
     try {
       const extracted = await extractBatch(input, batch, sleep);
       if (extracted.viaProxy) viaProxy = true;
@@ -150,6 +160,9 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       spentTokens += extracted.usage ? extracted.usage.input + extracted.usage.output : estimate.inputTokens + estimate.outputTokens;
       queue.shift();
       completed += 1;
+      // Count the batch as soon as it returns so the "accounted for" number
+      // stays with the plan, even when a missing id is retried quietly.
+      batch.ids.forEach((id) => accounted.add(id));
       if (missing.length && !batch.wasRetry) {
         const again = missing.map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
         const [repacked] = packBatches(again, input.depth, input.model.contextWindow || 32_000);
@@ -158,14 +171,19 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
         missing.forEach((id) => failed.add(id));
       }
     } catch (error) {
+      const authError = providerAuthError(error);
+      if (authError) throw authError;
       if (error instanceof ProviderRequestError && error.kind === 'safety') {
         queue.shift();
-        batch.ids.forEach((id) => failed.add(id));
+        batch.ids.forEach((id) => {
+          failed.add(id);
+          accounted.add(id);
+        });
         completed += 1;
         stopReason = stopReason ?? 'safety';
         continue;
       }
-      if (batch.ids.length > 1 && !(error instanceof ProviderRequestError && (error.kind === 'auth' || error.kind === 'cors'))) {
+      if (batch.ids.length > 1 && !(error instanceof ProviderRequestError && error.kind === 'cors')) {
         queue.shift();
         const mid = Math.ceil(batch.ids.length / 2);
         const left = batch.ids.slice(0, mid).map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
@@ -174,9 +192,12 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
         queue.unshift(...pieces);
         continue;
       }
-      if (error instanceof ProviderRequestError && (error.kind === 'auth' || error.kind === 'cors')) throw error;
+      if (error instanceof ProviderRequestError && error.kind === 'cors') throw error;
       queue.shift();
-      batch.ids.forEach((id) => failed.add(id));
+      batch.ids.forEach((id) => {
+        failed.add(id);
+        accounted.add(id);
+      });
       completed += 1;
       stopReason = stopReason ?? 'batch-failed';
     }

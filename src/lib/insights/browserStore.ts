@@ -1,6 +1,7 @@
 import type { NormalizedConversation } from '../conversationParser/types.ts';
 import type { DepthId } from './depth.ts';
 import type { VaultStore } from './keyVault.ts';
+import { LOCAL_READ_CLEARED_EVENT } from './localRead.ts';
 import type { CaseFile } from './merge.ts';
 
 const DB_NAME = 'chat-insights';
@@ -59,6 +60,8 @@ export interface LocalCheckpoint {
   readIds: string[];
   caseFile?: CaseFile;
   updatedAt: string;
+  /** Account that produced the read. Null means it was anonymous and may be adopted by a new account. */
+  ownerId?: string | null;
 }
 
 export async function saveCheckpoint(checkpoint: LocalCheckpoint): Promise<void> {
@@ -75,4 +78,26 @@ export async function loadCheckpoint(): Promise<LocalCheckpoint | null> {
 export async function clearCheckpoint(): Promise<void> {
   const db = await openDb();
   await requestToPromise(db.transaction('checkpoints', 'readwrite').objectStore('checkpoints').delete('current'));
+}
+
+export function notifyLocalReadCleared(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(LOCAL_READ_CLEARED_EVENT));
+}
+
+export function subscribeLocalReadCleared(listener: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const handler = () => listener();
+  window.addEventListener(LOCAL_READ_CLEARED_EVENT, handler);
+  return () => window.removeEventListener(LOCAL_READ_CLEARED_EVENT, handler);
+}
+
+/** Drop the on-device case file and tell open pages to forget it. Saved keys and saved account reports stay. */
+export async function clearLocalRead(): Promise<void> {
+  try {
+    await clearCheckpoint();
+  } catch {
+    // Still tell the page to drop its copy. A locked database should not keep the case file on screen.
+  }
+  notifyLocalReadCleared();
 }

@@ -5,6 +5,11 @@ export const NARRATIVE_INPUT_TOKENS = 30_000;
 export const NARRATIVE_OUTPUT_TOKENS = 16_000;
 export const COST_CUSHION = 1.2;
 
+export interface PlannedBatchSize {
+  tokens: number;
+  userTokens: number;
+}
+
 export interface EstimateInput {
   depth: DepthId;
   conversationCount: number;
@@ -14,6 +19,11 @@ export interface EstimateInput {
   inputPricePerMillion: number;
   outputPricePerMillion: number;
   pacing?: 'slow' | 'faster';
+  /**
+   * Batches from packBatches for the chats this depth will send.
+   * When set, the call count is that plan instead of an average-size guess.
+   */
+  plannedBatches?: PlannedBatchSize[];
 }
 
 export interface Estimate {
@@ -33,9 +43,11 @@ export function estimateRead(input: EstimateInput): Estimate {
   const sourceTokens = input.depth === 'forensic' ? Math.max(0, input.fullTokens) : userTokens;
   const average = count ? sourceTokens / count : 0;
   const batchSize = batchSizeFor(input.depth, input.contextWindow, average || 1);
-  const extractCalls = count ? Math.ceil(count / batchSize) : 0;
+  const planned = input.plannedBatches;
+  const extractCalls = planned ? planned.length : (count ? Math.ceil(count / batchSize) : 0);
+  const billedSource = planned ? planned.reduce((sum, batch) => sum + Math.max(0, batch.tokens), 0) : sourceTokens;
   const outputRatio = input.depth === 'quick' ? 0.08 : 0.15;
-  let inputTokens = sourceTokens + extractCalls * PROMPT_OVERHEAD_TOKENS;
+  let inputTokens = billedSource + extractCalls * PROMPT_OVERHEAD_TOKENS;
   let outputTokens = Math.round(userTokens * outputRatio);
   let calls = extractCalls;
   if (input.depth !== 'quick' && count > 0) {
@@ -59,8 +71,13 @@ export function estimateRead(input: EstimateInput): Estimate {
     (outputTokens / 1_000_000) * input.outputPricePerMillion;
   const pacing = input.pacing ?? 'slow';
   const parallel = pacing === 'faster' ? 3 : 1;
-  const secondsEach = pacing === 'faster' ? 4 : 12;
-  const totalSeconds = calls === 0 ? 0 : (calls / parallel) * secondsEach;
+  // A flat 12s per call under-counted Quick scans: four batches were quoted at
+  // about a minute and ran for several. Floor each slow call at 40s, and add
+  // time for the tokens actually sent, then keep a wide band for rate limits.
+  const perCallFloor = pacing === 'faster' ? 8 : 40;
+  const tokenSeconds = outputTokens / 35 + inputTokens / 3500;
+  const serial = Math.max(calls * perCallFloor, calls * (pacing === 'faster' ? 4 : 12) + tokenSeconds);
+  const totalSeconds = calls === 0 ? 0 : serial / parallel;
   return {
     inputTokens,
     outputTokens,
@@ -68,8 +85,8 @@ export function estimateRead(input: EstimateInput): Estimate {
     batchSize,
     costBeforeCushion,
     cost: costBeforeCushion * COST_CUSHION,
-    minutesLow: (totalSeconds * 0.7) / 60,
-    minutesHigh: (totalSeconds * 1.8) / 60,
+    minutesLow: (totalSeconds * 0.6) / 60,
+    minutesHigh: (totalSeconds * 2) / 60,
   };
 }
 

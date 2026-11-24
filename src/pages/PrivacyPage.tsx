@@ -125,7 +125,9 @@ const PrivacyPage: React.FC = () => {
           <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>.
         </p>
         <p className="mt-3">
-          The read itself can leave a checkpoint in this browser so a closed tab can resume. You
+          The read itself can leave a checkpoint in this browser so a closed tab can resume.
+          Signing out removes that checkpoint, including the case file it holds, from this browser.
+          An anonymous read can still be there if you create an account right after it. You
           can forget a remembered API key from the setup screen. Older uploads from a previous
           version of the site, if you still have them, are not given a new delete button here; email
           us and we will remove them.

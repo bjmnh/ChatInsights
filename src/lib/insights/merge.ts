@@ -106,7 +106,7 @@ export function reportLabel(caseFile: CaseFile): 'Partial' | 'Complete' {
   return isComplete(caseFile) ? 'Complete' : 'Partial';
 }
 
-/** What the header should say. A finished Standard read that skipped unflagged chats is not an unqualified "complete". */
+/** What the header should say. A complete read uses one badge at every depth. The detail still says what that depth skipped. */
 export function reportStatus(file: CaseFile): { badge: string; detail: string } {
   const read = file.coverage.read;
   const total = file.coverage.conversations;
@@ -118,13 +118,13 @@ export function reportStatus(file: CaseFile): { badge: string; detail: string } 
   }
   if (unread > 0 && file.model.depth === 'standard') {
     const noun = unread === 1 ? '1 conversation was not flagged' : `${unread} conversations were not flagged`;
-    return { badge: 'Finished', detail: `${counts} ${noun}, so Standard left ${unread === 1 ? 'it' : 'them'} unread.` };
+    return { badge: 'Complete report', detail: `${counts} ${noun}, so Standard left ${unread === 1 ? 'it' : 'them'} unread.` };
   }
   if (unread > 0 && file.model.depth === 'quick') {
-    return { badge: 'Finished', detail: `${counts} Quick scan only sent a sample, so the rest were not read.` };
+    return { badge: 'Complete report', detail: `${counts} Quick scan only sent a sample, so the rest were not read.` };
   }
   if (unread > 0) {
-    return { badge: 'Finished', detail: `${counts} The rest were not read.` };
+    return { badge: 'Complete report', detail: `${counts} The rest were not read.` };
   }
   return { badge: 'Complete report', detail: counts };
 }

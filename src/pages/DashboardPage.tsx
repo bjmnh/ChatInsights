@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { listCaseFiles, type SavedCaseSummary } from '../services/caseFileService';
-import { loadCheckpoint, type LocalCheckpoint } from '../lib/insights/browserStore';
+import { clearCheckpoint, loadCheckpoint, subscribeLocalReadCleared, type LocalCheckpoint } from '../lib/insights/browserStore';
+import { canShowCheckpoint } from '../lib/insights/localRead';
 
 const DashboardPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -12,13 +13,22 @@ const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [checkpoint, setCheckpoint] = useState<LocalCheckpoint | null>(null);
 
+  useEffect(() => subscribeLocalReadCleared(() => setCheckpoint(null)), []);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
       navigate('/auth');
       return;
     }
-    loadCheckpoint().then(setCheckpoint).catch(() => undefined);
+    loadCheckpoint().then((checkpoint) => {
+      if (!canShowCheckpoint(checkpoint, user.id)) {
+        setCheckpoint(null);
+        if (checkpoint?.ownerId && checkpoint.ownerId !== user.id) clearCheckpoint().catch(() => undefined);
+        return;
+      }
+      setCheckpoint(checkpoint);
+    }).catch(() => undefined);
     listCaseFiles(user.id)
       .then(setRows)
       .catch((err: unknown) => {
@@ -36,7 +46,7 @@ const DashboardPage: React.FC = () => {
         </div>
         <Link to="/read" className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">Read an export</Link>
       </div>
-      {checkpoint?.caseFile && (
+      {user && checkpoint?.caseFile && canShowCheckpoint(checkpoint, user.id) && (
         <p className="mt-6 text-sm text-muted-foreground">
           This browser still has the last read. <Link to="/read" className="text-primary underline">Open it</Link>.
         </p>

@@ -2,6 +2,9 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { config } from '../lib/config';
+import { readStoredSessionUser } from '../lib/authSession';
+import { clearLocalRead } from '../lib/insights/browserStore';
+import { shouldClearLocalRead } from '../lib/insights/localRead';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -57,27 +60,56 @@ const getAuthErrorMessage = (error: AuthError | Error): string => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const cachedUser = readStoredSessionUser() as User | null;
+  const [user, setUser] = useState<User | null>(cachedUser);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   const authReady = useRef(false);
+  const userRef = useRef<User | null>(cachedUser);
+  const settled = useRef(false);
 
   useEffect(() => {
+    const publish = (next: Session | null, event: string) => {
+      const nextUser = next?.user ?? null;
+      const previousId = userRef.current?.id ?? null;
+      const nextId = nextUser?.id ?? null;
+      if (shouldClearLocalRead(previousId, nextId, event)) {
+        void clearLocalRead();
+      }
+      if (!nextUser && event === 'STORAGE' && !settled.current && previousId) return;
+      userRef.current = nextUser;
+      setSession(next);
+      setUser(nextUser);
+      if (event !== 'STORAGE') {
+        settled.current = true;
+        setLoading(false);
+      }
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      if (settled.current) {
+        if (session?.user && !userRef.current) publish(session, 'STORAGE');
+        return;
+      }
+      if (session?.user) {
+        publish(session, 'STORAGE');
+        settled.current = true;
+        setLoading(false);
+        return;
+      }
+      if (userRef.current) return;
+      publish(null, 'STORAGE');
+      settled.current = true;
       setLoading(false);
     }).catch(() => {
-      setLoading(false);
+      if (!settled.current && !userRef.current) setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      publish(session, event);
 
       if (!authReady.current) {
         authReady.current = true;

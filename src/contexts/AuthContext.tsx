@@ -183,6 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Check if email confirmation is required
       if (data.user && !data.session) {
+        toast.dismiss();
         toast.success('Registration successful! Please check your email for a confirmation link.');
         return;
       }

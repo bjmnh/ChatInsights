@@ -3,6 +3,7 @@ import {
   ARCHIVE_CHUNK_BYTES,
   ARCHIVE_RATE_LIMIT,
   ARCHIVE_RATE_WINDOW_MS,
+  uploadRateLimitMessage,
   canonicalContentType,
   clientAddress,
   expectedChunkLength,
@@ -13,7 +14,7 @@ import {
   validateConversationCount,
   validateDetectedFormat,
 } from './policy';
-import { reserveRateSlot } from '../server/rateLimit';
+import { reserveRateSlotWithWait } from '../server/rateLimit';
 import { bytesToHex, emptySha256State, sha256Digest, sha256Update } from './sha256';
 import { openSession, sealSession, subjectHash, type ArchiveSession } from './token';
 
@@ -31,8 +32,11 @@ function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 
-function failure(message: string, status: number): Response {
-  return json({ error: message }, status);
+function failure(message: string, status: number, extraHeaders?: Record<string, string>): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...JSON_HEADERS, ...extraHeaders },
+  });
 }
 
 async function userIdFromRequest(request: Request, deps: ArchiveDeps, fetchImpl: typeof fetch): Promise<string | null> {
@@ -117,14 +121,19 @@ async function handleStart(
   const userId = await userIdFromRequest(request, deps, fetchImpl);
   const subjects = [await subjectHash('ip', clientAddress(request.headers), deps.serviceRoleKey)];
   if (userId) subjects.push(await subjectHash('user', userId, deps.serviceRoleKey));
-  const allowed = await reserveRateSlot({
+  const decision = await reserveRateSlotWithWait({
     ...admin,
     subjects,
     now,
     limit: ARCHIVE_RATE_LIMIT,
     windowMs: ARCHIVE_RATE_WINDOW_MS,
   });
-  if (!allowed) return failure('Too many uploads from this network. Wait and try again.', 429);
+  if (!decision.allowed) {
+    const retryAfterMs = decision.retryAfterMs;
+    return failure(uploadRateLimitMessage(retryAfterMs), 429, {
+      'retry-after': String(Math.ceil(retryAfterMs / 1000)),
+    });
+  }
 
   const path = `archive/${crypto.randomUUID()}`;
   const created = await fetchImpl(resumableEndpoint(deps.supabaseUrl), {

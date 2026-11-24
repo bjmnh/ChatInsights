@@ -50,6 +50,7 @@ export default function AuthPage() {
     name: '',
     confirmPassword: '',
   });
+  const [formError, setFormError] = useState('');
 
   useEffect(() => {
     if (!loading && user) navigate('/dashboard', { replace: true });
@@ -57,6 +58,7 @@ export default function AuthPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    setFormError('');
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -75,13 +77,12 @@ export default function AuthPage() {
     }
 
     if (isRegister) {
-      if (formData.password !== formData.confirmPassword) {
-        toast.error('Passwords do not match');
+      if (formData.password.length < 8) {
+        setFormError('Password must be at least 8 characters long');
         return false;
       }
-
-      if (formData.password.length < 8) {
-        toast.error('Password must be at least 8 characters long');
+      if (formData.password !== formData.confirmPassword) {
+        setFormError('Passwords do not match');
         return false;
       }
     }
@@ -110,6 +111,7 @@ export default function AuthPage() {
     if (!validateForm(true)) return;
 
     setIsLoading(true);
+    toast.dismiss();
     try {
       await register(formData.email, formData.password, formData.name);
     } catch {
@@ -223,8 +225,8 @@ export default function AuthPage() {
     <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="font-display text-5xl">Sign in to the studio</h1>
-          <p className="mt-2 text-muted-foreground">Sign in to analyze an export from any AI assistant.</p>
+          <h1 className="font-display text-5xl">Save a report</h1>
+          <p className="mt-2 text-muted-foreground">Sign-in is optional. You can read an export without an account. An account is only for saving reports and, if you opt in, a key.</p>
         </div>
 
         <Card>
@@ -374,6 +376,7 @@ export default function AuthPage() {
                       required
                     />
                   </div>
+                  {formError && <p className="text-sm text-amber-200" role="alert">{formError}</p>}
                   <Button
                     type="submit"
                     className="w-full"

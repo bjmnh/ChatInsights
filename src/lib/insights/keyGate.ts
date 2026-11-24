@@ -22,6 +22,12 @@ export function rejectedKeyBlock(check: KeyTestSnapshot | null, providerId: stri
   return 'That key was rejected. Check the key before starting the read.';
 }
 
+/** Save an account key only after Test key succeeded for this secret, or after the read's provider call succeeded. */
+export function maySaveAccountKey(input: { optedIn: boolean; typedSecret: string; testedOk: boolean; runSucceeded: boolean }): boolean {
+  if (!input.optedIn || !input.typedSecret.trim()) return false;
+  return input.testedOk || input.runSucceeded;
+}
+
 /** An auth rejection is not a case file. Everything else, including a partial budget stop, can be kept locally. */
 export function shouldSaveLocalRun(coverage: Pick<Coverage, 'partialReason' | 'read' | 'planned' | 'failed'>): boolean {
   const reason = coverage.partialReason ?? '';

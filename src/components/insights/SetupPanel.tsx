@@ -118,13 +118,15 @@ const SetupPanel: React.FC<{
               <option key={model.id} value={model.id}>{model.label}</option>
             ))}
           </select>
-          <input
-            className="mt-2 w-full rounded-xl border border-white/15 bg-transparent px-3 py-2"
-            value={values.modelId}
-            onChange={(event) => onChange({ modelId: event.target.value })}
-            placeholder="Model id"
-            spellCheck={false}
-          />
+          {!models.some((model) => model.id === values.modelId) && (
+            <input
+              className="mt-2 w-full rounded-xl border border-white/15 bg-transparent px-3 py-2"
+              value={values.modelId}
+              onChange={(event) => onChange({ modelId: event.target.value })}
+              placeholder="Model id"
+              spellCheck={false}
+            />
+          )}
         </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -217,14 +219,20 @@ const SetupPanel: React.FC<{
             {accountHint && !values.apiKey.trim() && (
               <p className="mt-3 text-sm" data-testid="account-key-hint">Using the key saved to your account (••••{accountHint}).</p>
             )}
+            {accountHint && values.apiKey.trim() && (
+              <p className="mt-3 text-sm" data-testid="account-key-hint">This read uses the key you just typed. The saved key (••••{accountHint}) is unchanged until a valid new key replaces it.</p>
+            )}
             <button
               type="button"
               onClick={onSaveAccountKey}
-              disabled={!values.saveToAccount || !values.apiKey.trim()}
+              disabled={!values.apiKey.trim()}
               className="mt-3 rounded-full border border-white/15 px-4 py-2 text-sm disabled:opacity-40"
             >
               {accountHint ? 'Replace saved key' : 'Save key to my account'}
             </button>
+            {!values.apiKey.trim() && (
+              <p className="mt-2 text-xs text-muted-foreground">Type a new key to replace the one on your account. It is saved only after it checks out.</p>
+            )}
           </div>
         )}
 
@@ -289,7 +297,7 @@ const SetupPanel: React.FC<{
         </div>
 
         {(startBlockedMessage || runError) && (
-          <p className="text-sm text-amber-200" data-testid="read-block">{startBlockedMessage || runError}</p>
+          <p className="rounded-2xl border border-amber-400/50 bg-amber-500/15 px-4 py-3 text-sm text-amber-100" data-testid="read-block" role="alert">{startBlockedMessage || runError}</p>
         )}
         <button
           type="button"

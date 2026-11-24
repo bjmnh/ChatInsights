@@ -2,15 +2,15 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { toHashtag } from '../../lib/insights/hydratePremium';
 import { Button } from '../ui/button';
-import { Hash, MessageSquare, Heart, Repeat2, Share, MoreHorizontal, Calendar } from 'lucide-react';
+import { Hash, MessageSquare, Heart, Repeat2, MoreHorizontal } from 'lucide-react';
 
 interface SocialPost {
   id: string;
   content: string;
   timestamp: string;
-  likes: number;
-  retweets: number;
-  replies: number;
+  likes?: number;
+  retweets?: number;
+  replies?: number;
 }
 
 interface DigitalDoppelgangerData {
@@ -42,34 +42,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
   };
 
   const profileBgColor = getProfilePicture(data.handle);
-
-  // Mock posts if none provided
-  const mockPosts: SocialPost[] = data.posts || [
-    {
-      id: '1',
-      content: "Just discovered something fascinating about the intersection of technology and human behavior. The way we adapt to new interfaces says so much about our cognitive flexibility! 🧠✨",
-      timestamp: '2h',
-      likes: 42,
-      retweets: 8,
-      replies: 12
-    },
-    {
-      id: '2', 
-      content: "Working on a new project that combines my interests in data analysis and creative problem-solving. Sometimes the best insights come from unexpected connections 🔗",
-      timestamp: '6h',
-      likes: 28,
-      retweets: 5,
-      replies: 7
-    },
-    {
-      id: '3',
-      content: "Reflecting on how our digital conversations shape our thinking patterns. Every interaction is both a mirror and a window into who we're becoming 🪟",
-      timestamp: '1d',
-      likes: 67,
-      retweets: 15,
-      replies: 23
-    }
-  ];
+  const posts = (data.posts ?? []).filter((post) => post.content.trim());
 
   return (
     <motion.div 
@@ -153,22 +126,7 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
             <p className="text-white mb-4 leading-relaxed">
               {data.bio}
             </p>
-
-            <div className="flex items-center text-gray-500 text-sm mb-4">
-              <Calendar className="h-4 w-4 mr-1" />
-              <span>Joined {new Date().getFullYear() - Math.floor(Math.random() * 3) - 1}</span>
-            </div>
-
-            <div className="flex space-x-6 text-sm">
-              <span>
-                <span className="font-bold text-white">{Math.floor(Math.random() * 500) + 100}</span>
-                <span className="text-gray-500 ml-1">Following</span>
-              </span>
-              <span>
-                <span className="font-bold text-white">{Math.floor(Math.random() * 2000) + 500}</span>
-                <span className="text-gray-500 ml-1">Followers</span>
-              </span>
-            </div>
+            <p className="text-sm text-gray-400">A playful sketch from this case file. Not a real account, and not a follower count.</p>
           </motion.div>
         </motion.div>
 
@@ -211,7 +169,10 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
             <h3 className="text-lg font-semibold">Posts</h3>
           </div>
 
-          {mockPosts.map((post, index) => (
+          {posts.length === 0 && (
+            <p className="p-4 text-sm text-gray-400">Nothing in these chats to turn into a post.</p>
+          )}
+          {posts.map((post, index) => (
             <motion.div
               key={post.id}
               initial={{ opacity: 0, y: 30 }}
@@ -241,34 +202,13 @@ export const DigitalDoppelgangerCard: React.FC<DigitalDoppelgangerCardProps> = (
                   </p>
 
                   {/* Engagement Actions */}
+                  {post.likes != null && post.retweets != null && post.replies != null && (
                   <div className="flex items-center justify-between max-w-md text-gray-500">
-                    <button className="flex items-center space-x-2 hover:text-blue-400 transition-colors group">
-                      <div className="p-2 rounded-full group-hover:bg-blue-400/10 transition-colors">
-                        <MessageSquare className="h-4 w-4" />
-                      </div>
-                      <span className="text-sm">{post.replies}</span>
-                    </button>
-
-                    <button className="flex items-center space-x-2 hover:text-green-400 transition-colors group">
-                      <div className="p-2 rounded-full group-hover:bg-green-400/10 transition-colors">
-                        <Repeat2 className="h-4 w-4" />
-                      </div>
-                      <span className="text-sm">{post.retweets}</span>
-                    </button>
-
-                    <button className="flex items-center space-x-2 hover:text-red-400 transition-colors group">
-                      <div className="p-2 rounded-full group-hover:bg-red-400/10 transition-colors">
-                        <Heart className="h-4 w-4" />
-                      </div>
-                      <span className="text-sm">{post.likes}</span>
-                    </button>
-
-                    <button className="hover:text-blue-400 transition-colors group">
-                      <div className="p-2 rounded-full group-hover:bg-blue-400/10 transition-colors">
-                        <Share className="h-4 w-4" />
-                      </div>
-                    </button>
+                    <span className="flex items-center space-x-2"><MessageSquare className="h-4 w-4" /><span className="text-sm">{post.replies}</span></span>
+                    <span className="flex items-center space-x-2"><Repeat2 className="h-4 w-4" /><span className="text-sm">{post.retweets}</span></span>
+                    <span className="flex items-center space-x-2"><Heart className="h-4 w-4" /><span className="text-sm">{post.likes}</span></span>
                   </div>
+                  )}
                 </div>
               </div>
             </motion.div>

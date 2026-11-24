@@ -3,7 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { archiveExportFile, metadataFromParse } from '../lib/archive/client';
-import { uploadFailureMessage } from '../lib/archive/failure';
+import { archiveSkipNotice, uploadFailureMessage } from '../lib/archive/failure';
 import { isSampleRead } from '../lib/archive/policy';
 import { parseConversationExport, validateUploadFile } from '../lib/conversationParser';
 import type { NormalizedConversation } from '../lib/conversationParser/types';
@@ -12,7 +12,7 @@ import { clearCheckpoint, idbVaultStore, loadCheckpoint, saveCheckpoint, subscri
 import { ARCHIVE_ACK, ARCHIVE_NOTICE, EXPORT_GUIDES } from '../lib/insights/copy';
 import { selectConversations } from '../lib/insights/depth';
 import { estimateRead } from '../lib/insights/estimate';
-import { rejectedKeyBlock, shouldSaveLocalRun, PROVIDER_AUTH_MESSAGE, type KeyTestSnapshot } from '../lib/insights/keyGate';
+import { maySaveAccountKey, rejectedKeyBlock, shouldSaveLocalRun, PROVIDER_AUTH_MESSAGE, type KeyTestSnapshot } from '../lib/insights/keyGate';
 import { canShowCheckpoint } from '../lib/insights/localRead';
 import { packBatches } from '../lib/insights/pack';
 import { ProviderRequestError } from '../lib/insights/transport';
@@ -32,7 +32,6 @@ import ProgressView from '../components/insights/ProgressView';
 import ReportView from '../components/insights/ReportView';
 import SetupPanel, { type SetupValues } from '../components/insights/SetupPanel';
 import ExportDropzone, { type UploadStage } from '../components/upload/ExportDropzone';
-import { dropzoneGuard } from '../components/upload/gate';
 import { toast } from 'sonner';
 
 const DEFAULT_SETUP: SetupValues = {
@@ -88,10 +87,13 @@ const ReadPage: React.FC = () => {
   const accountSecrets = useRef<Record<string, { secret: string; hint: string }>>({});
   const [accountHint, setAccountHint] = useState<string | null>(null);
   const [archiveAcknowledged, setArchiveAcknowledged] = useState(false);
+  const [archiveSkip, setArchiveSkip] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [testedKey, setTestedKey] = useState<KeyTestSnapshot | null>(null);
   const [runError, setRunError] = useState('');
   const retryFile = useRef<File | null>(null);
+  const pendingFile = useRef<File | null>(null);
+  const ackRef = useRef(false);
   const readEpoch = useRef(0);
 
   const resetRead = useCallback(() => {
@@ -232,10 +234,6 @@ const ReadPage: React.FC = () => {
 
   const onDrop = useCallback(async (files: File[]) => {
     if (isSampleRead(window.location.search)) return;
-    if (!archiveAcknowledged) {
-      setUploadError('Confirm the storage notice before choosing a file.');
-      return;
-    }
     const file = files[0];
     if (!file) return;
     const invalid = validateUploadFile(file);
@@ -244,23 +242,33 @@ const ReadPage: React.FC = () => {
       return;
     }
     retryFile.current = file;
+    if (!ackRef.current) {
+      pendingFile.current = file;
+      setUploadError('Confirm the storage notice to open this file. It stays selected.');
+      return;
+    }
     setUploadError(null);
+    setArchiveSkip(null);
     setStage('storing');
     let archived = false;
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const parsePromise = parseConversationExport(file.name, bytes);
-      const { data } = await supabase.auth.getSession();
-      await archiveExportFile({
-        filename: file.name,
-        bytes,
-        contentType: file.type,
-        metadata: parsePromise.then(metadataFromParse),
-        supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-        anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-        accessToken: data.session?.access_token ?? null,
-      });
-      archived = true;
+      try {
+        const { data } = await supabase.auth.getSession();
+        await archiveExportFile({
+          filename: file.name,
+          bytes,
+          contentType: file.type,
+          metadata: parsePromise.then(metadataFromParse),
+          supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+          anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          accessToken: data.session?.access_token ?? null,
+        });
+        archived = true;
+      } catch (error) {
+        setArchiveSkip(archiveSkipNotice(error));
+      }
       setStage('parsing');
       const parsed = await parsePromise;
       setStage('counting');
@@ -277,23 +285,35 @@ const ReadPage: React.FC = () => {
     } finally {
       setStage('idle');
     }
-  }, [archiveAcknowledged]);
+  }, []);
 
-  const guard = dropzoneGuard(archiveAcknowledged, stage !== 'idle');
+  useEffect(() => {
+    ackRef.current = archiveAcknowledged;
+    if (!archiveAcknowledged || !pendingFile.current || stage !== 'idle') return;
+    const file = pendingFile.current;
+    pendingFile.current = null;
+    void onDrop([file]);
+  }, [archiveAcknowledged, onDrop, stage]);
+
+  const busy = stage !== 'idle';
   const dropzone = useDropzone({
     onDrop: (files) => {
-      if (!archiveAcknowledged) return;
       void onDrop(files);
     },
+    useFsAccessApi: false,
     multiple: false,
-    disabled: guard.disabled,
-    noClick: guard.noClick,
-    noDrag: guard.noDrag,
-    noKeyboard: guard.noKeyboard,
+    disabled: busy,
+    noClick: busy,
+    noDrag: busy,
+    noKeyboard: busy,
   });
 
   const patchSetup = (patch: Partial<SetupValues>) => {
-    if (patch.apiKey !== undefined || patch.providerId) setRunError('');
+    if (patch.apiKey !== undefined || patch.providerId) {
+      setRunError('');
+      setTestMessage('');
+      if (patch.apiKey !== undefined) setTestedKey(null);
+    }
     setSetup((current) => {
       if (patch.providerId && patch.providerId !== current.providerId) return applyProvider(patch.providerId, { ...current, ...patch });
       if (patch.modelId && patch.modelId !== current.modelId) {
@@ -397,11 +417,10 @@ const ReadPage: React.FC = () => {
     }
   };
 
-  const saveAccountKey = async () => {
+  const saveAccountKey = async (secret = setup.apiKey.trim()) => {
     if (!user) throw new Error('Sign in to save a key to your account.');
-    const secret = setup.apiKey.trim();
-    if (!setup.saveToAccount || !secret) {
-      throw new Error('Check Save key to my account and enter the key to store.');
+    if (!secret) {
+      throw new Error('Type the key to save it to your account.');
     }
     const { data } = await supabase.auth.getSession();
     const accessToken = data.session?.access_token;
@@ -415,8 +434,38 @@ const ReadPage: React.FC = () => {
     });
     accountSecrets.current[setup.providerId] = saved;
     setAccountHint(saved.hint);
-    setSetup((current) => ({ ...current, apiKey: '' }));
+    setSetup((current) => ({ ...current, apiKey: '', saveToAccount: true }));
+    setTestedKey({ providerId: setup.providerId, secret, ok: true, message: 'Key works.' });
     toast.success('Key saved to your account');
+  };
+
+  const confirmAccountKey = async () => {
+    const secret = setup.apiKey.trim();
+    if (!secret) {
+      toast.error('Type the key to save it to your account.');
+      return;
+    }
+    setTestMessage('Testing…');
+    try {
+      const adapter = createAdapter(setup.providerId, {
+        apiKey: secret,
+        model: setup.modelId,
+        baseUrl: setup.baseUrl || preset.baseUrl,
+        extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
+      });
+      const result = await adapter.testConnection!();
+      setTestedKey({ providerId: setup.providerId, secret, ok: result.ok, message: result.message });
+      setTestMessage(result.message);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      await saveAccountKey(secret);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'The key could not be saved to your account.';
+      setTestMessage(message);
+      toast.error(message);
+    }
   };
 
   const start = async () => {
@@ -427,7 +476,9 @@ const ReadPage: React.FC = () => {
       toast.error(block);
       return;
     }
-    if (user && setup.saveToAccount && setup.apiKey.trim()) {
+    const typedSecret = setup.apiKey.trim();
+    const testedOk = Boolean(testedKey?.ok && testedKey.providerId === setup.providerId && testedKey.secret === resolveSecret());
+    if (maySaveAccountKey({ optedIn: setup.saveToAccount, typedSecret, testedOk, runSucceeded: false })) {
       try {
         await saveAccountKey();
       } catch (error) {
@@ -481,6 +532,13 @@ const ReadPage: React.FC = () => {
         setStep('setup');
         return;
       }
+      if (!testedOk && maySaveAccountKey({ optedIn: setup.saveToAccount, typedSecret, testedOk: false, runSucceeded: true })) {
+        try {
+          await saveAccountKey(typedSecret);
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'The read finished, but the key could not be saved to your account.');
+        }
+      }
       setCaseFile(result);
       setStep('report');
       const fingerprint = await exportFingerprint(conversations);
@@ -529,9 +587,11 @@ const ReadPage: React.FC = () => {
     try {
       const fingerprint = await exportFingerprint(conversations);
       await saveCaseFile(user.id, fingerprint, filename, caseFile);
-      setSaveMessage(caseFile.coverage.partial
+      const saved = caseFile.coverage.partial
         ? 'Saved as a partial report. Running it again updates this same row.'
-        : 'Saved. Running the same export again updates this row instead of adding another.');
+        : 'Saved. Running the same export again updates this row instead of adding another.';
+      setSaveMessage(saved);
+      toast.success(saved);
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'Could not save. If the case file table is not migrated yet, download the JSON.');
     }
@@ -542,7 +602,7 @@ const ReadPage: React.FC = () => {
       {step === 'drop' && (
         <div className="mx-auto max-w-3xl px-4 py-10">
           <h1 className="font-display text-4xl sm:text-5xl">Drop the export</h1>
-          <p className="mt-3 text-muted-foreground">Parsed in the browser after a copy is stored for security review.</p>
+          <p className="mt-3 text-muted-foreground">Parsing runs in your browser. The notice below is the storage step.</p>
           <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-4 text-sm" data-testid="archive-notice">
             <p>{ARCHIVE_NOTICE}</p>
             <label className="mt-4 flex items-start gap-3">
@@ -559,7 +619,7 @@ const ReadPage: React.FC = () => {
             <ExportDropzone
               isDragActive={dropzone.isDragActive}
               stage={stage}
-              locked={guard.locked}
+              locked={busy}
               error={uploadError}
               onRetry={retryFile.current ? () => { void onDrop([retryFile.current as File]); } : null}
               rootProps={dropzone.getRootProps()}
@@ -596,6 +656,9 @@ const ReadPage: React.FC = () => {
             <Stat label="Phones" value={String(local.exposure.phones.length)} />
             <Stat label="Card-like" value={String(local.exposure.cardLike)} />
           </dl>
+          {archiveSkip && (
+            <p className="mt-6 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" data-testid="archive-skip">{archiveSkip}</p>
+          )}
           <p className="mt-6 text-sm text-muted-foreground">
             About {local.style.wordsPerMessage} words per message you sent. Question share {Math.round(local.style.questionShare * 100)}%.
           </p>
@@ -630,7 +693,7 @@ const ReadPage: React.FC = () => {
           busy={false}
           signedIn={Boolean(user)}
           accountHint={accountHint}
-          onSaveAccountKey={() => { saveAccountKey().catch((error: unknown) => toast.error(error instanceof Error ? error.message : 'The key could not be saved to your account.')); }}
+          onSaveAccountKey={() => { confirmAccountKey().catch(() => undefined); }}
           startBlockedMessage={keyBlock}
           runError={runError}
         />
@@ -651,7 +714,8 @@ const ReadPage: React.FC = () => {
           caseFile={caseFile}
           conversations={conversations}
           onDownload={download}
-          onSave={() => { save().catch(() => undefined); }}
+          onSave={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { save().catch(() => undefined); }}
+          demo={new URLSearchParams(window.location.search).get('sample') === '1'}
           onClose={() => {
             if (new URLSearchParams(window.location.search).get('sample') === '1') navigate('/');
             else setStep('preview');

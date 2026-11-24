@@ -46,10 +46,10 @@ export function ClassificationBar() {
   if (!meta) return null;
   return (
     <>
-      <div className="pointer-events-none fixed inset-x-0 top-16 z-[80] flex h-9 items-center justify-between gap-3 border-b border-red-300/50 bg-red-950 px-3 font-mono text-[11px] tracking-[0.16em] text-red-50 sm:px-4">
-        <span className="min-w-0 truncate">{line}</span>
-        <span className="shrink-0">CASE FILE No. {meta.caseNo}</span>
-        <span className="hidden shrink-0 truncate sm:inline">SUBJECT: {meta.subject}</span>
+      <div className="pointer-events-none fixed inset-x-0 top-16 z-[80] flex h-9 items-center justify-between gap-2 border-b border-red-300/50 bg-red-950 px-2 font-mono text-[10px] tracking-[0.08em] text-red-50 sm:gap-3 sm:px-4 sm:text-[11px] sm:tracking-[0.16em]">
+        <span className="min-w-0 truncate">{line || 'CONFIDENTIAL'}</span>
+        <span className="shrink-0">No. {meta.caseNo}</span>
+        <span className="hidden min-w-0 shrink truncate sm:inline">SUBJECT: {meta.subject}</span>
       </div>
       <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[80] flex h-7 items-center justify-center border-t border-red-300/40 bg-red-950 font-mono text-[10px] tracking-[0.22em] text-red-50">
         CONFIDENTIAL // EYES ONLY

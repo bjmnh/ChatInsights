@@ -64,7 +64,7 @@ export interface PremiumReportShape {
     bio: string;
     topHashtags: string[];
     personalityTraits?: string[];
-    posts?: Array<{ id: string; content: string; timestamp: string; likes: number; retweets: number; replies: number }>;
+    posts?: Array<{ id: string; content: string; timestamp: string; likes?: number; retweets?: number; replies?: number }>;
     disclaimer: string;
   };
 }
@@ -108,6 +108,16 @@ export function uniqueDisplay(items: Array<string | undefined>, dropJunkTokens =
 }
 
 export const EMPTY_RECORD = 'NO RECORDS FOUND AT THIS DEPTH';
+export const EMPTY_IN_CHATS = 'Nothing in these chats for this card';
+
+export function emptyCardCopy(searchedThisDepth: boolean): string {
+  return searchedThisDepth ? EMPTY_IN_CHATS : EMPTY_RECORD;
+}
+
+/** Drop a duplicated "copy" suffix left by some exports and test files. */
+export function displayTitle(title: string): string {
+  return title.replace(/\s+copy$/i, '').replace(/\s{2,}/g, ' ').trim();
+}
 
 export const ORIGINAL_CARD_COPY: Record<string, string> = {
   fbi: 'A comprehensive behavioral profile with psychological insights and operational assessment.',
@@ -168,10 +178,10 @@ const REASON_LINE: Record<string, string> = {
 function threadPreview(file: CaseFile): string | undefined {
   const lead = file.notable[0];
   if (!lead?.title) return undefined;
-  const why = lead.reasons.map((reason) => REASON_LINE[reason]).filter(Boolean);
-  const stood = why.length ? why.join(', ') : `a score of ${lead.score}`;
+  const title = displayTitle(lead.title);
+  if (!title) return undefined;
   const count = file.notable.length;
-  return `${lead.title} stood out for ${stood}. ${count} ${count === 1 ? 'thread' : 'threads'} on file.`;
+  return `${title} is one of the chats this read kept. ${count} ${count === 1 ? 'thread' : 'threads'} on file.`;
 }
 
 export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Record<string, string> {
@@ -184,44 +194,44 @@ export function cardPreviews(file: CaseFile, hydrated: PremiumReportShape): Reco
     }
     return '';
   };
-  const notSearched = EMPTY_RECORD;
+  const gap = (card: keyof CaseFile['cardStatus']) => emptyCardCopy(file.cardStatus[card] !== 'not-searched');
   const fbi = hydrated.fbiReport;
   const reality = hydrated.realityTVPersona;
   const mirror = hydrated.unfilteredMirror;
   return {
     fbi: file.cardStatus.file === 'not-searched'
-      ? notSearched
+      ? gap('file')
       : pick(fbi?.subjectCodename.justification, fbi?.psychologicalProfile, fbi?.dominantInterests[0]) || ORIGINAL_CARD_COPY.fbi,
     linguistic: pick(hydrated.linguisticFingerprint?.overallStyleDescription) || ORIGINAL_CARD_COPY.linguistic,
     top5: file.cardStatus.notable === 'not-searched'
-      ? notSearched
+      ? gap('notable')
       : threadPreview(file) || ORIGINAL_CARD_COPY.top5,
     reality: file.cardStatus.stranger === 'not-searched'
-      ? notSearched
+      ? gap('stranger')
       : pick(reality?.personaArchetype, reality?.viewerAppeal, reality?.likelyStoryArcs?.[0]) || ORIGINAL_CARD_COPY.reality,
-    mirror: file.cardStatus.stranger === 'not-searched' || !mirror?.observation || mirror.observation === EMPTY_RECORD
-      ? notSearched
-      : pick(mirror.observation, mirror.deeperInsight, mirror.psychologicalImplications) || notSearched,
+    mirror: file.cardStatus.stranger === 'not-searched' || !mirror?.observation || mirror.observation === EMPTY_RECORD || mirror.observation === EMPTY_IN_CHATS
+      ? gap('stranger')
+      : pick(mirror.observation, mirror.deeperInsight, mirror.psychologicalImplications) || gap('stranger'),
     pii: pick(hydrated.piiSafetyCompass?.summary) || ORIGINAL_CARD_COPY.pii,
     doppelganger: pick(hydrated.digitalDoppelganger?.bio, hydrated.digitalDoppelganger?.handle) || ORIGINAL_CARD_COPY.doppelganger,
     people: file.cardStatus.people === 'not-searched' || file.people.length === 0
-      ? notSearched
-      : pick(file.people.slice(0, 3).map((person) => person.name).join(', ')) || notSearched,
+      ? gap('people')
+      : pick(file.people.slice(0, 3).map((person) => person.name).join(', ')) || gap('people'),
     places: file.cardStatus.places === 'not-searched' || (file.places.length === 0 && file.orgs.length === 0)
-      ? notSearched
-      : pick([...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ')) || notSearched,
+      ? gap('places')
+      : pick([...file.places, ...file.orgs].slice(0, 3).map((item) => item.v).join(', ')) || gap('places'),
     timeline: file.cardStatus.timeline === 'not-searched' || (file.timeline.length === 0 && file.projects.length === 0)
-      ? notSearched
-      : pick(file.timeline[0]?.v, file.projects[0]?.v) || notSearched,
+      ? gap('timeline')
+      : pick(file.timeline[0]?.v, file.projects[0]?.v) || gap('timeline'),
     decisions: file.cardStatus.decisions === 'not-searched' || file.decisions.length === 0
-      ? notSearched
-      : pick(file.decisions[0] ? decisionText(file.decisions[0].question, file.decisions[0].v) : undefined) || notSearched,
+      ? gap('decisions')
+      : pick(file.decisions[0] ? decisionText(file.decisions[0].question, file.decisions[0].v) : undefined) || gap('decisions'),
     loops: file.cardStatus.loops === 'not-searched' || file.open_loops.length === 0
-      ? notSearched
-      : pick(file.open_loops[0]?.v) || notSearched,
+      ? gap('loops')
+      : pick(file.open_loops[0]?.v) || gap('loops'),
     mind: file.cardStatus.mind === 'not-searched' || (file.worries.length === 0 && file.beliefs.length === 0)
-      ? notSearched
-      : pick(file.worries[0]?.v, file.beliefs[0]?.v) || notSearched,
+      ? gap('mind')
+      : pick(file.worries[0]?.v, file.beliefs[0]?.v) || gap('mind'),
   };
 }
 
@@ -365,9 +375,8 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
   if (searched(file, 'notable') || file.cardStatus.notable === 'local' || file.cardStatus.notable === 'partial') {
     const rows = file.notable.slice(0, 5).map((item) => ({
       conversationId: item.id,
-      title: item.title,
+      title: displayTitle(item.title),
       justification: item.reasons.map((reason) => REASON_LINE[reason]).filter(Boolean).join(', ') || `Score ${item.score}`,
-      significance: item.modelRead ? 'The model read this chat.' : 'Not model-read at this depth.',
       insights: [`Score ${item.score}`],
     }));
     if (rows.length) report.topInterestingConversations = rows;
@@ -397,7 +406,7 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
     );
     report.unfilteredMirror = {
       reportTitle: 'The unfiltered mirror',
-      observation: observation || EMPTY_RECORD,
+      observation: observation || emptyCardCopy(true),
       deeperInsight: claim(keptProse(file.beliefs.map((item) => item.v).join(' ')), used),
       psychologicalImplications: claim(keptProse(file.worries.map((item) => item.v).join(' ')), used),
       disclaimer: '',
@@ -449,27 +458,21 @@ export function hydratePremiumReport(file: CaseFile, titles: Map<string, string>
         id: `d${index}`,
         content: scrubRawCodes(`${decisionText(item.question, item.v)}${item.quote ? ` “${item.quote}”` : ''}`),
         timestamp: item.first || '',
-        likes: 0,
-        retweets: 0,
-        replies: 0,
       })),
       ...file.notable.slice(0, 2).map((item) => ({
         id: item.id,
-        content: scrubRawCodes(item.title),
+        content: scrubRawCodes(displayTitle(item.title)),
         timestamp: '',
-        likes: 0,
-        retweets: 0,
-        replies: 0,
       })),
-    ];
+    ].filter((post) => post.content);
     report.digitalDoppelganger = {
-      reportTitle: 'A profile from the case file',
+      reportTitle: 'A playful sketch, not a real profile',
       handle: file.subject.nameGuess?.v ? `@${file.subject.nameGuess.v.toLowerCase().replace(/\s+/g, '')}` : '@your-chats',
-      bio: claim([file.subject.occupation?.v, file.subject.location?.v].filter(Boolean).join(' · '), used) || '',
+      bio: claim([file.subject.occupation?.v, file.subject.location?.v].filter(Boolean).join(' · '), used) || 'Imagined from this case file. Not a real account.',
       topHashtags: uniqueDisplay((interestLines.length ? interestLines : file.style.topPhrases.filter(notablePhraseOk)).slice(0, 4).map(toHashtag)),
       personalityTraits: uniqueDisplay(peopleLine).slice(0, 4),
       posts: posts.length ? posts : [],
-      disclaimer: '',
+      disclaimer: 'A playful sketch from this case file. Follower counts and join dates are not invented here.',
     };
   }
 

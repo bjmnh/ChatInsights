@@ -3,8 +3,19 @@ import type { ParseResult } from '../conversationParser/types';
 export const ARCHIVE_BUCKET = 'upload-archive';
 export const ARCHIVE_MAX_BYTES = 200 * 1024 * 1024;
 export const ARCHIVE_CHUNK_BYTES = 6 * 1024 * 1024;
-export const ARCHIVE_RATE_LIMIT = 6;
+/** 30 stored copies per network (and per account) per hour. Enough to retry a real export, not enough for a dump script. */
+export const ARCHIVE_RATE_LIMIT = 30;
 export const ARCHIVE_RATE_WINDOW_MS = 60 * 60 * 1000;
+
+/** How long until the oldest upload in the window ages out. At least one minute, so the message is never "0 minutes". */
+export function uploadRateLimitMessage(retryAfterMs: number): string {
+  const minutes = Math.max(1, Math.ceil(retryAfterMs / 60_000));
+  if (minutes < 60) {
+    return `Too many uploads from this network. Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+  }
+  const hours = Math.max(1, Math.ceil(minutes / 60));
+  return `Too many uploads from this network. Try again in about ${hours} hour${hours === 1 ? '' : 's'}.`;
+}
 
 export const DETECTED_FORMATS = [
   'ChatGPT',

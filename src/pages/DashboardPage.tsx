@@ -67,6 +67,7 @@ const DashboardPage: React.FC = () => {
               <span className="font-medium">{row.filename || 'Export'}</span>
               <span className="mt-1 block text-sm text-muted-foreground">
                 {row.partial ? 'Partial' : 'Complete'} · {row.depth} · {row.model_provider} {row.model_id}
+                {row.created_at ? ` · Created ${new Date(row.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}
               </span>
             </Link>
           </li>

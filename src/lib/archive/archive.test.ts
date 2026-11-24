@@ -36,8 +36,8 @@ describe('archive policy', () => {
     expect(isSampleRead('?sample=1')).toBe(true);
     expect(isSampleRead('sample=0')).toBe(false);
     expect(forbiddenField(['file', 'apiKey'])).toMatch(/Provider keys/);
-    expect(rateLimitAllows(5)).toBe(true);
-    expect(rateLimitAllows(6)).toBe(false);
+    expect(rateLimitAllows(29)).toBe(true);
+    expect(rateLimitAllows(30)).toBe(false);
   });
 
   it('hashes incrementally the same way as node crypto', () => {
@@ -166,7 +166,10 @@ describe('archive upload', () => {
       const url = String(input);
       if (url.includes('/auth/v1/user')) return new Response(JSON.stringify({}), { status: 401 });
       if (url.includes('upload_rate_events')) {
-        return new Response('[]', { status: 200, headers: { 'content-range': '*/6' } });
+        return new Response(JSON.stringify([{ created_at: '2026-11-18T00:00:00.000Z' }]), {
+          status: 200,
+          headers: { 'content-range': '*/30', 'content-type': 'application/json' },
+        });
       }
       throw new Error(`unexpected ${String(input)} ${init?.method}`);
     };
@@ -176,6 +179,9 @@ describe('archive upload', () => {
       body: JSON.stringify({ action: 'start', filename: 'a.json', size: 10, contentType: 'application/json' }),
     }), { supabaseUrl, serviceRoleKey: secret, anonKey: anon, fetchImpl: outbound });
     expect(response.status).toBe(429);
+    const body = await response.json() as { error?: string };
+    expect(body.error).toMatch(/Try again in about/);
+    expect(response.headers.get('retry-after')).toBeTruthy();
   });
 });
 

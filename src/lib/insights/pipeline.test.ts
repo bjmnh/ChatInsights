@@ -7,8 +7,8 @@ import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from '
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber } from './caseNumber.ts';
-import { cardPreviews, caseDownloadName, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, isThinProfileLabel, reportSubtitle, scrubRawCodes, sentenceCase, toHashtag, uniqueDisplay } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, type CaseFile } from './merge.ts';
+import { cardPreviews, caseDownloadName, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, isThinProfileLabel, publicSubjectName, reportSubtitle, scrubRawCodes, sentenceCase, sourceLabels, toHashtag, uniqueDisplay, vocabularyMeterValue } from './hydratePremium.ts';
+import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, WRITE_UP_MISSING, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -405,18 +405,102 @@ describe('budget cap and partial reports', () => {
     expect(result.coverage.partialReason).toMatch(/The provider failed on 3 conversations after several retries/);
     expect(plainPartialDetail(result)).toMatch(/failed on 3 conversations/);
     expect(result.coverage.failed).toBe(3);
+    expect(result.coverage.narrative).not.toBe('skipped-budget');
     const merged = mergeCaseFiles(result, {
       ...result,
       coverage: {
         ...result.coverage,
+        read: 3,
         failed: 0,
         partial: false,
         partialReason: undefined,
-        topics: [{ c: 'c0', topic: 'note' }],
+        narrative: 'not-in-depth',
+        topics: [
+          { c: 'c0', topic: 'note' },
+          { c: 'c1', topic: 'note' },
+          { c: 'c2', topic: 'note' },
+        ],
+      },
+      narrative: {
+        ...result.narrative,
+        cover: 'This Quick scan read used your script key and script. It looked at a sample of user turns in 3 of 3 conversations.',
       },
     });
+    expect(merged.coverage.failed).toBe(0);
+    expect(merged.coverage.read).toBe(3);
     expect(merged.coverage.partial).toBe(false);
-    expect(merged.coverage.topics.some((topic) => topic.c === 'c0')).toBe(true);
+    expect(isComplete(merged)).toBe(true);
+    expect(reportStatus(merged).badge).not.toBe('Partial report');
+    expect(plainPartialDetail(merged)).toBe(WRITE_UP_MISSING);
+    expect(plainPartialDetail(merged)).not.toMatch(/failed on 0/);
+    expect(persistenceFields(merged).partial).toBe(false);
+    expect(merged.narrative.cover).toMatch(/in 3 of 3 conversations/);
+  });
+
+  it('does not keep a budget narrative status when a retry finishes the chats', () => {
+    const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `Note ${index} about the rent.`));
+    const local = runLocalPass(conversations);
+    const base = {
+      schema_version: '1.0' as const,
+      model: { provider: 'gemini', id: 'gemini', depth: 'standard' as const },
+      filedAt: '2026-11-24T00:00:00.000Z',
+      coverage: {
+        conversations: 3, planned: 3, read: 2, skipped: 0, batches: 2, failed: 1,
+        depth: 'standard' as const, partial: true, partialReason: 'The provider failed on 1 conversation after several retries.',
+        narrative: 'skipped-budget' as const, viaProxy: false,
+        dateRange: { first: null, last: null },
+        topics: [{ c: 'c0', topic: 'rent' }, { c: 'c1', topic: 'rent' }],
+      },
+      subject: {},
+      people: [], places: [], orgs: [], timeline: [], projects: [],
+      routines: local.routines,
+      interests: [], beliefs: [], worries: [], health: [], money: [], decisions: [], open_loops: [], contradictions: [],
+      exposure: local.exposure,
+      style: local.style,
+      usage: local.usage,
+      notable: [],
+      narrative: {
+        cover: 'This Standard read used your gemini key and gemini. It looked at user turns in 0 of 3 conversations.',
+        blurbs: {},
+        ev: [],
+        codename: 'Open notebook',
+        codename_reason: 'A name for this case file.',
+        archetype: 'Cast as Open Notebook',
+      },
+      cardStatus: cardStates('standard'),
+    };
+    const extra = {
+      ...base,
+      coverage: {
+        ...base.coverage,
+        read: 3,
+        failed: 0,
+        partial: false,
+        partialReason: undefined,
+        narrative: 'written' as const,
+        topics: [{ c: 'c0', topic: 'resumed' }, { c: 'c1', topic: 'resumed' }, { c: 'c2', topic: 'rent' }],
+      },
+      narrative: {
+        ...base.narrative,
+        cover: 'You keep coming back to the rent.',
+        codename: 'Second Draft',
+        codename_reason: 'You rewrite the rent note until it sounds like you.',
+        archetype: 'The person who rewrites the rent note',
+      },
+      interests: [{ v: 'monthly budget spreadsheet in Google Sheets', conf: 0.5, ev: ['c2'], src: 'ai' as const, first: null, last: null, quote: null }],
+    };
+    const merged = mergeCaseFiles(base, extra);
+    expect(merged.coverage.partial).toBe(false);
+    expect(merged.coverage.narrative).toBe('written');
+    expect(merged.coverage.narrative).not.toBe('skipped-budget');
+    expect(isComplete(merged)).toBe(true);
+    expect(reportStatus(merged).badge).toBe('Complete report');
+    expect(persistenceFields(merged).partial).toBe(false);
+    expect(merged.narrative.cover).toBe('You keep coming back to the rent.');
+    expect(merged.narrative.cover).not.toMatch(/in 0 of 3/);
+    expect(publicSubjectName(merged)).toBe('Second Draft');
+    expect(publicCodenameReason(base.narrative.codename_reason)).toBe(WRITE_UP_MISSING);
+    expect(sentenceCase(merged.interests[0].v)).toBe('Monthly budget spreadsheet in Google Sheets');
   });
 
   it('stops on an invalid key instead of a batch-failed report', async () => {
@@ -522,8 +606,18 @@ describe('demo pipeline', () => {
     expect(sentenceCase('daughter')).toBe('Daughter');
     expect(sentenceCase('“worried about the launch deadline”')).toBe('“Worried about the launch deadline”');
     expect(sentenceCase('iPhone notes')).toBe('iPhone notes');
-    expect(publicCodenameReason('A short name for this file, not a fact copied from one chat.')).toBe('A name for this case file.');
-    expect(publicCodenameReason('A plain name for this case file. It is not a claim taken from one chat.')).toBe('A name for this case file.');
+    expect(sentenceCase('High School Chemistry Teacher')).toBe('High school chemistry teacher');
+    expect(sentenceCase('always overspend on eating out')).toBe('Always overspend on eating out');
+    expect(sentenceCase('monthly budget spreadsheet in Google Sheets')).toBe('Monthly budget spreadsheet in Google Sheets');
+    expect(sentenceCase('a self-description')).toBe('A self-description');
+    expect(publicCodenameReason('A short name for this file, not a fact copied from one chat.')).toBe(WRITE_UP_MISSING);
+    expect(publicCodenameReason('A plain name for this case file. It is not a claim taken from one chat.')).toBe(WRITE_UP_MISSING);
+    expect(publicCodenameReason('A name for this case file.')).toBe(WRITE_UP_MISSING);
+    expect(sourceLabels(['c2', 'c0'], new Map([['c0', 'Rent'], ['c2', 'Budget']]), new Map([['c0', 0], ['c2', 2]]))).toEqual([
+      'Conversation 3 · Budget',
+      'Conversation 1 · Rent',
+    ]);
+    expect(vocabularyMeterValue({ vocabulary: 0.6, wordsPerMessage: 10 })).not.toBe(0.6);
     expect(caseDownloadName('claude_conversations.json')).toBe('claude_conversations-case-file.json');
     expect(caseDownloadName('claude_conversations.json.json')).toBe('claude_conversations-case-file.json');
     expect(isThinProfileLabel('8 years')).toBe(true);

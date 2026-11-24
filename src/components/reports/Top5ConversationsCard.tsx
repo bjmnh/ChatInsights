@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { sentenceCase } from '../../lib/insights/hydratePremium';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/button';
 import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
@@ -166,7 +167,7 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
               className="text-3xl sm:text-5xl md:text-6xl font-serif font-bold text-white mb-8 leading-tight text-balance break-words"
               style={{ fontFamily: 'Playfair Display, serif' }}
             >
-              {data[currentSlide]?.title || `Conversation ${currentSlide + 1}`}
+              {data[currentSlide]?.title ? sentenceCase(data[currentSlide].title) : `Conversation ${currentSlide + 1}`}
             </motion.h2>
 
             {/* Curator's Note */}
@@ -180,7 +181,7 @@ export const Top5ConversationsCard: React.FC<Top5ConversationsCardProps> = ({
                 Curator's Note
               </div>
               <p className="text-white/90 text-lg leading-relaxed font-light">
-                {data[currentSlide]?.justification}
+                {data[currentSlide]?.justification ? sentenceCase(data[currentSlide].justification) : ''}
               </p>
               {data[currentSlide]?.significance && !/model read this chat|not model-read/i.test(data[currentSlide].significance) && (
                 <p className="text-yellow-400/80 text-sm mt-4 italic">

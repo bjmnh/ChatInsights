@@ -156,8 +156,14 @@ export async function completeWithRetry<T>(
         last = error;
         if (attempt >= 4) break;
         const wait = error.retryAfterMs ?? Math.min(30_000, 1000 * 2 ** attempt) + Math.floor(Math.random() * 250);
-        onRetry?.({ attempt: attempt + 1, waitMs: wait, status: error.status || (error.kind === 'rate' ? 429 : 503) });
-        await sleep(wait);
+        const status = error.status || (error.kind === 'rate' ? 429 : 503);
+        let remaining = wait;
+        while (remaining > 0) {
+          onRetry?.({ attempt: attempt + 1, waitMs: remaining, status });
+          const slice = Math.min(1000, remaining);
+          await sleep(slice);
+          remaining -= slice;
+        }
         continue;
       }
       throw error;

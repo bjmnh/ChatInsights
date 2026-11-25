@@ -144,9 +144,21 @@ export const VERIFY_JSON_SCHEMA: Record<string, unknown> = {
   required: ['drop', 'notes'],
 };
 
+const ASK_JSON_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    supported: { type: 'boolean' },
+    answer: { type: 'string' },
+    factIds: { type: 'array', items: { type: 'number' } },
+  },
+  required: ['supported', 'answer', 'factIds'],
+};
+
 export function schemaFor(name: string): Record<string, unknown> {
   if (name === 'narrative') return NARRATIVE_JSON_SCHEMA;
   if (name === 'verify') return VERIFY_JSON_SCHEMA;
+  if (name === 'ask') return ASK_JSON_SCHEMA;
   return BATCH_JSON_SCHEMA;
 }
 

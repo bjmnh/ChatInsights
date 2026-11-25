@@ -4,12 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import ReportView from '../components/insights/ReportView';
 import { parseConversationExport } from '../lib/conversationParser';
 import type { NormalizedConversation } from '../lib/conversationParser/types';
-import { loadCheckpoint } from '../lib/insights/browserStore';
+import { createAdapter, type CompleteRequest, type CompleteResult } from '../lib/insights/adapters';
+import { idbVaultStore, loadCheckpoint } from '../lib/insights/browserStore';
 import { caseDownloadName } from '../lib/insights/hydratePremium';
+import { listKeys, revealKey } from '../lib/insights/keyVault';
 import type { CaseFile } from '../lib/insights/merge';
+import { catalogModel, providerPreset } from '../lib/insights/prices';
 import { ATTACH_MISMATCH, attachResult } from '../lib/insights/receipts';
 import { exportFingerprint } from '../lib/insights/saveReport';
-import { getCaseFile } from '../services/caseFileService';
+import { getCaseFile, saveCaseFile } from '../services/caseFileService';
 
 const SavedCasePage: React.FC = () => {
   const { id } = useParams();
@@ -19,6 +22,7 @@ const SavedCasePage: React.FC = () => {
   const [error, setError] = useState('');
   const [conversations, setConversations] = useState<NormalizedConversation[]>([]);
   const [attachError, setAttachError] = useState('');
+  const [askComplete, setAskComplete] = useState<((request: CompleteRequest) => Promise<CompleteResult>) | undefined>(undefined);
 
   useEffect(() => {
     if (authLoading) return;
@@ -44,6 +48,25 @@ const SavedCasePage: React.FC = () => {
       }
     }).catch(() => undefined);
   }, [file?.export_fingerprint]);
+
+  useEffect(() => {
+    const provider = file?.case_file.model.provider;
+    const model = file?.case_file.model.id;
+    if (!provider || !model) return;
+    let cancelled = false;
+    listKeys(idbVaultStore()).then(async (keys) => {
+      const match = keys.find((key) => key.provider === provider && !key.locked);
+      if (!match || cancelled) return;
+      const secret = await revealKey(idbVaultStore(), match.id);
+      if (cancelled) return;
+      const preset = providerPreset(provider);
+      const adapter = createAdapter(provider, { apiKey: secret, model, baseUrl: preset?.baseUrl });
+      setAskComplete(() => (request: CompleteRequest) => adapter.complete(request));
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [file?.case_file.model.provider, file?.case_file.model.id]);
 
   const attachExport = async (upload: File) => {
     setAttachError('');
@@ -83,6 +106,19 @@ const SavedCasePage: React.FC = () => {
       onClose={() => navigate('/dashboard')}
       onAttachExport={(upload) => { attachExport(upload).catch(() => undefined); }}
       attachError={attachError}
+      ask={{
+        prices: {
+          input: catalogModel(file.case_file.model.provider, file.case_file.model.id)?.input ?? 0,
+          output: catalogModel(file.case_file.model.provider, file.case_file.model.id)?.output ?? 0,
+        },
+        complete: askComplete,
+      }}
+      onCaseFile={(next) => {
+        setFile({ ...file, case_file: next });
+        if (user && file.export_fingerprint) {
+          saveCaseFile(user.id, file.export_fingerprint, file.filename ?? 'Export', next).catch(() => undefined);
+        }
+      }}
     />
   );
 };

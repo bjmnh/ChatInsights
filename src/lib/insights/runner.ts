@@ -247,7 +247,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     stopReason = providerFailureDetail(overloadKind ?? 'other', failed.size);
   }
 
-  let narrativeStatus: NarrativeStatus = input.depth === 'quick' ? 'not-in-depth' : 'templated';
+  let narrativeStatus: NarrativeStatus = 'templated';
   let narrative: NarrativeDraft | null = null;
   const unreadPlanned = selection.chosenIds.filter((id) => !topics.some((topic) => topic.c === id) || failed.has(id));
   const extractIncomplete = unreadPlanned.length > 0 || failed.size > 0 || Boolean(stopReason);
@@ -282,8 +282,10 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     }
   }
 
-  if (input.depth !== 'quick' && selection.chosenIds.length > 0 && !extractIncomplete && !stopReason) {
-    const narrativeEstimate = { dollars: dollars(30_000, 16_000, input.model), inputTokens: 30_000, outputTokens: 16_000 };
+  if (selection.chosenIds.length > 0 && !extractIncomplete && !stopReason) {
+    const narrativeEstimate = input.depth === 'quick'
+      ? { dollars: dollars(4_000, 800, input.model), inputTokens: 4_000, outputTokens: 800 }
+      : { dollars: dollars(30_000, 16_000, input.model), inputTokens: 30_000, outputTokens: 16_000 };
     if (wouldExceed(spentDollars, spentTokens, narrativeEstimate, input.budget)) {
       narrativeStatus = 'skipped-budget';
       stopReason = 'budget';
@@ -304,9 +306,6 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
 
   if (!stopReason && narrativeStatus === 'failed-provider') {
     stopReason = 'The write-up step did not finish for this read.';
-  }
-  if (!stopReason && narrativeStatus === 'not-in-depth' && !extractIncomplete) {
-    stopReason = 'The write-up step did not run for this Quick scan. The selected chats were read.';
   }
 
   const caseFile = buildCaseFile({
@@ -380,11 +379,12 @@ async function writeNarrative(
   onAttempt?: (attempt: number) => void,
 ): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean; reason?: string }> {
   const grok = input.model?.provider === 'xai' || /grok/i.test(input.model?.id ?? '');
+  const quick = input.depth === 'quick';
   const request: CompleteRequest = {
     system: NARRATIVE_SYSTEM,
-    user: JSON.stringify({ topics, facts: facts.slice(0, 80) }),
+    user: JSON.stringify({ topics, facts: facts.slice(0, quick ? 24 : 80) }),
     schemaName: 'narrative',
-    maxOutputTokens: grok ? 1024 : 2000,
+    maxOutputTokens: quick ? 800 : grok ? 1024 : 2000,
   };
   let viaProxy = false;
   try {

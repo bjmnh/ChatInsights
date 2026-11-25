@@ -618,6 +618,69 @@ describe('budget cap and partial reports', () => {
     expect(stored.caseFile?.coverage.read).toBe(2);
   });
 
+  it('keeps a successful Quick scan complete and a failed cover partial', async () => {
+    const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
+    const local = runLocalPass(conversations);
+    const model = { provider: 'script', id: 'script', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 };
+    const cover = {
+      cover: 'You keep coming back to the rent.',
+      codename: 'Second Draft',
+      codename_reason: 'You rewrite the rent note until it sounds like you.',
+      archetype: 'The person who rewrites the rent note',
+    };
+    const succeeded = await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 0.5,
+      model,
+      adapter: {
+        id: 'script',
+        async complete(request: { user: string; schemaName?: string; maxOutputTokens?: number }) {
+          if (request.schemaName === 'narrative') {
+            expect(request.maxOutputTokens).toBeLessThanOrEqual(800);
+            return { text: JSON.stringify(cover), viaProxy: false };
+          }
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(succeeded.coverage.read).toBe(succeeded.coverage.planned);
+    expect(succeeded.coverage.read).toBeLessThan(succeeded.coverage.conversations);
+    expect(succeeded.coverage.narrative).toBe('written');
+    expect(isComplete(succeeded)).toBe(true);
+    expect(needsWriteUpRetry(succeeded)).toBe(false);
+    expect(reportStatus(succeeded).badge).toBe(`Quick scan, ${succeeded.coverage.read} of ${succeeded.coverage.conversations}`);
+    expect(reportStatus(succeeded).badge).not.toBe('Partial report');
+    expect(reportStatus(succeeded).detail).toMatch(/sample/);
+    expect(persistenceFields(succeeded).partial).toBe(false);
+    const failed = await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 0.5,
+      model,
+      adapter: {
+        id: 'script',
+        async complete(request: { schemaName?: string; user: string }) {
+          if (request.schemaName === 'narrative') throw new ProviderRequestError('overloaded', 503, 'server');
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(failed.coverage.read).toBe(failed.coverage.planned);
+    expect(failed.coverage.narrative).toBe('failed-provider');
+    expect(isComplete(failed)).toBe(false);
+    expect(needsWriteUpRetry(failed)).toBe(true);
+    expect(reportStatus(failed).badge).toBe('Partial report');
+    expect(plainPartialDetail(failed)).toMatch(/503|busy|write-up/);
+    expect(persistenceFields(failed).partial).toBe(true);
+  });
+
   it('retries only the write-up when every selected chat was already read', async () => {
     const conversations = [convo('c0', 'My sister Dana wrote about the rent.')];
     const local = runLocalPass(conversations);
@@ -838,12 +901,13 @@ describe('demo pipeline', () => {
       adapter: createDemoAdapter({ latencyMs: 0 }),
       sleep: async () => undefined,
     });
-    expect(isComplete(quickFile)).toBe(false);
-    expect(needsWriteUpRetry(quickFile)).toBe(true);
-    expect(reportStatus(quickFile).badge).toBe('Partial report');
+    expect(isComplete(quickFile)).toBe(true);
+    expect(needsWriteUpRetry(quickFile)).toBe(false);
+    expect(reportStatus(quickFile).badge).toBe(`Quick scan, ${quickFile.coverage.read} of ${quickFile.coverage.conversations}`);
+    expect(reportStatus(quickFile).badge).not.toBe('Partial report');
     expect(reportStatus(quickFile).badge).not.toBe('Complete report');
-    expect(reportStatus(quickFile).detail).toMatch(/write-up/);
-    expect(persistenceFields(quickFile).partial).toBe(true);
+    expect(reportStatus(quickFile).detail).toMatch(/sample/);
+    expect(persistenceFields(quickFile).partial).toBe(false);
     expect(reportStatus(quickFile).badge).not.toBe(reportStatus(result).badge);
     expect(standardFile.cardStatus.stranger).toBe('ready');
     expect(standardFile.cardStatus.file).not.toBe('partial');

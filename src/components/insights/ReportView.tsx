@@ -264,7 +264,9 @@ const ReportView: React.FC<{
               <Button variant="outline" onClick={onRetryUnread} className="border-white/20 text-white hover:bg-white/10">Retry unread conversations</Button>
             )}
             {onRetryWriteUp && needsWriteUpRetry(caseFile) && (
-              <Button variant="outline" onClick={onRetryWriteUp} className="border-white/20 text-white hover:bg-white/10">Retry the write-up</Button>
+              <Button variant="outline" onClick={onRetryWriteUp} className="border-white/20 text-white hover:bg-white/10">
+                {caseFile.coverage.narrative === 'skipped-budget' ? 'Clear cap and retry the write-up' : 'Retry the write-up'}
+              </Button>
             )}
           </div>
           <Badge variant="outline" className={badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : badge.startsWith('Quick scan') ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : badge === 'Sample report' ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>

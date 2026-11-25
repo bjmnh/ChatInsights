@@ -37,6 +37,7 @@ export interface RunProgress {
   planned: number;
   viaProxy: boolean;
   routeKnown: boolean;
+  routeLine: string;
   message: string;
 }
 
@@ -58,6 +59,44 @@ export interface RunInput {
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+export function providerDisplayName(provider: string): string {
+  const names: Record<string, string> = {
+    xai: 'xAI',
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    gemini: 'Gemini',
+    groq: 'Groq',
+    openrouter: 'OpenRouter',
+  };
+  return names[provider] ?? provider;
+}
+
+/** Two at a time for hosts that were not the ones hitting 429s in live reads. A 429 drops back to one. */
+export function parallelLimit(provider: string): number {
+  if (provider === 'xai' || provider === 'openai' || provider === 'anthropic') return 2;
+  return 1;
+}
+
+export function isReasoningModel(provider: string, modelId: string): boolean {
+  return provider === 'xai' || /grok/i.test(modelId);
+}
+
+function compactCoverInput(topics: { c: string; topic: string }[], facts: Fact[]): string {
+  const topicLines = [...new Set(topics.map((topic) => topic.topic.trim()).filter(Boolean))].slice(0, 12);
+  const findings = facts.slice(0, 20).map((fact) => `${fact.k}: ${fact.v.replace(/\s+/g, ' ').slice(0, 120)}`);
+  return JSON.stringify({ topics: topicLines, findings });
+}
+
+function writeUpSkipReason(budget: RunBudget | undefined, spentDollars: number, spentTokens: number, estimate: { dollars: number; inputTokens: number; outputTokens: number }): string {
+  if (budget?.maxTokens != null && spentTokens + estimate.inputTokens + estimate.outputTokens > budget.maxTokens) {
+    return `The write-up was skipped because the token cap (${budget.maxTokens.toLocaleString()} tokens) was reached. Clear the cap and retry the write-up.`;
+  }
+  if (budget?.maxDollars != null && spentDollars + estimate.dollars > budget.maxDollars) {
+    return `The write-up was skipped because the dollar cap ($${budget.maxDollars}) was reached. Clear the cap and retry the write-up.`;
+  }
+  return 'The write-up was skipped because the budget cap was reached. Clear the cap and retry the write-up.';
+}
 
 function dollars(inputTokens: number, outputTokens: number, model: RunModel): number {
   return (inputTokens / 1_000_000) * model.inputPricePerMillion + (outputTokens / 1_000_000) * model.outputPricePerMillion;
@@ -115,6 +154,8 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   const failed = new Set<string>();
   let viaProxy = false;
   let routeKnown = false;
+  let routeLine = `Sending directly to ${providerDisplayName(input.model.provider)}.`;
+  let parallel = parallelLimit(input.model.provider);
   let spentDollars = 0;
   let spentTokens = 0;
   let completed = 0;
@@ -134,6 +175,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     planned: selection.chosenIds.length,
     viaProxy,
     routeKnown,
+    routeLine,
     message,
   });
 
@@ -146,6 +188,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   };
 
   const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {
+    if (info.status === 429) parallel = 1;
     input.onProgress?.(progress(
       'batch',
       providerWaitMessage(info.status, info.waitMs, info.attempt),
@@ -157,9 +200,11 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
 
   input.onProgress?.(progress('packing', 'Packing the chats that this depth will send.'));
 
-  // One batch at a time. A Quick scan does not fire the next call until this one settles,
-  // so a 429 is not caused by overlapping requests from this read.
-  while (queue.length) {
+  // xAI, OpenAI, and Anthropic send two batches at a time. A 429 drops the rest of the read back to one,
+  // and that wait still follows Retry-After. Gemini and everyone else stay at one.
+  let reservedDollars = 0;
+  let reservedTokens = 0;
+  while (queue.length && stopReason !== 'budget' && stopReason !== 'stopped') {
     if (input.signal?.aborted) {
       stopReason = 'stopped';
       break;
@@ -169,47 +214,74 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       stopReason = 'stopped';
       break;
     }
-    const batch = queue[0];
-    const estimate = batchEstimate(batch, input.depth, input.model);
-    if (wouldExceed(spentDollars, spentTokens, estimate, input.budget)) {
-      stopReason = 'budget';
-      break;
-    }
-    input.onProgress?.(progress('batch', batchMessage(batch, batch.wasRetry ? 'Retrying conversations the last reply skipped.' : undefined)));
-    try {
-      const extracted = await extractBatch(input, batch, sleep, onRetry, onAttempt);
-      if (extracted.viaProxy) viaProxy = true;
-      routeKnown = true;
-      const known = new Set(batch.ids);
-      for (const fact of extracted.facts) {
-        if (known.has(fact.c)) facts.push(fact);
+    const wave: PackedBatch[] = [];
+    while (wave.length < parallel && queue.length) {
+      const next = queue[0];
+      const estimate = batchEstimate(next, input.depth, input.model);
+      if (wouldExceed(spentDollars + reservedDollars, spentTokens + reservedTokens, estimate, input.budget)) {
+        stopReason = 'budget';
+        break;
       }
-      const returned = new Set(extracted.convs.map((item) => item.c));
-      for (const conv of extracted.convs) {
-        if (known.has(conv.c)) topics.push(conv);
-      }
-      const missing = batch.ids.filter((id) => !returned.has(id));
-      spentDollars += extracted.usage ? dollars(extracted.usage.input, extracted.usage.output, input.model) : estimate.dollars;
-      spentTokens += extracted.usage ? extracted.usage.input + extracted.usage.output : estimate.inputTokens + estimate.outputTokens;
       queue.shift();
-      completed += 1;
-      const retryMissing = missing.length > 0 && !batch.wasRetry;
-      batch.ids.forEach((id) => {
-        if (!retryMissing || !missing.includes(id)) accounted.add(id);
-      });
-      if (retryMissing) {
-        const again = missing.map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
-        const [repacked] = packBatches(again, input.depth, input.model.contextWindow || 32_000, batchCap);
-        if (repacked) queue.unshift({ ...repacked, wasRetry: true });
-        else missing.forEach((id) => { failed.add(id); accounted.add(id); });
-      } else {
-        missing.forEach((id) => { failed.add(id); accounted.add(id); });
+      wave.push(next);
+      reservedDollars += estimate.dollars;
+      reservedTokens += estimate.inputTokens + estimate.outputTokens;
+    }
+    if (!wave.length) break;
+    input.onProgress?.(progress('batch', wave.length > 1
+      ? `Reading ${wave.length} batches at a time (${wave.reduce((sum, batch) => sum + batch.ids.length, 0)} conversations).`
+      : batchMessage(wave[0], wave[0].wasRetry ? 'Retrying conversations the last reply skipped.' : undefined)));
+    const settled = await Promise.all(wave.map(async (batch) => {
+      try {
+        const extracted = await extractBatch(input, batch, sleep, onRetry, onAttempt);
+        return { batch, extracted };
+      } catch (error) {
+        return { batch, error: error instanceof Error ? error : new Error('The batch failed') };
       }
-    } catch (error) {
+    }));
+    for (const item of settled) {
+      const estimate = batchEstimate(item.batch, input.depth, input.model);
+      reservedDollars -= estimate.dollars;
+      reservedTokens -= estimate.inputTokens + estimate.outputTokens;
+      if ('extracted' in item && item.extracted) {
+        const { batch, extracted } = item;
+        if (extracted.viaProxy) {
+          viaProxy = true;
+          routeLine = 'Calls are going through the pass-through.';
+        }
+        routeKnown = true;
+        const known = new Set(batch.ids);
+        for (const fact of extracted.facts) {
+          if (known.has(fact.c)) facts.push(fact);
+        }
+        const returned = new Set(extracted.convs.map((conv) => conv.c));
+        for (const conv of extracted.convs) {
+          if (known.has(conv.c)) topics.push(conv);
+        }
+        const missing = batch.ids.filter((id) => !returned.has(id));
+        spentDollars += extracted.usage ? dollars(extracted.usage.input, extracted.usage.output, input.model) : estimate.dollars;
+        spentTokens += extracted.usage ? extracted.usage.input + extracted.usage.output : estimate.inputTokens + estimate.outputTokens;
+        completed += 1;
+        const retryMissing = missing.length > 0 && !batch.wasRetry;
+        batch.ids.forEach((id) => {
+          if (!retryMissing || !missing.includes(id)) accounted.add(id);
+        });
+        if (retryMissing) {
+          const again = missing.map((id) => byId.get(id)).filter((conversation): conversation is NormalizedConversation => Boolean(conversation));
+          const [repacked] = packBatches(again, input.depth, input.model.contextWindow || 32_000, batchCap);
+          if (repacked) queue.unshift({ ...repacked, wasRetry: true });
+          else missing.forEach((id) => { failed.add(id); accounted.add(id); });
+        } else {
+          missing.forEach((id) => { failed.add(id); accounted.add(id); });
+        }
+        continue;
+      }
+      const error = item.error;
+      const batch = item.batch;
       const authError = providerAuthError(error);
       if (authError) throw authError;
+      if (error instanceof ProviderRequestError && error.kind === 'rate') parallel = 1;
       if (error instanceof ProviderRequestError && error.kind === 'safety') {
-        queue.shift();
         batch.ids.forEach((id) => {
           failed.add(id);
           accounted.add(id);
@@ -220,17 +292,15 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       }
       const overload = error instanceof ProviderRequestError && (error.kind === 'server' || error.kind === 'rate' || error.kind === 'timeout');
       if (!overload && batch.ids.length > 1 && !(error instanceof ProviderRequestError && error.kind === 'cors')) {
-        queue.shift();
         const mid = Math.ceil(batch.ids.length / 2);
-        const left = batch.ids.slice(0, mid).map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
-        const right = batch.ids.slice(mid).map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
+        const left = batch.ids.slice(0, mid).map((id) => byId.get(id)).filter((conversation): conversation is NormalizedConversation => Boolean(conversation));
+        const right = batch.ids.slice(mid).map((id) => byId.get(id)).filter((conversation): conversation is NormalizedConversation => Boolean(conversation));
         const pieces = [...packBatches(left, input.depth, input.model.contextWindow || 32_000, batchCap), ...packBatches(right, input.depth, input.model.contextWindow || 32_000, batchCap)];
         queue.unshift(...pieces);
         input.onProgress?.(progress('batch', batchMessage(batch, 'The last reply could not be read, so this batch was split into smaller pieces.')));
         continue;
       }
       if (error instanceof ProviderRequestError && error.kind === 'cors') throw error;
-      queue.shift();
       batch.ids.forEach((id) => {
         failed.add(id);
         accounted.add(id);
@@ -288,7 +358,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       : { dollars: dollars(30_000, 16_000, input.model), inputTokens: 30_000, outputTokens: 16_000 };
     if (wouldExceed(spentDollars, spentTokens, narrativeEstimate, input.budget)) {
       narrativeStatus = 'skipped-budget';
-      stopReason = 'budget';
+      stopReason = writeUpSkipReason(input.budget, spentDollars, spentTokens, narrativeEstimate);
     } else {
       input.onProgress?.(progress('narrative', 'Writing the short cover.'));
       const written = await writeNarrative(input, facts, topics, sleep, onRetry, onAttempt);
@@ -382,14 +452,24 @@ async function writeNarrative(
   const quick = input.depth === 'quick';
   const request: CompleteRequest = {
     system: NARRATIVE_SYSTEM,
-    user: JSON.stringify({ topics, facts: facts.slice(0, quick ? 24 : 80) }),
+    user: compactCoverInput(topics, facts.slice(0, quick ? 24 : 80)),
     schemaName: 'narrative',
-    maxOutputTokens: quick ? 800 : grok ? 1024 : 2000,
+    maxOutputTokens: grok ? 8192 : quick ? 800 : 2000,
   };
   let viaProxy = false;
   try {
     const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry, onAttempt);
     viaProxy = first.viaProxy;
+    if (!first.text.trim()) {
+      return {
+        narrative: null,
+        status: 'failed-provider',
+        viaProxy,
+        reason: first.emptyBecauseLength || first.finishReason === 'length'
+          ? 'The write-up came back empty (the model used its whole output budget).'
+          : 'The write-up came back empty or was not valid JSON.',
+      };
+    }
     let parsed = parseNarrativePayload(first.text);
     if (parsed.ok && !toneOk(parsed.value.cover)) {
       const retry = await completeWithRetry(
@@ -411,9 +491,11 @@ async function writeNarrative(
         narrative: null,
         status: 'failed-provider',
         viaProxy,
-        reason: parsed.error === 'tone'
-          ? 'The write-up was unusable, so it was not kept.'
-          : 'The write-up came back empty or was not valid JSON.',
+        reason: first.finishReason === 'length'
+          ? 'The write-up was cut off because the model used its whole output budget.'
+          : parsed.error === 'tone'
+            ? 'The write-up was unusable, so it was not kept.'
+            : 'The write-up came back empty or was not valid JSON.',
       };
     }
     return {
@@ -480,6 +562,7 @@ export async function retryNarrative(input: {
     planned: input.file.coverage.planned,
     viaProxy: false,
     routeKnown: false,
+    routeLine: 'Sending directly to the provider.',
     message,
   });
   const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {

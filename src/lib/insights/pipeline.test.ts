@@ -16,12 +16,14 @@ import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
 import { createRateLimiter, handleProxyRequest } from './proxyHandler.ts';
 import {
   buildRepairPrompt,
+  extractJson,
   parseBatchPayload,
+  parseNarrativePayload,
   toGeminiSchema,
 } from './schema.ts';
 import { buildSampleConversations, createDemoAdapter } from './sample.ts';
 import { caseFileRow, exportFingerprint, persistenceFields, upsertByConflict } from './saveReport.ts';
-import { retryNarrative, runRead, type RunProgress } from './runner.ts';
+import { parallelLimit, retryNarrative, runRead, type RunProgress } from './runner.ts';
 import { completeWithRetry, headerRetryAfterMs, providerFetch, ProviderRequestError, PROVIDER_AUTH_MESSAGE, providerWaitMessage, retryWaitMs } from './transport.ts';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
@@ -618,6 +620,147 @@ describe('budget cap and partial reports', () => {
     expect(stored.caseFile?.coverage.read).toBe(2);
   });
 
+  it('parses a fenced cover and names an empty reasoning response', () => {
+    expect(extractJson('```json\n{"cover":"A short cover.","codename":"Open notebook","codename_reason":"A name for this case file.","archetype":"Cast as a reader"}\n```')).toMatchObject({ cover: 'A short cover.' });
+    expect(parseNarrativePayload('Here is the cover:\n```json\n{"cover":"You keep the rent note.","codename":"Second Draft","codename_reason":"You rewrite the rent note until it sounds like you.","archetype":"The person who rewrites the note"}\ntrailing')).toMatchObject({ ok: true });
+  });
+
+  it('marks an empty Grok reply as the output budget when reasoning tokens used it up', async () => {
+    const adapter = createOpenAICompatibleAdapter('xai', {
+      apiKey: 'xai-key',
+      model: 'grok-4.3',
+      baseUrl: 'https://api.x.ai/v1',
+      proxy: 'never',
+      fetchImpl: (async () => new Response(JSON.stringify({
+        choices: [{ finish_reason: 'length', message: { content: '' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 1024, completion_tokens_details: { reasoning_tokens: 1024 } },
+      }), { status: 200, headers: { 'content-type': 'application/json' } })) as never,
+    });
+    const result = await adapter.complete({ system: 's', user: 'u', schemaName: 'narrative', maxOutputTokens: 8192 });
+    expect(result.emptyBecauseLength).toBe(true);
+    expect(result.finishReason).toBe('length');
+    expect(result.text).toBe('');
+  });
+
+  it('asks Grok for a large cover budget and skips the write-up when the token cap is already spent', async () => {
+    const conversations = [convo('c0', 'My sister Dana wrote about the rent.')];
+    const local = runLocalPass(conversations);
+    const model = { provider: 'xai', id: 'grok-4.3', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 };
+    let coverBudget = 0;
+    const succeeded = await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 1,
+      model,
+      adapter: {
+        id: 'xai',
+        async complete(request: { schemaName?: string; maxOutputTokens: number; user: string }) {
+          if (request.schemaName === 'narrative') {
+            coverBudget = request.maxOutputTokens;
+            expect(request.user.length).toBeLessThan(4000);
+            return { text: JSON.stringify({ cover: 'You keep coming back to the rent.', codename: 'Second Draft', codename_reason: 'You rewrite the rent note until it sounds like you.', archetype: 'The person who rewrites the note' }), viaProxy: false };
+          }
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [{ c: ids[0], k: 'person', v: 'Dana', d: null, t: null, q: null }] }), viaProxy: false, finishReason: 'length', emptyBecauseLength: false };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(coverBudget).toBe(8192);
+    expect(isComplete(succeeded)).toBe(true);
+    const capped = await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 1,
+      budget: { maxTokens: 4500 },
+      model,
+      adapter: {
+        id: 'xai',
+        async complete(request: { user: string }) {
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false, usage: { input: 3200, output: 200 } };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(capped.coverage.read).toBe(1);
+    expect(capped.coverage.narrative).toBe('skipped-budget');
+    expect(capped.coverage.partialReason).toMatch(/token cap/);
+    expect(needsWriteUpRetry(capped)).toBe(true);
+    expect(plainPartialDetail(capped)).toMatch(/token cap/);
+  });
+
+  it('sends two xAI batches at once', async () => {
+    expect(parallelLimit('xai')).toBe(2);
+    expect(parallelLimit('gemini')).toBe(1);
+    const conversations = [0, 1, 2, 3].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
+    const local = runLocalPass(conversations);
+    let inFlight = 0;
+    let maxInFlight = 0;
+    await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 1,
+      model: { provider: 'xai', id: 'grok-4.3', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 3500 },
+      adapter: {
+        id: 'xai',
+        async complete(request: { user: string; schemaName?: string }) {
+          if (request.schemaName === 'narrative') {
+            return { text: JSON.stringify({ cover: 'You keep coming back to the rent.', codename: 'Second Draft', codename_reason: 'You rewrite the rent note until it sounds like you.', archetype: 'The person who rewrites the note' }), viaProxy: false };
+          }
+          inFlight += 1;
+          maxInFlight = Math.max(maxInFlight, inFlight);
+          await new Promise((resolve) => setTimeout(resolve, 20));
+          inFlight -= 1;
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(maxInFlight).toBe(2);
+  });
+
+  it('sends later xAI batches one at a time after a 429', async () => {
+    const conversations = [0, 1, 2, 3].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
+    const local = runLocalPass(conversations);
+    let inFlight = 0;
+    let thrown = false;
+    const maxById = new Map<string, number>();
+    await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 1,
+      model: { provider: 'xai', id: 'grok-4.3', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 3500 },
+      adapter: {
+        id: 'xai',
+        async complete(request: { user: string; schemaName?: string }) {
+          if (request.schemaName === 'narrative') {
+            return { text: JSON.stringify({ cover: 'You keep coming back to the rent.', codename: 'Second Draft', codename_reason: 'You rewrite the rent note until it sounds like you.', archetype: 'The person who rewrites the note' }), viaProxy: false };
+          }
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          inFlight += 1;
+          for (const id of ids) maxById.set(id, Math.max(maxById.get(id) ?? 0, inFlight));
+          await new Promise((resolve) => setTimeout(resolve, 15));
+          inFlight -= 1;
+          if (!thrown) {
+            thrown = true;
+            throw new ProviderRequestError('slow down', 429, 'rate');
+          }
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    const alone = [...maxById.values()].filter((peak) => peak === 1);
+    expect(alone.length).toBeGreaterThanOrEqual(2);
+    expect(Math.max(...maxById.values())).toBe(2);
+  });
+
   it('keeps a successful Quick scan complete and a failed cover partial', async () => {
     const conversations = [0, 1, 2].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
     const local = runLocalPass(conversations);
@@ -1051,7 +1194,10 @@ describe('provider adapters', () => {
     expect(urls[0]).toBe('https://api.x.ai/v1/chat/completions');
     expect(urls[1]).toBe('http://localhost:11434/v1/chat/completions');
     expect(bodies[0]).toContain('"stream":false');
-    expect(bodies[0]).toContain('"max_tokens":20');
+    expect(bodies[0]).toContain('"max_completion_tokens":20');
+    expect(bodies[0]).toContain('json_schema');
+    expect(bodies[0]).not.toContain('"max_tokens"');
+    expect(bodies[1]).toContain('"max_tokens":20');
     expect(modelBatchCap('xai', 'grok-4.3', 'quick')).toBe(8);
     expect(modelBatchCap('gemini', 'gemini-3.5-flash-lite', 'quick')).toBe(50);
   });

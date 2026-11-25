@@ -180,13 +180,44 @@ export function toGeminiSchema(schema: unknown): Record<string, unknown> {
   return result;
 }
 
+function sliceFirstObject(text: string, start: number): string | null {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escape) escape = false;
+      else if (char === '\\') escape = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') inString = true;
+    else if (char === '{') depth += 1;
+    else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, index + 1);
+    }
+  }
+  return null;
+}
+
 export function extractJson(text: string): unknown {
   const trimmed = text.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const body = (fenced ? fenced[1] : trimmed).trim();
   const start = body.indexOf('{');
+  if (start < 0) throw new Error('No JSON object found');
+  const first = sliceFirstObject(body, start);
+  if (first) {
+    try {
+      return JSON.parse(first) as unknown;
+    } catch {
+      // Fall through to the wider slice when the first brace is not the payload.
+    }
+  }
   const end = body.lastIndexOf('}');
-  if (start < 0 || end <= start) throw new Error('No JSON object found');
+  if (end <= start) throw new Error('No JSON object found');
   return JSON.parse(body.slice(start, end + 1)) as unknown;
 }
 

@@ -18,6 +18,9 @@ export interface CompleteResult {
   text: string;
   viaProxy: boolean;
   usage?: { input: number; output: number };
+  finishReason?: string;
+  /** True when the visible text is empty because reasoning or output used the whole token budget. */
+  emptyBecauseLength?: boolean;
 }
 
 export interface ListedModel {
@@ -76,13 +79,19 @@ async function postJson(
   return { status: result.response.status, text: result.text, viaProxy: result.viaProxy, json, headers: result.response.headers };
 }
 
-function openAiText(payload: unknown): { text: string; safety: boolean } {
-  const record = payload as { choices?: { finish_reason?: string; message?: { content?: string | null; tool_calls?: { function?: { arguments?: string } }[] } }[] };
+function openAiText(payload: unknown): { text: string; safety: boolean; finishReason?: string; emptyBecauseLength: boolean } {
+  const record = payload as {
+    choices?: { finish_reason?: string; message?: { content?: string | null; tool_calls?: { function?: { arguments?: string } }[] } }[];
+    usage?: { completion_tokens_details?: { reasoning_tokens?: number } };
+  };
   const choice = record?.choices?.[0];
-  if (choice?.finish_reason === 'content_filter') return { text: '', safety: true };
+  const finishReason = choice?.finish_reason;
+  if (finishReason === 'content_filter') return { text: '', safety: true, finishReason, emptyBecauseLength: false };
   const tool = choice?.message?.tool_calls?.[0]?.function?.arguments;
-  if (tool) return { text: tool, safety: false };
-  return { text: choice?.message?.content ?? '', safety: false };
+  const text = tool || choice?.message?.content || '';
+  const reasoning = record?.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
+  const emptyBecauseLength = !text.trim() && (finishReason === 'length' || reasoning > 0);
+  return { text, safety: false, finishReason, emptyBecauseLength };
 }
 
 export function createOpenAICompatibleAdapter(id: string, options: AdapterOptions): Adapter {
@@ -96,7 +105,9 @@ export function createOpenAICompatibleAdapter(id: string, options: AdapterOption
       model: options.model,
       temperature: 0.2,
       stream: false,
-      max_tokens: id === 'xai' ? Math.min(request.maxOutputTokens, 2048) : request.maxOutputTokens,
+      ...(id === 'xai'
+        ? { max_completion_tokens: request.maxOutputTokens }
+        : { max_tokens: request.maxOutputTokens }),
       messages: [
         { role: 'system', content: request.system },
         { role: 'user', content: request.user },
@@ -147,7 +158,13 @@ export function createOpenAICompatibleAdapter(id: string, options: AdapterOption
         if (extracted.safety) throw new ProviderRequestError('The provider safety filter blocked this batch.', result.status, 'safety');
         strategy = mode;
         const usage = usageOf((result.json as { usage?: unknown })?.usage);
-        return { text: extracted.text, viaProxy: result.viaProxy, usage };
+        return {
+          text: extracted.text,
+          viaProxy: result.viaProxy,
+          usage,
+          finishReason: extracted.finishReason,
+          emptyBecauseLength: extracted.emptyBecauseLength,
+        };
       }
       throw new ProviderRequestError(lastError, 400, 'schema');
     },

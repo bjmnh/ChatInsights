@@ -628,19 +628,21 @@ export function mergeCaseFiles(base: CaseFile, extra: CaseFile): CaseFile {
   const read = Math.min(base.coverage.conversations, Math.max(topics.length, extra.coverage.read, base.coverage.read));
   const failed = extra.coverage.failed;
   const chatsDone = failed === 0 && read >= base.coverage.planned;
-  const budgetStop = extra.coverage.narrative === 'skipped-budget' && /budget/i.test(extra.coverage.partialReason ?? '');
+  const budgetStop = extra.coverage.narrative === 'skipped-budget';
   const narrativeStatus: NarrativeStatus = budgetStop
     ? 'skipped-budget'
-    : chatsDone && (extra.coverage.narrative === 'written' || extra.coverage.narrative === 'templated' || extra.coverage.narrative === 'not-in-depth')
+    : chatsDone && (extra.coverage.narrative === 'written' || extra.coverage.narrative === 'templated')
       ? extra.coverage.narrative
-      : chatsDone
-        ? (base.model.depth === 'quick' ? 'not-in-depth' : 'templated')
-        : (extra.coverage.narrative === 'skipped-budget' ? 'failed-provider' : extra.coverage.narrative);
+      : chatsDone && (extra.coverage.narrative === 'failed-provider' || extra.coverage.narrative === 'failed' || extra.coverage.narrative === 'not-in-depth')
+        ? extra.coverage.narrative
+        : chatsDone
+          ? 'templated'
+          : extra.coverage.narrative;
   const missed = Math.max(failed, base.coverage.planned - read, 0);
   const partialReason = missed > 0
     ? (extra.coverage.partialReason && !/failed on 0/i.test(extra.coverage.partialReason) ? extra.coverage.partialReason : `The provider failed on ${missed} conversation${missed === 1 ? '' : 's'} after several retries.`)
     : narrativeStatus === 'skipped-budget'
-      ? 'budget'
+      ? (extra.coverage.partialReason && /cap|budget/i.test(extra.coverage.partialReason) ? extra.coverage.partialReason : 'The write-up was skipped because the budget cap was reached. Clear the cap and retry the write-up.')
       : narrativeStatus === 'failed-provider' || narrativeStatus === 'failed'
         ? (extra.coverage.partialReason && /write-up|did not answer|rate-limiting|busy \(/i.test(extra.coverage.partialReason)
           ? extra.coverage.partialReason

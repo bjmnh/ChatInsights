@@ -689,7 +689,11 @@ const ReadPage: React.FC = () => {
     const previous = caseFile;
     const budget = retryBudget();
     if (budgetBlocks(budget, estimate.cost, estimate.inputTokens + estimate.outputTokens)) {
-      setRetryNote('No call went out. The dollar or token cap is below this estimate. Clear the cap and try again.');
+      const cap = [
+        budget.maxTokens != null ? `token cap ${budget.maxTokens.toLocaleString()}` : '',
+        budget.maxDollars != null ? `dollar cap $${budget.maxDollars}` : '',
+      ].filter(Boolean).join(' and ');
+      setRetryNote(`No call went out. The ${cap || 'budget cap'} is below this estimate. Clear it and try again.`);
       return;
     }
     const readIds = previous.coverage.topics.map((topic) => topic.c);
@@ -756,6 +760,9 @@ const ReadPage: React.FC = () => {
     pausedRef.current = false;
     setRetryNote('');
     setRunError('');
+    if (caseFile.coverage.narrative === 'skipped-budget') {
+      setSetup((current) => ({ ...current, maxTokens: '', maxDollars: '' }));
+    }
     const secret = resolveSecret();
     const adapter = setup.providerId === 'demo'
       ? createDemoAdapter({ latencyMs: 900 })
@@ -769,7 +776,7 @@ const ReadPage: React.FC = () => {
       const next = await retryNarrative({ file: caseFile, adapter, onProgress: setProgress });
       setCaseFile(next);
       await persistRead(next);
-      setRetryNote(next.coverage.partial ? 'The write-up was tried again and still did not finish.' : '');
+      setRetryNote(next.coverage.partial ? `Tried again: ${plainPartialDetail(next)}` : '');
       setStep('report');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'The write-up could not be tried again.';

@@ -44,11 +44,9 @@ const ProgressView: React.FC<{
       {stillWaiting && progress.phase !== 'done' && (
         <p className="mt-2 text-sm text-amber-100" data-testid="still-waiting">Still waiting on the provider.</p>
       )}
-      {progress.routeKnown && (
-        <p className="mt-2 text-sm text-muted-foreground" data-testid="route-note">
-          {progress.viaProxy ? 'Calls are going through the pass-through.' : 'Calls are going directly to the provider.'}
-        </p>
-      )}
+      <p className="mt-2 text-sm text-muted-foreground" data-testid="route-note">
+        {progress.routeLine}
+      </p>
       {progress.viaProxy && (
         <p className="mt-4 rounded-2xl border border-white/15 px-4 py-3 text-sm" data-testid="proxy-notice">
           This batch is passing through Chat Insights’ server because the browser could not call the provider directly. It goes to an allowlisted host, in memory only, and is not stored.

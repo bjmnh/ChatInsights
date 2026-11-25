@@ -213,11 +213,17 @@ export function publicSubjectName(file: CaseFile): string {
 }
 
 export function sourceLabels(ids: string[], titles: Map<string, string>, order: Map<string, number>): string[] {
+  return sourceChips(ids, titles, order).map((chip) => chip.label);
+}
+
+export function sourceChips(ids: string[], titles: Map<string, string>, order: Map<string, number>): { id: string; label: string }[] {
   return ids.map((id) => {
     const title = conversationTitle(id, titles);
     const index = order.get(id);
-    if (index == null) return title || 'Source chat';
-    return title ? `Conversation ${index + 1} · ${title}` : `Conversation ${index + 1}`;
+    const label = index == null
+      ? (title || 'Source chat')
+      : title ? `Conversation ${index + 1} · ${title}` : `Conversation ${index + 1}`;
+    return { id, label };
   });
 }
 

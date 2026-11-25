@@ -3,6 +3,7 @@ import { isEchoedPlaceholder, quoteAppears, SUPPORT_NOTE, toneOk } from './check
 import { cardStates, QUICK_KINDS, type CardId, type CardState, type DepthId } from './depth.ts';
 import type { LocalReport } from './localPass.ts';
 import type { Fact, NarrativeDraft } from './schema.ts';
+import { combineLedgers, type CostLedger } from './ledger.ts';
 
 export type NarrativeStatus = 'written' | 'templated' | 'not-in-depth' | 'skipped-budget' | 'failed' | 'failed-provider';
 
@@ -82,6 +83,8 @@ export interface CaseFile {
   runId?: string;
   supportNote?: string;
   cardStatus: Record<CardId, CardState>;
+  /** Pre-run estimate beside what the provider calls actually used. Never an API key. */
+  ledger?: CostLedger;
 }
 
 export function computeConfidence(input: {
@@ -434,6 +437,7 @@ export function buildCaseFile(input: {
   narrativeStatus: NarrativeStatus;
   viaProxy: boolean;
   partialReason?: string;
+  ledger?: CostLedger;
 }): CaseFile {
   const byId = new Map(input.conversations.map((conversation) => [conversation.id, conversation]));
   const known = new Set(byId.keys());
@@ -633,6 +637,7 @@ export function buildCaseFile(input: {
       ),
     },
     supportNote: input.local.distress ? SUPPORT_NOTE : undefined,
+    ...(input.ledger ? { ledger: input.ledger } : {}),
     cardStatus: coverage.partial
       ? (Object.fromEntries(Object.entries(cardStates(input.depth)).map(([id, state]) => [id, state === 'ready' ? 'partial' : state])) as Record<CardId, CardState>)
       : cardStates(input.depth),
@@ -729,6 +734,7 @@ export function mergeCaseFiles(base: CaseFile, extra: CaseFile): CaseFile {
       const updated = extra.notable.find((next) => next.id === item.id);
       return updated?.modelRead ? { ...item, modelRead: true } : item;
     }),
+    ledger: combineLedgers(base.ledger, extra.ledger),
   };
 }
 

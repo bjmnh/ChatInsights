@@ -16,8 +16,11 @@ import {
 import type { NormalizedConversation } from '../../lib/conversationParser/types';
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
-import { cardPreviews, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, publicSubjectName, reportSubtitle, sentenceCase, sourceLabels, type PremiumReportShape } from '../../lib/insights/hydratePremium';
+import { cardPreviews, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, publicSubjectName, reportSubtitle, sentenceCase, sourceChips, type PremiumReportShape } from '../../lib/insights/hydratePremium';
+import { journalEntries } from '../../lib/insights/journal';
+import { ledgerLine } from '../../lib/insights/ledger';
 import { decisionText, displayBadge, plainPartialDetail, reportStatus, retryActionLabel, unreadCount, type CaseFile, type Cited } from '../../lib/insights/merge';
+import ReceiptDrawer from './ReceiptDrawer';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
 import { caseNumberFor } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
@@ -77,8 +80,8 @@ const EXTRA: Array<{
   { id: 'mind', title: 'What’s been on your mind', dossier: 'Psychological Notes', icon: Eye, gradient: 'from-slate-500 via-slate-600 to-slate-700', iconBg: 'bg-gradient-to-br from-slate-400 to-slate-700', textColor: 'text-slate-100', borderColor: 'border-slate-500/30', hoverBorder: 'hover:border-slate-400', badgeClass: 'bg-slate-500/20 text-slate-200 border-slate-400/40' },
 ];
 
-function FactBlock({ item, titles, order }: { item: Cited; titles: Map<string, string>; order: Map<string, number> }) {
-  const from = sourceLabels(item.ev, titles, order);
+function FactBlock({ item, titles, order, onOpen }: { item: Cited; titles: Map<string, string>; order: Map<string, number>; onOpen?: (id: string, quote: string | null) => void }) {
+  const from = sourceChips(item.ev, titles, order);
   return (
     <div className="rounded-2xl border border-amber-700/40 bg-[#1a140c]/80 p-5 shadow-lg" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 22px, rgba(255,220,160,0.04) 23px)' }}>
       <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-amber-200">Finding</p>
@@ -93,7 +96,7 @@ function FactBlock({ item, titles, order }: { item: Cited; titles: Map<string, s
       {from.length > 0 && (
         <div className="text-amber-200">
           <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em]">Source</p>
-          <EvidenceChips labels={from} />
+          <EvidenceChips sources={from} onOpen={onOpen ? (id) => onOpen(id, item.quote) : undefined} />
         </div>
       )}
     </div>
@@ -128,7 +131,7 @@ function originalSlide(id: OriginalId, hydrated: PremiumReportShape, file: CaseF
   return blank();
 }
 
-function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map<string, string>, order: Map<string, number>): React.ReactNode {
+function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map<string, string>, order: Map<string, number>, onOpen?: (id: string, quote: string | null) => void): React.ReactNode {
   const state = file.cardStatus[insight.id];
   const blocks = extraFacts(file, insight.id).filter((item) => item.v.trim());
   const empty = state === 'not-searched' || blocks.length === 0;
@@ -138,7 +141,7 @@ function extraSlide(file: CaseFile, insight: (typeof EXTRA)[number], titles: Map
       title={insight.title}
       note={empty ? null : cardStateLabel(state, file.model.depth)}
     >
-      {empty ? <EmptyFile nested title={insight.dossier} message={emptyCardCopy(state !== 'not-searched')} /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} order={order} />)}
+      {empty ? <EmptyFile nested title={insight.dossier} message={emptyCardCopy(state !== 'not-searched')} /> : blocks.map((item) => <FactBlock key={`${item.v}-${item.ev[0] || item.quote}`} item={item} titles={titles} order={order} onOpen={onOpen} />)}
     </ExtraScreen>
   );
 }
@@ -179,7 +182,9 @@ const ReportView: React.FC<{
   onClose?: () => void;
   saveMessage?: string;
   demo?: boolean;
-}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread, onContinue, onRetryWriteUp, retryNote }) => {
+  onAttachExport?: (file: File) => void;
+  attachError?: string;
+}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread, onContinue, onRetryWriteUp, retryNote, onAttachExport, attachError }) => {
   const [savedLabel, setSavedLabel] = useState<'Save to account' | 'Saved' | 'Update saved copy'>('Save to account');
   const order = useMemo(() => new Map(conversations.map((conversation, index) => [conversation.id, index])), [conversations]);
   const titles = useMemo(() => {
@@ -192,6 +197,8 @@ const ReportView: React.FC<{
   const hydrated = useMemo(() => hydratePremiumReport(caseFile, titles), [caseFile, titles]);
   const previews = useMemo(() => cardPreviews(caseFile, hydrated), [caseFile, hydrated]);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [receipt, setReceipt] = useState<{ id: string; quote: string | null } | null>(null);
+  const openReceipt = (id: string, quote: string | null) => setReceipt({ id, quote });
   const status = reportStatus(caseFile);
   const badge = displayBadge(caseFile, Boolean(demo));
   const detailRef = useRef<HTMLDivElement>(null);
@@ -201,11 +208,21 @@ const ReportView: React.FC<{
   }, [caseFile.coverage.partial, caseFile.coverage.read, caseFile.coverage.failed, caseFile.coverage.narrative]);
   const caseNo = caseNumberFor(caseFile, conversations.map((conversation) => conversation.id));
   const frame = (node: React.ReactNode) => (
-    <DossierFrame meta={{ caseNo, subject: codename }}>{node}</DossierFrame>
+    <DossierFrame meta={{ caseNo, subject: codename }}>
+      {node}
+      <ReceiptDrawer
+        conversationId={receipt?.id ?? null}
+        quote={receipt?.quote ?? null}
+        conversations={conversations}
+        onClose={() => setReceipt(null)}
+        onAttach={onAttachExport}
+        attachError={attachError}
+      />
+    </DossierFrame>
   );
   const slides = useMemo(() => [
     ...ORIGINAL.map((insight) => ({ id: insight.id, node: originalSlide(insight.id, hydrated, caseFile, caseNo) })),
-    ...EXTRA.map((insight) => ({ id: insight.id, node: extraSlide(caseFile, insight, titles, order) })),
+    ...EXTRA.map((insight) => ({ id: insight.id, node: extraSlide(caseFile, insight, titles, order, openReceipt) })),
   ], [caseFile, hydrated, titles, order, caseNo]);
 
   useEffect(() => {
@@ -286,6 +303,9 @@ const ReportView: React.FC<{
           <p className="mx-auto mt-3 max-w-2xl text-xl text-gray-300">
             {reportSubtitle(caseFile)}
           </p>
+          {caseFile.ledger && (
+            <p className="mx-auto mt-3 max-w-2xl font-mono text-xs text-gray-300" data-testid="cost-ledger">{ledgerLine(caseFile.ledger)}</p>
+          )}
           <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-red-100">{filedStamp(caseFile)}</p>
           {demo && (
             <p className="mx-auto mt-4 max-w-xl rounded-xl border border-sky-400/40 bg-sky-500/15 px-4 py-3 text-sm text-sky-100" data-testid="sample-banner">
@@ -316,6 +336,8 @@ const ReportView: React.FC<{
           <p className="mb-8 rounded-xl border border-slate-600 bg-slate-800/60 px-4 py-3 text-sm text-slate-200" data-testid="support-note">{caseFile.supportNote}</p>
         )}
         {saveMessage && <p className="mb-6 text-sm text-gray-400">{saveMessage}</p>}
+
+        <DecisionJournal file={caseFile} titles={titles} order={order} onOpen={openReceipt} />
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
           {ORIGINAL.map((insight, index) => {
@@ -372,6 +394,46 @@ const ReportView: React.FC<{
     </div>,
   );
 };
+
+function DecisionJournal({
+  file,
+  titles,
+  order,
+  onOpen,
+}: {
+  file: CaseFile;
+  titles: Map<string, string>;
+  order: Map<string, number>;
+  onOpen: (id: string, quote: string | null) => void;
+}) {
+  const entries = journalEntries(file);
+  if (!entries.length) return null;
+  return (
+    <section className="mb-12" data-testid="decision-journal">
+      <h2 className="font-display text-3xl text-white">Decision journal</h2>
+      <p className="mt-2 text-sm text-gray-300">Decisions, reversals, and contradictions, with the chats they came from.</p>
+      <ol className="mt-6 space-y-4">
+        {entries.map((entry) => (
+          <li key={entry.key} className="rounded-xl border border-rose-500/30 bg-slate-900/60 p-4">
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-rose-200">
+              {entry.kind === 'reversal' ? 'Reversal' : entry.kind === 'contradiction' ? 'Contradiction' : 'Decision'}
+              {entry.date ? ` · ${entry.date}` : ''}
+            </p>
+            <p className="mt-2 text-lg text-white">{sentenceCase(entry.title)}</p>
+            <p className="mt-1 text-gray-200">{sentenceCase(entry.body)}</p>
+            {entry.earlier && (
+              <p className="mt-2 text-sm text-rose-100">Earlier: {sentenceCase(entry.earlier)}</p>
+            )}
+            {entry.quote && <p className="mt-2 border-l-2 border-rose-400 pl-3 text-sm text-rose-50">“{entry.quote}”</p>}
+            <div className="text-rose-200">
+              <EvidenceChips sources={sourceChips(entry.ev, titles, order)} onOpen={(id) => onOpen(id, entry.quote)} />
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
 
 function extraFacts(file: CaseFile, id: CardId): Cited[] {
   if (id === 'people') {

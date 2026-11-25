@@ -15,6 +15,7 @@ import { modelBatchCap, selectConversations, type DepthId } from './depth.ts';
 import type { LocalReport } from './localPass.ts';
 import { toneOk } from './checks.ts';
 import { completeWithRetry, providerAuthError, providerWaitMessage, ProviderRequestError } from './transport.ts';
+import { combineLedgers } from './ledger.ts';
 
 export interface RunModel {
   provider: string;
@@ -56,6 +57,8 @@ export interface RunInput {
   isPaused?: () => boolean;
   signal?: AbortSignal;
   onProgress?: (progress: RunProgress) => void;
+  /** Pre-run estimate stored beside the actual spend. Not a key. */
+  estimate?: { tokens: number; dollars: number };
 }
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -366,6 +369,10 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       narrativeStatus = written.status;
       if (written.reason) stopReason = written.reason;
       if (written.viaProxy) viaProxy = true;
+      if (written.usage) {
+        spentDollars += dollars(written.usage.input, written.usage.output, input.model);
+        spentTokens += written.usage.input + written.usage.output;
+      }
       routeKnown = true;
     }
   } else if (input.depth !== 'quick' && stopReason === 'budget') {
@@ -394,6 +401,12 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     narrativeStatus,
     viaProxy,
     partialReason: stopReason,
+    ledger: {
+      estimateTokens: input.estimate?.tokens ?? 0,
+      estimateDollars: input.estimate?.dollars ?? 0,
+      spentTokens,
+      spentDollars,
+    },
   });
   input.onProgress?.(progress('done', caseFile.coverage.partial ? 'Stopped early. The report is partial.' : 'Read finished.'));
   return caseFile;
@@ -447,7 +460,7 @@ async function writeNarrative(
   sleep: (ms: number) => Promise<void>,
   onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
   onAttempt?: (attempt: number) => void,
-): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean; reason?: string }> {
+): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean; reason?: string; usage?: { input: number; output: number } }> {
   if (topics.length === 0 && facts.length === 0) {
     return {
       narrative: null,
@@ -465,9 +478,16 @@ async function writeNarrative(
     maxOutputTokens: grok ? 8192 : quick ? 800 : 2000,
   };
   let viaProxy = false;
+  const usage = { input: 0, output: 0 };
+  const addUsage = (next?: { input: number; output: number }) => {
+    if (!next) return;
+    usage.input += next.input;
+    usage.output += next.output;
+  };
   try {
     const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry, onAttempt);
     viaProxy = first.viaProxy;
+    addUsage(first.usage);
     if (!first.text.trim()) {
       return {
         narrative: null,
@@ -476,6 +496,7 @@ async function writeNarrative(
         reason: first.emptyBecauseLength || first.finishReason === 'length'
           ? 'The write-up came back empty (the model used its whole output budget).'
           : 'The write-up came back empty or was not valid JSON.',
+        usage,
       };
     }
     let parsed = parseNarrativePayload(first.text);
@@ -490,6 +511,7 @@ async function writeNarrative(
         onAttempt,
       );
       viaProxy = viaProxy || retry.viaProxy;
+      addUsage(retry.usage);
       const second = parseNarrativePayload(retry.text);
       if (second.ok && toneOk(second.value.cover)) parsed = second;
       else parsed = { ok: false, error: 'tone' };
@@ -504,12 +526,14 @@ async function writeNarrative(
           : parsed.error === 'tone'
             ? 'The write-up was unusable, so it was not kept.'
             : 'The write-up came back empty or was not valid JSON.',
+        usage,
       };
     }
     return {
       narrative: parsed.value,
       status: 'written',
       viaProxy,
+      usage,
     };
   } catch (error) {
     if (error instanceof ProviderRequestError && (error.kind === 'auth' || error.kind === 'cors')) throw error;
@@ -520,7 +544,7 @@ async function writeNarrative(
         : error instanceof ProviderRequestError && error.kind === 'server'
           ? `The provider was busy (${error.status || 503}) during the write-up. Wait a few minutes and try again.`
           : 'The write-up step failed before a cover was saved.';
-    return { narrative: null, status: 'failed-provider', viaProxy, reason };
+    return { narrative: null, status: 'failed-provider', viaProxy, reason, usage };
   }
 }
 
@@ -567,6 +591,7 @@ function citedFacts(file: CaseFile): Fact[] {
 export async function retryNarrative(input: {
   file: CaseFile;
   adapter: Adapter;
+  prices?: { input: number; output: number };
   sleep?: (ms: number) => Promise<void>;
   onProgress?: (progress: RunProgress) => void;
 }): Promise<CaseFile> {
@@ -607,5 +632,16 @@ export async function retryNarrative(input: {
     routeLine = 'Calls are going through the pass-through.';
     input.onProgress?.(snapshot('Writing the short cover.'));
   }
-  return applyNarrativeResult(input.file, written.narrative, written.status, written.reason);
+  const next = applyNarrativeResult(input.file, written.narrative, written.status, written.reason);
+  if (!written.usage) return next;
+  const prices = input.prices ?? { input: 0, output: 0 };
+  return {
+    ...next,
+    ledger: combineLedgers(next.ledger, {
+      estimateTokens: 0,
+      estimateDollars: 0,
+      spentTokens: written.usage.input + written.usage.output,
+      spentDollars: (written.usage.input / 1_000_000) * prices.input + (written.usage.output / 1_000_000) * prices.output,
+    }),
+  };
 }

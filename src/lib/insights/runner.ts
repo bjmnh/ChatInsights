@@ -11,7 +11,7 @@ import {
   type Fact,
   type NarrativeDraft,
 } from './schema.ts';
-import { selectConversations, type DepthId } from './depth.ts';
+import { modelBatchCap, selectConversations, type DepthId } from './depth.ts';
 import type { LocalReport } from './localPass.ts';
 import { toneOk } from './checks.ts';
 import { completeWithRetry, providerAuthError, providerWaitMessage, ProviderRequestError } from './transport.ts';
@@ -36,6 +36,7 @@ export interface RunProgress {
   read: number;
   planned: number;
   viaProxy: boolean;
+  routeKnown: boolean;
   message: string;
 }
 
@@ -99,10 +100,12 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   };
   const already = new Set(input.alreadyReadIds ?? []);
   const pendingIds = selection.chosenIds.filter((id) => !already.has(id));
+  const batchCap = modelBatchCap(input.model.provider, input.model.id, input.depth);
   const queue = packBatches(
     pendingIds.map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item)),
     input.depth,
     input.model.contextWindow || 32_000,
+    batchCap,
   );
   const facts: Fact[] = [];
   const topics: { c: string; topic: string }[] = [];
@@ -111,11 +114,12 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
   }
   const failed = new Set<string>();
   let viaProxy = false;
+  let routeKnown = false;
   let spentDollars = 0;
   let spentTokens = 0;
   let completed = 0;
   let stopReason: string | undefined;
-  let overloadKind: 'rate' | 'server' | undefined;
+  let overloadKind: 'rate' | 'server' | 'timeout' | undefined;
   const plannedBatchCount = queue.length;
   const accounted = new Set<string>();
   for (const id of selection.chosenIds) {
@@ -129,6 +133,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     read: accounted.size,
     planned: selection.chosenIds.length,
     viaProxy,
+    routeKnown,
     message,
   });
 
@@ -174,6 +179,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
     try {
       const extracted = await extractBatch(input, batch, sleep, onRetry, onAttempt);
       if (extracted.viaProxy) viaProxy = true;
+      routeKnown = true;
       const known = new Set(batch.ids);
       for (const fact of extracted.facts) {
         if (known.has(fact.c)) facts.push(fact);
@@ -193,7 +199,7 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       });
       if (retryMissing) {
         const again = missing.map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
-        const [repacked] = packBatches(again, input.depth, input.model.contextWindow || 32_000);
+        const [repacked] = packBatches(again, input.depth, input.model.contextWindow || 32_000, batchCap);
         if (repacked) queue.unshift({ ...repacked, wasRetry: true });
         else missing.forEach((id) => { failed.add(id); accounted.add(id); });
       } else {
@@ -212,13 +218,13 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
         stopReason = stopReason ?? 'safety';
         continue;
       }
-      const overload = error instanceof ProviderRequestError && (error.kind === 'server' || error.kind === 'rate');
+      const overload = error instanceof ProviderRequestError && (error.kind === 'server' || error.kind === 'rate' || error.kind === 'timeout');
       if (!overload && batch.ids.length > 1 && !(error instanceof ProviderRequestError && error.kind === 'cors')) {
         queue.shift();
         const mid = Math.ceil(batch.ids.length / 2);
         const left = batch.ids.slice(0, mid).map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
         const right = batch.ids.slice(mid).map((id) => byId.get(id)).filter((item): item is NormalizedConversation => Boolean(item));
-        const pieces = [...packBatches(left, input.depth, input.model.contextWindow || 32_000), ...packBatches(right, input.depth, input.model.contextWindow || 32_000)];
+        const pieces = [...packBatches(left, input.depth, input.model.contextWindow || 32_000, batchCap), ...packBatches(right, input.depth, input.model.contextWindow || 32_000, batchCap)];
         queue.unshift(...pieces);
         input.onProgress?.(progress('batch', batchMessage(batch, 'The last reply could not be read, so this batch was split into smaller pieces.')));
         continue;
@@ -231,7 +237,8 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       });
       completed += 1;
       if (error instanceof ProviderRequestError && error.kind === 'rate') overloadKind = 'rate';
-      else if (error instanceof ProviderRequestError && error.kind === 'server' && overloadKind !== 'rate') overloadKind = 'server';
+      else if (error instanceof ProviderRequestError && error.kind === 'timeout' && overloadKind !== 'rate') overloadKind = 'timeout';
+      else if (error instanceof ProviderRequestError && error.kind === 'server' && !overloadKind) overloadKind = 'server';
       stopReason = stopReason ?? 'batch-failed';
     }
   }
@@ -285,7 +292,9 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
       const written = await writeNarrative(input, facts, topics, sleep, onRetry, onAttempt);
       narrative = written.narrative;
       narrativeStatus = written.status;
+      if (written.reason) stopReason = written.reason;
       if (written.viaProxy) viaProxy = true;
+      routeKnown = true;
     }
   } else if (input.depth !== 'quick' && stopReason === 'budget') {
     narrativeStatus = 'skipped-budget';
@@ -295,6 +304,9 @@ export async function runRead(input: RunInput): Promise<CaseFile> {
 
   if (!stopReason && narrativeStatus === 'failed-provider') {
     stopReason = 'The write-up step did not finish for this read.';
+  }
+  if (!stopReason && narrativeStatus === 'not-in-depth' && !extractIncomplete) {
+    stopReason = 'The write-up step did not run for this Quick scan. The selected chats were read.';
   }
 
   const caseFile = buildCaseFile({
@@ -329,7 +341,7 @@ async function extractBatch(
     system: input.depth === 'quick' ? `${EXTRACTION_SYSTEM}\n${QUICK_ADDENDUM}` : EXTRACTION_SYSTEM,
     user: batch.text,
     schemaName: 'batch_extract',
-    maxOutputTokens: 8000,
+    maxOutputTokens: input.model.provider === 'xai' || /grok/i.test(input.model.id) ? 2048 : 8000,
   };
   const first = await completeWithRetry(() => input.adapter.complete(request), sleep, onRetry, onAttempt);
   let parsed = parseBatchPayload(first.text);
@@ -366,12 +378,13 @@ async function writeNarrative(
   sleep: (ms: number) => Promise<void>,
   onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
   onAttempt?: (attempt: number) => void,
-): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean }> {
+): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean; reason?: string }> {
+  const grok = input.model?.provider === 'xai' || /grok/i.test(input.model?.id ?? '');
   const request: CompleteRequest = {
     system: NARRATIVE_SYSTEM,
     user: JSON.stringify({ topics, facts: facts.slice(0, 80) }),
     schemaName: 'narrative',
-    maxOutputTokens: 2000,
+    maxOutputTokens: grok ? 1024 : 2000,
   };
   let viaProxy = false;
   try {
@@ -393,7 +406,16 @@ async function writeNarrative(
       if (second.ok && toneOk(second.value.cover)) parsed = second;
       else parsed = { ok: false, error: 'tone' };
     }
-    if (!parsed.ok) return { narrative: null, status: 'templated', viaProxy };
+    if (!parsed.ok) {
+      return {
+        narrative: null,
+        status: 'failed-provider',
+        viaProxy,
+        reason: parsed.error === 'tone'
+          ? 'The write-up was unusable, so it was not kept.'
+          : 'The write-up came back empty or was not valid JSON.',
+      };
+    }
     return {
       narrative: parsed.value,
       status: 'written',
@@ -401,10 +423,14 @@ async function writeNarrative(
     };
   } catch (error) {
     if (error instanceof ProviderRequestError && (error.kind === 'auth' || error.kind === 'cors')) throw error;
-    if (error instanceof ProviderRequestError && (error.kind === 'server' || error.kind === 'rate')) {
-      return { narrative: null, status: 'failed-provider', viaProxy };
-    }
-    return { narrative: null, status: 'templated', viaProxy };
+    const reason = error instanceof ProviderRequestError && error.kind === 'timeout'
+      ? error.message
+      : error instanceof ProviderRequestError && error.kind === 'rate'
+        ? 'The provider kept rate-limiting (429) during the write-up. Wait a few minutes, or check the provider quota, then try again.'
+        : error instanceof ProviderRequestError && error.kind === 'server'
+          ? `The provider was busy (${error.status || 503}) during the write-up. Wait a few minutes and try again.`
+          : 'The write-up step failed before a cover was saved.';
+    return { narrative: null, status: 'failed-provider', viaProxy, reason };
   }
 }
 
@@ -453,6 +479,7 @@ export async function retryNarrative(input: {
     read: input.file.coverage.read,
     planned: input.file.coverage.planned,
     viaProxy: false,
+    routeKnown: false,
     message,
   });
   const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {

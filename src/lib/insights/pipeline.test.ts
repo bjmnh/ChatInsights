@@ -2,14 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CONTENT_SECURITY_POLICY } from './csp.ts';
 import { donationHref } from './donation.ts';
-import { cardStates, selectConversations, batchSizeFor } from './depth.ts';
+import { cardStates, selectConversations, batchSizeFor, modelBatchCap } from './depth.ts';
 import { estimateRead, estimateWorkedExample, formatCost, formatMinutes } from './estimate.ts';
 import { isEchoedPlaceholder } from './checks.ts';
 import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber, caseNumberFor } from './caseNumber.ts';
 import { checkpointAfterRetry } from './browserStore.ts';
 import { cardPreviews, caseDownloadName, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, isThinProfileLabel, publicSubjectName, reportSubtitle, scrubRawCodes, sentenceCase, sourceLabels, toHashtag, uniqueDisplay, vocabularyMeterValue } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, WRITE_UP_MISSING, type CaseFile } from './merge.ts';
+import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, needsWriteUpRetry, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, WRITE_UP_MISSING, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -22,7 +22,7 @@ import {
 import { buildSampleConversations, createDemoAdapter } from './sample.ts';
 import { caseFileRow, exportFingerprint, persistenceFields, upsertByConflict } from './saveReport.ts';
 import { retryNarrative, runRead, type RunProgress } from './runner.ts';
-import { completeWithRetry, headerRetryAfterMs, ProviderRequestError, PROVIDER_AUTH_MESSAGE, providerWaitMessage, retryWaitMs } from './transport.ts';
+import { completeWithRetry, headerRetryAfterMs, providerFetch, ProviderRequestError, PROVIDER_AUTH_MESSAGE, providerWaitMessage, retryWaitMs } from './transport.ts';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
   forgetAllKeys,
@@ -430,12 +430,14 @@ describe('budget cap and partial reports', () => {
     });
     expect(merged.coverage.failed).toBe(0);
     expect(merged.coverage.read).toBe(3);
-    expect(merged.coverage.partial).toBe(false);
-    expect(isComplete(merged)).toBe(true);
-    expect(reportStatus(merged).badge).not.toBe('Partial report');
-    expect(plainPartialDetail(merged)).toBe(WRITE_UP_MISSING);
+    expect(merged.coverage.partial).toBe(true);
+    expect(isComplete(merged)).toBe(false);
+    expect(needsWriteUpRetry(merged)).toBe(true);
+    expect(reportStatus(merged).badge).toBe('Partial report');
+    expect(reportStatus(merged).badge).not.toBe('Complete report');
+    expect(plainPartialDetail(merged)).toMatch(/write-up/);
     expect(plainPartialDetail(merged)).not.toMatch(/failed on 0/);
-    expect(persistenceFields(merged).partial).toBe(false);
+    expect(persistenceFields(merged).partial).toBe(true);
     expect(merged.narrative.cover).toMatch(/in 3 of 3 conversations/);
   });
 
@@ -592,9 +594,10 @@ describe('budget cap and partial reports', () => {
     const merged = mergeCaseFiles(first, second);
     expect(merged.coverage.read).toBe(2);
     expect(merged.coverage.failed).toBe(0);
-    expect(isComplete(merged)).toBe(true);
-    expect(reportStatus(merged).badge).not.toBe('Partial report');
-    expect(persistenceFields(merged).partial).toBe(false);
+    expect(needsWriteUpRetry(merged)).toBe(true);
+    expect(reportStatus(merged).badge).toBe('Partial report');
+    expect(reportStatus(merged).badge).not.toBe('Complete report');
+    expect(persistenceFields(merged).partial).toBe(true);
     expect(merged.narrative.cover).toMatch(/in 2 of 5 conversations/);
     expect(caseNumberFor(merged)).toBe(caseNumberFor(first));
     const stored = checkpointAfterRetry({
@@ -635,6 +638,8 @@ describe('budget cap and partial reports', () => {
     });
     expect(blocked.coverage.read).toBe(blocked.coverage.planned);
     expect(blocked.coverage.narrative).toBe('failed-provider');
+    expect(blocked.coverage.partialReason).toMatch(/busy \(503\)|write-up/);
+    expect(plainPartialDetail(blocked)).toMatch(/503|write-up/);
     expect(isComplete(blocked)).toBe(false);
     const written = await retryNarrative({
       file: blocked,
@@ -833,11 +838,13 @@ describe('demo pipeline', () => {
       adapter: createDemoAdapter({ latencyMs: 0 }),
       sleep: async () => undefined,
     });
-    expect(isComplete(quickFile)).toBe(true);
-    expect(reportStatus(quickFile).badge).toBe(`Quick scan, ${quickFile.coverage.read} of ${quickFile.coverage.conversations}`);
-    expect(reportStatus(quickFile).badge).not.toBe('Partial report');
+    expect(isComplete(quickFile)).toBe(false);
+    expect(needsWriteUpRetry(quickFile)).toBe(true);
+    expect(reportStatus(quickFile).badge).toBe('Partial report');
+    expect(reportStatus(quickFile).badge).not.toBe('Complete report');
+    expect(reportStatus(quickFile).detail).toMatch(/write-up/);
+    expect(persistenceFields(quickFile).partial).toBe(true);
     expect(reportStatus(quickFile).badge).not.toBe(reportStatus(result).badge);
-    expect(reportStatus(quickFile).detail).toMatch(/sample/);
     expect(standardFile.cardStatus.stranger).toBe('ready');
     expect(standardFile.cardStatus.file).not.toBe('partial');
     expect(isEchoedPlaceholder('A profound, unvarnished observation about your inner patterns and motivations.')).toBe(true);
@@ -957,8 +964,10 @@ describe('provider adapters', () => {
 
   it('calls xAI and a custom base URL through the OpenAI-compatible adapter', async () => {
     const urls: string[] = [];
-    const fetchImpl = async (url: string) => {
+    const bodies: string[] = [];
+    const fetchImpl = async (url: string, init?: RequestInit) => {
       urls.push(url);
+      bodies.push(String(init?.body ?? ''));
       return jsonResponse({ choices: [{ message: { content: '{"ok":true}' } }] });
     };
     await createOpenAICompatibleAdapter('xai', {
@@ -977,6 +986,10 @@ describe('provider adapters', () => {
     }).complete({ system: 's', user: 'u', schemaName: 'batch_extract', maxOutputTokens: 20 });
     expect(urls[0]).toBe('https://api.x.ai/v1/chat/completions');
     expect(urls[1]).toBe('http://localhost:11434/v1/chat/completions');
+    expect(bodies[0]).toContain('"stream":false');
+    expect(bodies[0]).toContain('"max_tokens":20');
+    expect(modelBatchCap('xai', 'grok-4.3', 'quick')).toBe(8);
+    expect(modelBatchCap('gemini', 'gemini-3.5-flash-lite', 'quick')).toBe(50);
   });
 
   it('sends Gemini a response schema and the API key header', async () => {
@@ -1019,6 +1032,20 @@ describe('provider adapters', () => {
     await createAnthropicAdapter({ apiKey: 'ant-key', model: 'claude-haiku-5-5', fetchImpl: fetchImpl as never, proxy: 'never' })
       .complete({ system: 's', user: 'u', schemaName: 'batch_extract', maxOutputTokens: 20 });
     expect(header).toBe('true');
+  });
+
+  it('times out a provider call that never answers and retries that as a timeout', async () => {
+    const fetchImpl = (_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        const error = new Error('The operation was aborted');
+        error.name = 'AbortError';
+        reject(error);
+      });
+    });
+    await expect(providerFetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      body: '{}',
+    }, { fetchImpl: fetchImpl as never, proxy: 'never', timeoutMs: 20 })).rejects.toMatchObject({ kind: 'timeout', status: 408 });
   });
 
   it('falls back to the pass-through for an allowlisted host and refuses localhost', async () => {

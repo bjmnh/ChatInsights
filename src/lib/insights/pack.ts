@@ -76,11 +76,12 @@ export function packBatches(
   conversations: NormalizedConversation[],
   depth: DepthId,
   contextWindow: number,
+  batchCap?: number,
 ): PackedBatch[] {
   const packed = conversations.map((conversation) => packConversation(conversation, depth));
   if (!packed.length) return [];
   const average = packed.reduce((sum, item) => sum + item.tokens, 0) / packed.length;
-  const size = batchSizeFor(depth, contextWindow, average);
+  const size = batchSizeFor(depth, contextWindow, average, batchCap);
   const tokenLimit = Math.max(500, Math.floor(contextWindow * 0.6) - 3000);
   const batches: PackedBatch[] = [];
   let current: PackedConversation[] = [];

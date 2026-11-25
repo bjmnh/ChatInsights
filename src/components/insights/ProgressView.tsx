@@ -1,6 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Progress } from '../ui/progress';
 import type { RunProgress } from '../../lib/insights/runner';
+
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
+}
 
 const ProgressView: React.FC<{
   progress: RunProgress;
@@ -8,6 +16,18 @@ const ProgressView: React.FC<{
   onPause: () => void;
   onResume: () => void;
 }> = ({ progress, paused, onPause, onResume }) => {
+  const [elapsed, setElapsed] = useState(0);
+  const [stillWaiting, setStillWaiting] = useState(false);
+  useEffect(() => {
+    const started = Date.now();
+    const id = window.setInterval(() => setElapsed(Date.now() - started), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  useEffect(() => {
+    setStillWaiting(false);
+    const id = window.setTimeout(() => setStillWaiting(true), 30_000);
+    return () => window.clearTimeout(id);
+  }, [progress.message]);
   const tracked = progress.planned > 0 ? progress.planned : progress.totalBatches;
   const done = progress.planned > 0 ? progress.read : progress.completedBatches;
   const denom = Math.max(1, tracked);
@@ -20,6 +40,15 @@ const ProgressView: React.FC<{
       <p className="mt-4 text-sm text-muted-foreground">
         {progress.read} of {progress.planned} selected conversations accounted for. Batches go out one at a time, with a wait if the provider asks.
       </p>
+      <p className="mt-2 text-sm text-muted-foreground" data-testid="elapsed">Elapsed {formatElapsed(elapsed)}.</p>
+      {stillWaiting && progress.phase !== 'done' && (
+        <p className="mt-2 text-sm text-amber-100" data-testid="still-waiting">Still waiting on the provider.</p>
+      )}
+      {progress.routeKnown && (
+        <p className="mt-2 text-sm text-muted-foreground" data-testid="route-note">
+          {progress.viaProxy ? 'Calls are going through the pass-through.' : 'Calls are going directly to the provider.'}
+        </p>
+      )}
       {progress.viaProxy && (
         <p className="mt-4 rounded-2xl border border-white/15 px-4 py-3 text-sm" data-testid="proxy-notice">
           This batch is passing through Chat Insights’ server because the browser could not call the provider directly. It goes to an allowlisted host, in memory only, and is not stored.

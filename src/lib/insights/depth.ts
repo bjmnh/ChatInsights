@@ -123,9 +123,17 @@ export function defaultBatchCap(depth: DepthId): number {
   return 30;
 }
 
+/** Grok reasoning calls of 50 chats were sitting for many minutes. Keep those batches small. */
+export function modelBatchCap(provider: string, modelId: string, depth: DepthId): number {
+  const grok = provider === 'xai' || /grok/i.test(modelId);
+  if (!grok) return defaultBatchCap(depth);
+  if (depth === 'forensic') return 4;
+  if (depth === 'quick') return 8;
+  return 6;
+}
+
 /** Shrink the batch when the context window cannot hold the default cap. */
-export function batchSizeFor(depth: DepthId, contextWindow: number, averageTokens: number): number {
-  const cap = defaultBatchCap(depth);
+export function batchSizeFor(depth: DepthId, contextWindow: number, averageTokens: number, cap = defaultBatchCap(depth)): number {
   if (!contextWindow || contextWindow < 1) return cap;
   const average = Math.max(1, averageTokens);
   const room = Math.floor((contextWindow * 0.6 - 3000) / average);

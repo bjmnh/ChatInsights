@@ -102,8 +102,17 @@ export function isComplete(caseFile: CaseFile): boolean {
   if (coverage.partial || coverage.failed > 0) return false;
   if (coverage.read !== coverage.planned) return false;
   if (coverage.read + coverage.skipped !== coverage.conversations) return false;
-  if (coverage.narrative === 'skipped-budget' || coverage.narrative === 'failed' || coverage.narrative === 'failed-provider') return false;
-  return coverage.narrative === 'written' || coverage.narrative === 'templated' || coverage.narrative === 'not-in-depth';
+  if (writeUpMissing(coverage.narrative)) return false;
+  return coverage.narrative === 'written' || coverage.narrative === 'templated';
+}
+
+/** The cover step did not produce a write-up. Quick scan skips it; a failure records why. */
+export function writeUpMissing(status: NarrativeStatus): boolean {
+  return status === 'not-in-depth' || status === 'failed' || status === 'failed-provider' || status === 'skipped-budget';
+}
+
+export function needsWriteUpRetry(file: CaseFile): boolean {
+  return writeUpMissing(file.coverage.narrative);
 }
 
 export function reportLabel(caseFile: CaseFile): 'Partial' | 'Complete' {
@@ -146,7 +155,10 @@ export function plainPartialDetail(file: CaseFile): string {
   const reason = file.coverage.partialReason ?? '';
   const missed = unreadCount(file);
   const noun = `${missed} conversation${missed === 1 ? '' : 's'}`;
-  if (missed === 0) return WRITE_UP_MISSING;
+  if (missed === 0) {
+    if (reason && reason !== 'batch-failed' && reason !== 'server') return reason.endsWith('.') ? reason : `${reason}.`;
+    return WRITE_UP_MISSING;
+  }
   if (/^the provider /i.test(reason)) return reason.endsWith('.') ? reason : `${reason}.`;
   if (!reason || reason === 'batch-failed' || reason === 'server') {
     return `The provider failed on ${noun} after several retries.`;
@@ -159,10 +171,13 @@ export function plainPartialDetail(file: CaseFile): string {
   return `Stopped early (${reason}). This is not a finished pass.`;
 }
 
-export function providerFailureDetail(kind: 'rate' | 'server' | 'other', count: number): string {
+export function providerFailureDetail(kind: 'rate' | 'server' | 'timeout' | 'other', count: number): string {
   const noun = `${count} conversation${count === 1 ? '' : 's'}`;
   if (kind === 'rate') {
     return `The provider kept rate-limiting (429) on ${noun} after several retries. Wait a few minutes, or check the provider quota, then try again.`;
+  }
+  if (kind === 'timeout') {
+    return `The provider did not answer in time on ${noun} after several retries.`;
   }
   if (kind === 'server') {
     return `The provider was busy (503) on ${noun} after several retries. Wait a few minutes and try again.`;
@@ -202,7 +217,8 @@ export function finalizeCoverage(coverage: Omit<Coverage, 'partial'> & { partial
     coverage.read + coverage.skipped !== coverage.conversations ||
     coverage.narrative === 'skipped-budget' ||
     coverage.narrative === 'failed' ||
-    coverage.narrative === 'failed-provider';
+    coverage.narrative === 'failed-provider' ||
+    coverage.narrative === 'not-in-depth';
   return { ...coverage, partial: forced };
 }
 
@@ -626,8 +642,12 @@ export function mergeCaseFiles(base: CaseFile, extra: CaseFile): CaseFile {
     : narrativeStatus === 'skipped-budget'
       ? 'budget'
       : narrativeStatus === 'failed-provider' || narrativeStatus === 'failed'
-        ? WRITE_UP_MISSING
-        : undefined;
+        ? (extra.coverage.partialReason && /write-up|did not answer|rate-limiting|busy \(/i.test(extra.coverage.partialReason)
+          ? extra.coverage.partialReason
+          : WRITE_UP_MISSING)
+        : narrativeStatus === 'not-in-depth'
+          ? 'The write-up step did not run for this Quick scan.'
+          : undefined;
   const coverage = finalizeCoverage({
     ...base.coverage,
     read,

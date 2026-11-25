@@ -95,6 +95,8 @@ export function createOpenAICompatibleAdapter(id: string, options: AdapterOption
     const body: Record<string, unknown> = {
       model: options.model,
       temperature: 0.2,
+      stream: false,
+      max_tokens: id === 'xai' ? Math.min(request.maxOutputTokens, 2048) : request.maxOutputTokens,
       messages: [
         { role: 'system', content: request.system },
         { role: 'user', content: request.user },

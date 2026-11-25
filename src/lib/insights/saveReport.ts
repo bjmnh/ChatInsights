@@ -1,5 +1,5 @@
 import type { CaseFile } from './merge.ts';
-import { isComplete } from './merge.ts';
+import { isComplete, writeUpMissing } from './merge.ts';
 
 export function reportConflictKey(userId: string, fingerprint: string): string {
   return `${userId}:${fingerprint}`;
@@ -16,7 +16,11 @@ export function upsertByConflict<T extends { userId: string; fingerprint: string
 
 export function persistenceFields(caseFile: CaseFile): { partial: boolean } {
   const complete = isComplete(caseFile);
-  if (!complete && caseFile.coverage.partial === false) {
+  const chatsDone = caseFile.coverage.failed === 0
+    && caseFile.coverage.read === caseFile.coverage.planned
+    && caseFile.coverage.read + caseFile.coverage.skipped === caseFile.coverage.conversations;
+  const onlyWriteUp = chatsDone && writeUpMissing(caseFile.coverage.narrative);
+  if (!complete && caseFile.coverage.partial === false && !onlyWriteUp) {
     throw new Error('Refusing to save a partial report as a complete success');
   }
   return { partial: !complete };

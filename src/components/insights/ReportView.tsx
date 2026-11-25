@@ -17,7 +17,7 @@ import type { NormalizedConversation } from '../../lib/conversationParser/types'
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, publicSubjectName, reportSubtitle, sentenceCase, sourceLabels, type PremiumReportShape } from '../../lib/insights/hydratePremium';
-import { decisionText, displayBadge, plainPartialDetail, reportStatus, unreadCount, WRITE_UP_MISSING, type CaseFile, type Cited } from '../../lib/insights/merge';
+import { decisionText, displayBadge, needsWriteUpRetry, plainPartialDetail, reportStatus, unreadCount, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
 import { caseNumberFor } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
@@ -263,7 +263,7 @@ const ReportView: React.FC<{
             {onRetryUnread && caseFile.coverage.partial && unreadCount(caseFile) > 0 && (
               <Button variant="outline" onClick={onRetryUnread} className="border-white/20 text-white hover:bg-white/10">Retry unread conversations</Button>
             )}
-            {onRetryWriteUp && caseFile.coverage.partial && unreadCount(caseFile) === 0 && (
+            {onRetryWriteUp && needsWriteUpRetry(caseFile) && (
               <Button variant="outline" onClick={onRetryWriteUp} className="border-white/20 text-white hover:bg-white/10">Retry the write-up</Button>
             )}
           </div>
@@ -299,7 +299,7 @@ const ReportView: React.FC<{
         )}
         {status.badge === 'Partial report' && unreadCount(caseFile) === 0 && (
           <div className="mb-8 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-amber-100" data-testid="partial-banner">
-            {WRITE_UP_MISSING}
+            {plainPartialDetail(caseFile)}
           </div>
         )}
         {caseFile.coverage.viaProxy && (

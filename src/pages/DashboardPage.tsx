@@ -5,7 +5,7 @@ import { listCaseFiles, type SavedCaseSummary } from '../services/caseFileServic
 import { clearCheckpoint, loadCheckpoint, subscribeLocalReadCleared, type LocalCheckpoint } from '../lib/insights/browserStore';
 import { canShowCheckpoint } from '../lib/insights/localRead';
 import { formatFiledDate } from '../lib/insights/hydratePremium';
-import { ledgerLine } from '../lib/insights/ledger';
+import { savedCostLabel } from '../lib/insights/ledger';
 import { displayBadge, savedModelLabel } from '../lib/insights/merge';
 import { isExpiredSession, requestSessionExpiry } from '../lib/authSession';
 
@@ -71,20 +71,20 @@ const DashboardPage: React.FC = () => {
       )}
       <ul className="mt-6 space-y-3">
         {rows.map((row) => (
-          <li key={row.id}>
-            <Link to={`/saved/${row.id}`} className="block rounded-2xl border border-white/10 px-4 py-3 hover:border-white/30">
+          <li key={row.id} className="rounded-2xl border border-white/10 px-4 py-3">
+            <Link to={`/saved/${row.id}`} className="block hover:text-white">
               <span className="font-medium">{row.filename || 'Export'}</span>
               <span className="mt-1 block text-sm text-muted-foreground">
                 {(row.case_file ? displayBadge(row.case_file) : (row.partial ? 'Partial report' : 'Complete report'))}
                 {' · '}
                 {savedModelLabel(row.model_provider, row.model_id)}
-                {formatFiledDate(row.case_file?.filedAt || row.updated_at) ? ` · Updated ${formatFiledDate(row.case_file?.filedAt || row.updated_at)}` : ''}
-                {row.created_at && formatFiledDate(row.created_at) !== formatFiledDate(row.case_file?.filedAt || row.updated_at)
-                  ? ` · Created ${formatFiledDate(row.created_at)}`
-                  : ''}
-                {row.case_file?.ledger ? ` · ${ledgerLine(row.case_file.ledger)}` : ''}
+                {formatFiledDate(row.updated_at) ? ` · Updated ${formatFiledDate(row.updated_at)}` : ''}
+                {row.created_at ? ` · Created ${formatFiledDate(row.created_at)}` : ''}
+                {' · '}
+                <span data-testid="saved-cost">{savedCostLabel(row.case_file)}</span>
               </span>
             </Link>
+            <Link to={`/read?update=${row.id}`} className="mt-2 inline-block text-sm text-primary underline">Update with a newer export</Link>
           </li>
         ))}
       </ul>

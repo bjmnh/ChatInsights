@@ -11,7 +11,7 @@ import { createAdapter } from '../lib/insights/adapters';
 import { checkpointAfterRetry, clearCheckpoint, idbVaultStore, loadCheckpoint, saveCheckpoint, subscribeLocalReadCleared } from '../lib/insights/browserStore';
 import { ARCHIVE_ACK, ARCHIVE_NOTICE, EXPORT_GUIDES } from '../lib/insights/copy';
 import { selectConversations } from '../lib/insights/depth';
-import { estimateRead } from '../lib/insights/estimate';
+import { estimateRead, formatCost } from '../lib/insights/estimate';
 import { maySaveAccountKey, rejectedKeyBlock, shouldSaveLocalRun, PROVIDER_AUTH_MESSAGE, type KeyTestSnapshot } from '../lib/insights/keyGate';
 import { canShowCheckpoint } from '../lib/insights/localRead';
 import { packBatches } from '../lib/insights/pack';
@@ -20,7 +20,9 @@ import { isExpiredSession, requestSessionExpiry, SESSION_EXPIRED_EVENT, SESSION_
 import { forgetAllKeys, forgetKey, listKeys, rememberKey, revealKey, type KeySummary } from '../lib/insights/keyVault';
 import { runLocalPass, type LocalReport } from '../lib/insights/localPass';
 import { caseDownloadName } from '../lib/insights/hydratePremium';
+import { caseDiff, conversationDelta, matchSavedCase, stampsFrom, stampsFromCase, stripChangedFacts } from '../lib/insights/livingCase';
 import { mergeCaseFiles, type CaseFile } from '../lib/insights/merge';
+import { combineExports, COMBINABLE_PROVIDERS, providerPortraits } from '../lib/insights/providerPortrait';
 import { parseExtraAllowlist } from '../lib/insights/proxyPolicy';
 import { catalogModel, defaultModel, providerPreset } from '../lib/insights/prices';
 import type { RunProgress } from '../lib/insights/runner';
@@ -30,7 +32,7 @@ import { buildSampleConversations, createDemoAdapter } from '../lib/insights/sam
 import { exportFingerprint } from '../lib/insights/saveReport';
 import { loadAccountProviderKey, ProviderKeyError, saveAccountProviderKey } from '../lib/providerKeys/client';
 import { supabase } from '../lib/supabase';
-import { saveCaseFile } from '../services/caseFileService';
+import { getCaseFile, listCaseFiles, saveCaseFile, type SavedCaseSummary } from '../services/caseFileService';
 import LocalReportPanel from '../components/insights/LocalReportPanel';
 import ProgressView from '../components/insights/ProgressView';
 import ReportView from '../components/insights/ReportView';
@@ -101,10 +103,26 @@ const ReadPage: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [testedKey, setTestedKey] = useState<KeyTestSnapshot | null>(null);
   const [runError, setRunError] = useState('');
+  const [fileFingerprint, setFileFingerprint] = useState('');
+  const [savedRows, setSavedRows] = useState<SavedCaseSummary[]>([]);
+  const [addError, setAddError] = useState('');
+  const [loadedUpdate, setLoadedUpdate] = useState<{ file: CaseFile; fingerprint: string; filename: string } | null>(null);
+  const [updateOffer, setUpdateOffer] = useState<null | {
+    base: CaseFile;
+    originFingerprint: string;
+    filename: string;
+    added: string[];
+    changed: string[];
+    unchanged: string[];
+    dropped: string[];
+    unchangedRead: string[];
+  }>(null);
   const retryFile = useRef<File | null>(null);
   const pendingFile = useRef<File | null>(null);
   const ackRef = useRef(false);
   const readEpoch = useRef(0);
+  const caseRef = useRef<{ file: CaseFile; filename: string } | null>(null);
+  if (caseFile) caseRef.current = { file: caseFile, filename };
 
   const resetRead = useCallback(() => {
     readEpoch.current += 1;
@@ -171,13 +189,26 @@ const ReadPage: React.FC = () => {
       });
       if (checkpoint.caseFile) {
         setCaseFile(checkpoint.caseFile);
-        setStep('report');
+        if (!new URLSearchParams(window.location.search).get('update')) setStep('report');
       }
     }).catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, [authLoading, refreshKeys, user?.id]);
+
+  useEffect(() => {
+    if (!user) return;
+    listCaseFiles(user.id).then(setSavedRows).catch(() => undefined);
+    const updateId = searchParams.get('update');
+    if (!updateId) return;
+    getCaseFile(user.id, updateId).then((row) => {
+      if (!row?.case_file) return;
+      setLoadedUpdate({ file: row.case_file, fingerprint: row.export_fingerprint ?? '', filename: row.filename ?? 'Export' });
+      setCaseFile(row.case_file);
+      setFilename(row.filename ?? 'Export');
+    }).catch(() => undefined);
+  }, [user, searchParams]);
 
   useEffect(() => {
     if (!user) {
@@ -347,9 +378,18 @@ const ReadPage: React.FC = () => {
       const parsed = await parsePromise;
       setStage('counting');
       setConversations(parsed.conversations);
+      setFileFingerprint(await exportFingerprint(parsed.conversations));
       setFilename(file.name);
       setSetup((current) => ({ ...current, maxDollars: '', maxTokens: '' }));
       setLocal(runLocalPass(parsed.conversations));
+      if (caseRef.current) {
+        const remembered = caseRef.current;
+        setLoadedUpdate((existing) => existing ?? {
+          file: remembered.file,
+          fingerprint: remembered.file.lineage?.originFingerprint || '',
+          filename: remembered.filename,
+        });
+      }
       setCaseFile(null);
       setResumeIds([]);
       setUploadError(null);
@@ -409,6 +449,30 @@ const ReadPage: React.FC = () => {
     });
   };
 
+  useEffect(() => {
+    if (step !== 'preview' || !fileFingerprint || !conversations.length) return;
+    const incoming = stampsFrom(conversations);
+    const candidates = [
+      ...(loadedUpdate ? [loadedUpdate] : []),
+      ...(caseFile ? [{ file: caseFile, fingerprint: caseFile.lineage?.originFingerprint || '', filename }] : []),
+      ...savedRows.flatMap((row) => (row.case_file ? [{ file: row.case_file, fingerprint: row.export_fingerprint ?? row.case_file.lineage?.originFingerprint ?? '', filename: row.filename ?? 'Export' }] : [])),
+    ];
+    const hit = candidates.find((candidate) => matchSavedCase(incoming, fileFingerprint, candidate));
+    if (!hit) {
+      setUpdateOffer(null);
+      return;
+    }
+    const delta = conversationDelta(stampsFromCase(hit.file), conversations);
+    const readBefore = new Set(hit.file.coverage.topics.map((topic) => topic.c));
+    setUpdateOffer({
+      base: hit.file,
+      originFingerprint: hit.file.lineage?.originFingerprint || hit.fingerprint || fileFingerprint,
+      filename: hit.filename,
+      ...delta,
+      unchangedRead: delta.unchanged.filter((id) => readBefore.has(id)),
+    });
+  }, [step, fileFingerprint, conversations, caseFile, filename, savedRows, loadedUpdate]);
+
   const preset = providerPreset(setup.providerId) ?? providerPreset('gemini')!;
   const selection = useMemo(
     () => (local ? selectConversations(local, setup.depth, setup.quickFraction) : null),
@@ -421,21 +485,28 @@ const ReadPage: React.FC = () => {
   }, [local, selection]);
   const priced = catalogModel(setup.providerId, setup.modelId);
   const contextWindow = priced?.context ?? (preset.local ? 8192 : 128_000);
+  const updatePending = useMemo(() => {
+    if (!updateOffer || !local) return null;
+    const ids = new Set([...updateOffer.added, ...updateOffer.changed]);
+    return local.conversations.filter((conversation) => ids.has(conversation.id));
+  }, [updateOffer, local]);
   const plannedBatches = useMemo(() => {
-    if (!selection) return undefined;
+    if (!selection && !updatePending) return undefined;
     const byId = new Map(conversations.map((conversation) => [conversation.id, conversation]));
-    const resumed = new Set(resumeIds);
-    const ordered = selection.chosenIds
-      .filter((id) => !resumed.has(id))
+    const resumed = new Set(updateOffer ? updateOffer.unchangedRead : resumeIds);
+    const sourceIds = updatePending
+      ? updatePending.map((conversation) => conversation.id)
+      : (selection?.chosenIds ?? []).filter((id) => !resumed.has(id));
+    const ordered = sourceIds
       .map((id) => byId.get(id))
       .filter((conversation): conversation is NormalizedConversation => Boolean(conversation));
     return packBatches(ordered, setup.depth, contextWindow);
-  }, [selection, conversations, resumeIds, setup.depth, contextWindow]);
+  }, [selection, conversations, resumeIds, setup.depth, contextWindow, updateOffer, updatePending]);
   const estimate = estimateRead({
     depth: setup.depth,
-    conversationCount: chosen.length,
-    userTokens: chosen.reduce((sum, item) => sum + item.userTokens, 0),
-    fullTokens: chosen.reduce((sum, item) => sum + item.fullTokens, 0),
+    conversationCount: updatePending ? updatePending.length : chosen.length,
+    userTokens: (updatePending ?? chosen).reduce((sum, item) => sum + item.userTokens, 0),
+    fullTokens: (updatePending ?? chosen).reduce((sum, item) => sum + item.fullTokens, 0),
     contextWindow,
     inputPricePerMillion: Number(setup.inputPrice) || 0,
     outputPricePerMillion: Number(setup.outputPrice) || 0,
@@ -602,7 +673,8 @@ const ReadPage: React.FC = () => {
           maxTokens: Number.isFinite(maxTokens) ? maxTokens : undefined,
         },
         adapter,
-        alreadyReadIds: resumeIds,
+        alreadyReadIds: updateOffer ? updateOffer.unchangedRead : resumeIds,
+        selectedIds: updateOffer ? [...updateOffer.unchangedRead, ...updateOffer.added, ...updateOffer.changed] : undefined,
         estimate: { tokens: estimate.inputTokens + estimate.outputTokens, dollars: estimate.cost },
         isPaused: () => pausedRef.current,
         onProgress: setProgress,
@@ -622,9 +694,25 @@ const ReadPage: React.FC = () => {
           toast.error(error instanceof Error ? error.message : 'The read finished, but the key could not be saved to your account.');
         }
       }
-      setCaseFile(result);
+      const fingerprint = fileFingerprint || await exportFingerprint(conversations);
+      const origin = updateOffer?.originFingerprint || fingerprint;
+      let next: CaseFile = {
+        ...result,
+        providers: local ? providerPortraits(local, result.coverage.topics) : result.providers,
+        lineage: { originFingerprint: origin, fingerprint, stamps: stampsFrom(conversations) },
+      };
+      if (updateOffer) {
+        const merged = mergeCaseFiles(stripChangedFacts(updateOffer.base, updateOffer.changed), next);
+        next = {
+          ...merged,
+          providers: next.providers,
+          lineage: next.lineage,
+          changes: caseDiff(updateOffer.base, merged, updateOffer),
+        };
+      }
+      setCaseFile(next);
       setStep('report');
-      await persistRead(result);
+      await persistRead(next);
     } catch (error) {
       const message = error instanceof ProviderRequestError && error.kind === 'auth'
         ? PROVIDER_AUTH_MESSAGE
@@ -675,7 +763,7 @@ const ReadPage: React.FC = () => {
       throw new Error('Sign in to save the case file.');
     }
     try {
-      const fingerprint = await exportFingerprint(conversations);
+      const fingerprint = caseFile.lineage?.originFingerprint || await exportFingerprint(conversations);
       await saveCaseFile(user.id, fingerprint, filename, caseFile);
       const saved = caseFile.coverage.partial
         ? 'Saved as a partial report. Running it again updates this same row.'
@@ -841,6 +929,7 @@ const ReadPage: React.FC = () => {
               inputProps={dropzone.getInputProps()}
             />
           </div>
+          <p className="mt-8 text-sm text-muted-foreground">{COMBINABLE_PROVIDERS.join(', ')} can be combined into one case file. A file the parser does not recognize is refused with a reason.</p>
           <div className="mt-10 space-y-4">
             {EXPORT_GUIDES.map((guide) => (
               <article key={guide.name} className="rounded-2xl border border-white/10 p-4">
@@ -864,6 +953,58 @@ const ReadPage: React.FC = () => {
           <h1 className="mt-2 font-display text-4xl">Local preview</h1>
           <p className="mt-3 text-muted-foreground">No key and no model call. This is what the file contains before you spend anything.</p>
           <LocalReportPanel report={local} />
+          <p className="mt-6 text-sm text-muted-foreground">ChatGPT, Claude, Gemini, and Grok exports can be combined. Other files are refused with the parser’s reason, not treated as a chat.</p>
+          {local.usage.providers.length > 1 && (
+            <ul className="mt-3 space-y-1 text-sm" data-testid="source-mix">
+              {local.usage.providers.map((row) => (
+                <li key={row.name}>{row.name}: {row.count}</li>
+              ))}
+            </ul>
+          )}
+          <label className="mt-4 inline-block text-sm text-primary underline">
+            Add another export
+            <input
+              className="sr-only"
+              type="file"
+              data-testid="add-export"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                void (async () => {
+                  setAddError('');
+                  try {
+                    const bytes = new Uint8Array(await file.arrayBuffer());
+                    const parsed = await parseConversationExport(file.name, bytes);
+                    const combined = combineExports([conversations, parsed.conversations]);
+                    setConversations(combined);
+                    setLocal(runLocalPass(combined));
+                    setFileFingerprint(await exportFingerprint(combined));
+                    setFilename((current) => current.includes(file.name) ? current : `${current} + ${file.name}`);
+                  } catch (error) {
+                    setAddError(error instanceof Error ? error.message : `${file.name} is not a supported export.`);
+                  }
+                })();
+              }}
+            />
+          </label>
+          {addError && <p className="mt-3 text-sm text-amber-100" data-testid="add-export-error">{addError}</p>}
+          {updateOffer && (
+            <div className="mt-6 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm" data-testid="update-offer">
+              <p>This matches {updateOffer.filename}. {updateOffer.added.length} new, {updateOffer.changed.length} changed, {updateOffer.unchanged.length} unchanged, {updateOffer.dropped.length} dropped.</p>
+              <p className="mt-2">This update sends only the new and changed chats: about {formatCost(estimate.cost)} and {(estimate.inputTokens + estimate.outputTokens).toLocaleString()} tokens.</p>
+              <button
+                type="button"
+                className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                onClick={() => {
+                  setResumeIds(updateOffer.unchangedRead);
+                  setStep('setup');
+                }}
+              >
+                Update this case file
+              </button>
+            </div>
+          )}
           {archiveSkip && (
             <p className="mt-6 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" data-testid="archive-skip">{archiveSkip}</p>
           )}

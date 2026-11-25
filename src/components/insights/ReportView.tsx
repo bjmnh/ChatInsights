@@ -18,7 +18,9 @@ import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, publicSubjectName, reportSubtitle, sentenceCase, sourceChips, type PremiumReportShape } from '../../lib/insights/hydratePremium';
 import { journalEntries } from '../../lib/insights/journal';
-import { ledgerLine } from '../../lib/insights/ledger';
+import { savedCostLabel } from '../../lib/insights/ledger';
+import { providerLabel } from '../../lib/insights/providerPortrait';
+import { caseMarkdown, shareCardHtml, type FootnoteSource } from '../../lib/insights/shareExport';
 import { decisionText, displayBadge, plainPartialDetail, reportStatus, retryActionLabel, unreadCount, type CaseFile, type Cited } from '../../lib/insights/merge';
 import ReceiptDrawer from './ReceiptDrawer';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
@@ -271,6 +273,8 @@ const ReportView: React.FC<{
               <Button variant="outline" onClick={onClose} className="border-white/20 text-white hover:bg-white/10">Close</Button>
             )}
             <Button onClick={onDownload} className="bg-blue-600 hover:bg-blue-700 text-white">Download JSON</Button>
+            <Button variant="outline" onClick={() => downloadText(markdownName(caseFile), 'text/markdown', markdownFor(caseFile, conversations))} className="border-white/20 text-white hover:bg-white/10">Download Markdown</Button>
+            <Button variant="outline" onClick={() => downloadText(`${publicSubjectName(caseFile)}-share.html`, 'text/html', shareCardHtml(caseFile))} className="border-white/20 text-white hover:bg-white/10">Download share card</Button>
             {onSave && !demo && (
               <Button variant="outline" onClick={() => {
                 Promise.resolve(onSave()).then(() => {
@@ -303,9 +307,7 @@ const ReportView: React.FC<{
           <p className="mx-auto mt-3 max-w-2xl text-xl text-gray-300">
             {reportSubtitle(caseFile)}
           </p>
-          {caseFile.ledger && (
-            <p className="mx-auto mt-3 max-w-2xl font-mono text-xs text-gray-300" data-testid="cost-ledger">{ledgerLine(caseFile.ledger)}</p>
-          )}
+          <p className="mx-auto mt-3 max-w-2xl font-mono text-xs text-gray-300" data-testid="cost-ledger">{savedCostLabel(caseFile)}</p>
           <p className="mt-3 font-mono text-xs uppercase tracking-[0.16em] text-red-100">{filedStamp(caseFile)}</p>
           {demo && (
             <p className="mx-auto mt-4 max-w-xl rounded-xl border border-sky-400/40 bg-sky-500/15 px-4 py-3 text-sm text-sky-100" data-testid="sample-banner">
@@ -338,6 +340,8 @@ const ReportView: React.FC<{
         {saveMessage && <p className="mb-6 text-sm text-gray-400">{saveMessage}</p>}
 
         <DecisionJournal file={caseFile} titles={titles} order={order} onOpen={openReceipt} />
+        <ChangesSince file={caseFile} titles={titles} order={order} onOpen={openReceipt} />
+        <ProviderComparison file={caseFile} titles={titles} order={order} onOpen={openReceipt} />
 
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
           {ORIGINAL.map((insight, index) => {
@@ -394,6 +398,123 @@ const ReportView: React.FC<{
     </div>,
   );
 };
+
+function downloadText(filename: string, mime: string, text: string) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function markdownName(file: CaseFile): string {
+  return `${publicSubjectName(file).replace(/[^\w.-]+/g, '-').replace(/^-|-$/g, '') || 'case-file'}.md`;
+}
+
+function markdownFor(file: CaseFile, conversations: NormalizedConversation[]): string {
+  const sources = new Map<string, FootnoteSource>();
+  conversations.forEach((conversation, index) => {
+    sources.set(conversation.id, { title: conversation.title || `Conversation ${index + 1}`, date: conversation.createdAt });
+  });
+  for (const item of file.notable) {
+    if (!sources.has(item.id)) sources.set(item.id, { title: item.title || 'Source chat', date: null });
+  }
+  return caseMarkdown(file, sources);
+}
+
+function ChangeList({
+  title,
+  items,
+  titles,
+  order,
+  onOpen,
+}: {
+  title: string;
+  items: { label: string; detail: string; ev: string[]; quote: string | null }[];
+  titles: Map<string, string>;
+  order: Map<string, number>;
+  onOpen: (id: string, quote: string | null) => void;
+}) {
+  if (!items.length) return null;
+  return (
+    <div className="mt-4">
+      <h3 className="font-mono text-xs uppercase tracking-[0.16em] text-amber-200">{title}</h3>
+      <ul className="mt-2 space-y-2">
+        {items.map((item) => (
+          <li key={`${title}-${item.label}`} className="text-sm text-amber-50">
+            {sentenceCase(item.label)}{item.detail ? ` · ${sentenceCase(item.detail)}` : ''}
+            <span className="text-amber-200">
+              <EvidenceChips sources={sourceChips(item.ev, titles, order)} onOpen={(id) => onOpen(id, item.quote)} />
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ChangesSince({
+  file,
+  titles,
+  order,
+  onOpen,
+}: {
+  file: CaseFile;
+  titles: Map<string, string>;
+  order: Map<string, number>;
+  onOpen: (id: string, quote: string | null) => void;
+}) {
+  const changes = file.changes;
+  if (!changes) return null;
+  return (
+    <section className="mb-12 rounded-xl border border-amber-500/30 bg-slate-900/50 p-5" data-testid="what-changed">
+      <h2 className="font-display text-3xl text-white">What changed since last time</h2>
+      <p className="mt-2 text-sm text-gray-300">{changes.added} new, {changes.changed} changed, {changes.dropped} dropped.</p>
+      <ChangeList title="New people" items={changes.peopleAdded} titles={titles} order={order} onOpen={onOpen} />
+      <ChangeList title="Dropped people" items={changes.peopleDropped} titles={titles} order={order} onOpen={onOpen} />
+      <ChangeList title="New projects" items={changes.projectsAdded} titles={titles} order={order} onOpen={onOpen} />
+      <ChangeList title="New open loops" items={changes.loopsAdded} titles={titles} order={order} onOpen={onOpen} />
+      <ChangeList title="Reversed decisions" items={changes.reversals} titles={titles} order={order} onOpen={onOpen} />
+      <ChangeList title="Shifted worries" items={changes.worriesShifted} titles={titles} order={order} onOpen={onOpen} />
+    </section>
+  );
+}
+
+function ProviderComparison({
+  file,
+  titles,
+  order,
+  onOpen,
+}: {
+  file: CaseFile;
+  titles: Map<string, string>;
+  order: Map<string, number>;
+  onOpen: (id: string, quote: string | null) => void;
+}) {
+  const portraits = file.providers ?? [];
+  if (portraits.length < 2) return null;
+  return (
+    <section className="mb-12" data-testid="provider-comparison">
+      <h2 className="font-display text-3xl text-white">How you talk to each assistant</h2>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        {portraits.map((portrait) => (
+          <article key={portrait.provider} className="rounded-xl border border-sky-500/30 bg-slate-900/50 p-4">
+            <h3 className="text-lg text-white">{providerLabel(portrait.provider)}</h3>
+            <p className="mt-1 text-sm text-gray-300">{portrait.conversations} chats · {portrait.messages} messages you sent · {portrait.wordsPerMessage} words each · {Math.round(portrait.questionShare * 100)}% questions</p>
+            {portrait.topics.map((topic) => (
+              <div key={topic.topic} className="text-sky-100">
+                <p className="mt-3 text-sm">{sentenceCase(topic.topic)}</p>
+                <EvidenceChips sources={sourceChips(topic.ev, titles, order)} onOpen={(id) => onOpen(id, null)} />
+              </div>
+            ))}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 function DecisionJournal({
   file,

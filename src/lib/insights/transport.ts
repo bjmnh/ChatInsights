@@ -4,7 +4,7 @@ export type FetchLike = (input: string, init: RequestInit & { duplex?: 'half' })
 
 export class ProviderRequestError extends Error {
   readonly status: number;
-  readonly kind: 'rate' | 'server' | 'safety' | 'auth' | 'cors' | 'schema' | 'bad';
+  readonly kind: 'rate' | 'server' | 'safety' | 'auth' | 'cors' | 'schema' | 'bad' | 'timeout';
   readonly retryAfterMs?: number;
 
   constructor(message: string, status: number, kind: ProviderRequestError['kind'], retryAfterMs?: number) {
@@ -40,6 +40,7 @@ export function retryDelayMs(headers: Headers, attempt: number): number {
 /** 429 is rate limiting. 503 and other server errors are the provider being busy. */
 export function providerWaitMessage(status: number, waitMs: number, attempt: number): string {
   const seconds = Math.max(1, Math.ceil(waitMs / 1000));
+  if (status === 408) return `The provider did not answer in time. Retrying in ${seconds}s… (attempt ${attempt} of 5).`;
   const cause = status === 429 ? 'rate-limiting' : 'busy';
   return `The provider is ${cause} (${status}). Retrying in ${seconds}s… (attempt ${attempt} of 5).`;
 }
@@ -67,16 +68,32 @@ const FORWARD_HEADERS = [
 export async function providerFetch(
   url: string,
   init: RequestInit,
-  options?: { fetchImpl?: FetchLike; proxy?: 'auto' | 'never'; extraAllowlist?: string[] },
+  options?: { fetchImpl?: FetchLike; proxy?: 'auto' | 'never'; extraAllowlist?: string[]; timeoutMs?: number },
 ): Promise<TransportResult> {
   const fetchImpl = options?.fetchImpl ?? fetch;
   const proxy = options?.proxy ?? 'auto';
+  const timeoutMs = options?.timeoutMs ?? PROVIDER_CALL_TIMEOUT_MS;
   const target = new URL(url);
+  const timeout = new AbortController();
+  const timer = timeoutMs > 0 ? setTimeout(() => timeout.abort(), timeoutMs) : undefined;
+  if (init.signal) {
+    if (init.signal.aborted) timeout.abort();
+    else init.signal.addEventListener('abort', () => timeout.abort(), { once: true });
+  }
+  const signal = timeout.signal;
   try {
-    const response = await fetchImpl(url, init);
+    const response = await fetchImpl(url, { ...init, signal });
     const text = await response.text();
     return { response, viaProxy: false, text };
   } catch (error) {
+    const aborted = timeout.signal.aborted || (error instanceof Error && error.name === 'AbortError');
+    if (aborted && !init.signal?.aborted) {
+      throw new ProviderRequestError(
+        `The provider did not answer within ${Math.round(timeoutMs / 1000)} seconds.`,
+        408,
+        'timeout',
+      );
+    }
     const blocked = error instanceof TypeError;
     if (!blocked || proxy === 'never') {
       throw new ProviderRequestError(
@@ -115,10 +132,13 @@ export async function providerFetch(
     });
     const text = await response.text();
     return { response, viaProxy: true, text };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
 export const PROVIDER_AUTH_MESSAGE = 'Your API key was rejected by the provider. Check the key and try again.';
+export const PROVIDER_CALL_TIMEOUT_MS = 120_000;
 
 const AUTH_TEXT = /api[_ -]?key|api_key_invalid|unauthenticated|permission denied|invalid[_ ]?key/i;
 
@@ -131,7 +151,7 @@ export function isProviderAuthFailure(status: number, text: string): boolean {
 
 export function providerAuthError(error: unknown): ProviderRequestError | null {
   if (!(error instanceof Error)) return null;
-  if (error instanceof ProviderRequestError && (error.kind === 'cors' || error.kind === 'rate' || error.kind === 'server' || error.kind === 'safety' || error.kind === 'schema')) {
+  if (error instanceof ProviderRequestError && (error.kind === 'cors' || error.kind === 'rate' || error.kind === 'server' || error.kind === 'safety' || error.kind === 'schema' || error.kind === 'timeout')) {
     return null;
   }
   const status = error instanceof ProviderRequestError ? error.status : 0;
@@ -173,11 +193,11 @@ export async function completeWithRetry<T>(
     try {
       return await run();
     } catch (error) {
-      if (error instanceof ProviderRequestError && (error.kind === 'rate' || error.kind === 'server')) {
+      if (error instanceof ProviderRequestError && (error.kind === 'rate' || error.kind === 'server' || error.kind === 'timeout')) {
         last = error;
         if (attempt >= 4) break;
         const wait = retryWaitMs(attempt, error.retryAfterMs);
-        const status = error.status || (error.kind === 'rate' ? 429 : 503);
+        const status = error.status || (error.kind === 'rate' ? 429 : error.kind === 'timeout' ? 408 : 503);
         let remaining = wait;
         while (remaining > 0) {
           onRetry?.({ attempt: attempt + 1, waitMs: remaining, status });

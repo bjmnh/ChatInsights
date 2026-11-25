@@ -1078,6 +1078,26 @@ const ReadPage: React.FC = () => {
           onContinue={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { continueAfterCap().catch(() => undefined); }}
           onRetryWriteUp={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { retryWriteUp().catch(() => undefined); }}
           retryNote={retryNote}
+          ask={{
+            prices: { input: Number(setup.inputPrice) || catalogModel(setup.providerId, setup.modelId)?.input || 0, output: Number(setup.outputPrice) || catalogModel(setup.providerId, setup.modelId)?.output || 0 },
+            budget: retryBudget(),
+            complete: (resolveSecret() || setup.providerId === 'demo') ? (request) => {
+              const secret = resolveSecret();
+              const adapter = setup.providerId === 'demo'
+                ? createDemoAdapter({ latencyMs: 0 })
+                : createAdapter(setup.providerId, {
+                  apiKey: secret,
+                  model: setup.modelId,
+                  baseUrl: setup.baseUrl || preset.baseUrl,
+                  extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
+                });
+              return adapter.complete(request);
+            } : undefined,
+          }}
+          onCaseFile={(next) => {
+            setCaseFile(next);
+            persistRead(next).catch(() => undefined);
+          }}
           demo={new URLSearchParams(window.location.search).get('sample') === '1'}
           onClose={() => {
             if (new URLSearchParams(window.location.search).get('sample') === '1') navigate('/');

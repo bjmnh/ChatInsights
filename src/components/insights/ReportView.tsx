@@ -22,9 +22,14 @@ import { savedCostLabel } from '../../lib/insights/ledger';
 import { providerLabel } from '../../lib/insights/providerPortrait';
 import { caseMarkdown, shareCardHtml, type FootnoteSource } from '../../lib/insights/shareExport';
 import { decisionText, displayBadge, plainPartialDetail, reportStatus, retryActionLabel, unreadCount, type CaseFile, type Cited } from '../../lib/insights/merge';
+import type { CompleteRequest, CompleteResult } from '../../lib/insights/adapters';
+import AskPanel from './AskPanel';
+import CaseTimeline from './CaseTimeline';
+import LoopGraph from './LoopGraph';
 import ReceiptDrawer from './ReceiptDrawer';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
 import { caseNumberFor } from '../../lib/insights/caseNumber';
+import { catalogModel } from '../../lib/insights/prices';
 import { FBIReportCard } from '../reports/FBIReportCard';
 import { LinguisticFingerprintCard } from '../reports/LinguisticFingerprintCard';
 import { Top5ConversationsCard } from '../reports/Top5ConversationsCard';
@@ -186,7 +191,13 @@ const ReportView: React.FC<{
   demo?: boolean;
   onAttachExport?: (file: File) => void;
   attachError?: string;
-}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread, onContinue, onRetryWriteUp, retryNote, onAttachExport, attachError }) => {
+  ask?: {
+    prices: { input: number; output: number };
+    budget?: { maxTokens?: number; maxDollars?: number };
+    complete?: (request: CompleteRequest) => Promise<CompleteResult>;
+  };
+  onCaseFile?: (file: CaseFile) => void;
+}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread, onContinue, onRetryWriteUp, retryNote, onAttachExport, attachError, ask, onCaseFile }) => {
   const [savedLabel, setSavedLabel] = useState<'Save to account' | 'Saved' | 'Update saved copy'>('Save to account');
   const order = useMemo(() => new Map(conversations.map((conversation, index) => [conversation.id, index])), [conversations]);
   const titles = useMemo(() => {
@@ -339,6 +350,19 @@ const ReportView: React.FC<{
         )}
         {saveMessage && <p className="mb-6 text-sm text-gray-400">{saveMessage}</p>}
 
+        <AskPanel
+          caseFile={caseFile}
+          conversations={conversations}
+          titles={titles}
+          order={order}
+          prices={ask?.prices ?? { input: catalogModel(caseFile.model.provider, caseFile.model.id)?.input ?? 0, output: catalogModel(caseFile.model.provider, caseFile.model.id)?.output ?? 0 }}
+          budget={ask?.budget}
+          complete={ask?.complete}
+          onCaseFile={onCaseFile ?? (() => undefined)}
+          onOpen={openReceipt}
+        />
+        <CaseTimeline caseFile={caseFile} onOpen={openReceipt} />
+        <LoopGraph caseFile={caseFile} onOpen={openReceipt} />
         <DecisionJournal file={caseFile} titles={titles} order={order} onOpen={openReceipt} />
         <ChangesSince file={caseFile} titles={titles} order={order} onOpen={openReceipt} />
         <ProviderComparison file={caseFile} titles={titles} order={order} onOpen={openReceipt} />

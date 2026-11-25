@@ -4,6 +4,8 @@ import { cardStates, QUICK_KINDS, type CardId, type CardState, type DepthId } fr
 import type { LocalReport } from './localPass.ts';
 import type { Fact, NarrativeDraft } from './schema.ts';
 import { combineLedgers, type CostLedger } from './ledger.ts';
+import type { CaseChanges, ConversationStamp } from './livingCase.ts';
+import type { ProviderPortrait } from './providerPortrait.ts';
 
 export type NarrativeStatus = 'written' | 'templated' | 'not-in-depth' | 'skipped-budget' | 'failed' | 'failed-provider';
 
@@ -85,6 +87,16 @@ export interface CaseFile {
   cardStatus: Record<CardId, CardState>;
   /** Pre-run estimate beside what the provider calls actually used. Never an API key. */
   ledger?: CostLedger;
+  /** Ids, message counts, and times for a later export. Not the chat text. */
+  lineage?: {
+    originFingerprint: string;
+    fingerprint: string;
+    stamps: ConversationStamp[];
+  };
+  /** What the latest newer-export update added or dropped. */
+  changes?: CaseChanges;
+  /** Volume, style, and topics by assistant. */
+  providers?: ProviderPortrait[];
 }
 
 export function computeConfidence(input: {

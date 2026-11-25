@@ -115,6 +115,38 @@ export function needsWriteUpRetry(file: CaseFile): boolean {
   return writeUpMissing(file.coverage.narrative);
 }
 
+/** The cap stopped the read while planned conversations are still unread. */
+export function capBlockedUnread(file: CaseFile): boolean {
+  if (unreadCount(file) === 0) return false;
+  const reason = file.coverage.partialReason ?? '';
+  return file.coverage.narrative === 'skipped-budget'
+    || reason === 'budget'
+    || /token cap|dollar cap|budget cap/i.test(reason);
+}
+
+/** One retry action. A write-up-only retry waits until every planned conversation has been read. */
+export function reportRetryAction(file: CaseFile): 'continue' | 'unread' | 'write-up' | 'none' {
+  if (capBlockedUnread(file)) return 'continue';
+  if (unreadCount(file) > 0) return 'unread';
+  if (file.coverage.partial && needsWriteUpRetry(file)) return 'write-up';
+  return 'none';
+}
+
+export function retryActionLabel(file: CaseFile): string | null {
+  const action = reportRetryAction(file);
+  if (action === 'continue') return 'Clear cap and continue';
+  if (action === 'unread') return 'Retry unread conversations';
+  if (action === 'write-up' && file.coverage.narrative === 'skipped-budget') return 'Clear cap and retry the write-up';
+  if (action === 'write-up') return 'Retry the write-up';
+  return null;
+}
+
+/** The banner saved with the report. An empty string means the current file has nothing to warn about. */
+export function reportBanner(file: CaseFile): string {
+  if (!file.coverage.partial) return '';
+  return plainPartialDetail(file);
+}
+
 export function reportLabel(caseFile: CaseFile): 'Partial' | 'Complete' {
   return isComplete(caseFile) ? 'Complete' : 'Partial';
 }
@@ -704,8 +736,12 @@ export function applyNarrativeResult(
   file: CaseFile,
   draft: { cover?: string; blurbs?: Record<string, string>; codename?: string; codename_reason?: string; archetype?: string } | null,
   status: NarrativeStatus,
+  reason?: string,
 ): CaseFile {
-  const written = status === 'written' && Boolean(draft?.cover) && !/It looked at /.test(draft?.cover ?? '');
+  const missed = unreadCount(file);
+  const written = missed > 0
+    ? false
+    : status === 'written' && Boolean(draft?.cover) && !/It looked at /.test(draft?.cover ?? '');
   const narrative = written && draft
     ? {
       ...file.narrative,
@@ -716,17 +752,26 @@ export function applyNarrativeResult(
       archetype: draft.archetype?.trim() || file.narrative.archetype,
     }
     : file.narrative;
-  const missed = unreadCount(file);
+  const kept = file.coverage.partialReason;
+  const narrativeStatus: NarrativeStatus = written
+    ? 'written'
+    : missed > 0
+      ? file.coverage.narrative
+      : status === 'written'
+        ? 'failed'
+        : status;
   const partialReason = missed > 0
-    ? file.coverage.partialReason
-    : status === 'skipped-budget'
-      ? 'budget'
-      : status === 'failed-provider' || status === 'failed'
-        ? WRITE_UP_MISSING
-        : undefined;
+    ? (kept && kept !== 'budget' ? kept : 'budget')
+    : written
+      ? undefined
+      : narrativeStatus === 'skipped-budget'
+        ? (reason && /cap|budget/i.test(reason) ? reason : 'The write-up was skipped because the budget cap was reached. Clear the cap and retry the write-up.')
+        : narrativeStatus === 'failed-provider' || narrativeStatus === 'failed'
+          ? (reason || WRITE_UP_MISSING)
+          : undefined;
   const coverage = finalizeCoverage({
     ...file.coverage,
-    narrative: status,
+    narrative: narrativeStatus,
     partial: false,
     partialReason,
   });

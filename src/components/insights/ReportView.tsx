@@ -17,7 +17,7 @@ import type { NormalizedConversation } from '../../lib/conversationParser/types'
 import { cardStateLabel } from '../../lib/insights/depth';
 import type { CardId } from '../../lib/insights/depth';
 import { cardPreviews, EMPTY_IN_CHATS, EMPTY_RECORD, emptyCardCopy, filedStamp, hydratePremiumReport, publicSubjectName, reportSubtitle, sentenceCase, sourceLabels, type PremiumReportShape } from '../../lib/insights/hydratePremium';
-import { decisionText, displayBadge, needsWriteUpRetry, plainPartialDetail, reportStatus, unreadCount, type CaseFile, type Cited } from '../../lib/insights/merge';
+import { decisionText, displayBadge, plainPartialDetail, reportStatus, retryActionLabel, unreadCount, type CaseFile, type Cited } from '../../lib/insights/merge';
 import { DossierFrame, DossierKicker, Paperclip } from '../reports/dossier';
 import { caseNumberFor } from '../../lib/insights/caseNumber';
 import { FBIReportCard } from '../reports/FBIReportCard';
@@ -173,12 +173,13 @@ const ReportView: React.FC<{
   onDownload: () => void;
   onSave?: () => Promise<void> | void;
   onRetryUnread?: () => void;
+  onContinue?: () => void;
   onRetryWriteUp?: () => void;
   retryNote?: string;
   onClose?: () => void;
   saveMessage?: string;
   demo?: boolean;
-}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread, onRetryWriteUp, retryNote }) => {
+}> = ({ caseFile, conversations, onDownload, onSave, onClose, saveMessage, demo, onRetryUnread, onContinue, onRetryWriteUp, retryNote }) => {
   const [savedLabel, setSavedLabel] = useState<'Save to account' | 'Saved' | 'Update saved copy'>('Save to account');
   const order = useMemo(() => new Map(conversations.map((conversation, index) => [conversation.id, index])), [conversations]);
   const titles = useMemo(() => {
@@ -260,14 +261,18 @@ const ReportView: React.FC<{
                 }).catch(() => undefined);
               }} className="border-white/20 text-white hover:bg-white/10">{savedLabel}</Button>
             )}
-            {onRetryUnread && caseFile.coverage.partial && unreadCount(caseFile) > 0 && (
-              <Button variant="outline" onClick={onRetryUnread} className="border-white/20 text-white hover:bg-white/10">Retry unread conversations</Button>
-            )}
-            {onRetryWriteUp && needsWriteUpRetry(caseFile) && (
-              <Button variant="outline" onClick={onRetryWriteUp} className="border-white/20 text-white hover:bg-white/10">
-                {caseFile.coverage.narrative === 'skipped-budget' ? 'Clear cap and retry the write-up' : 'Retry the write-up'}
-              </Button>
-            )}
+            {(() => {
+              const retryLabel = retryActionLabel(caseFile);
+              const retryClick = retryLabel === 'Clear cap and continue'
+                ? onContinue
+                : retryLabel === 'Retry unread conversations'
+                  ? onRetryUnread
+                  : onRetryWriteUp;
+              if (!retryLabel || !retryClick) return null;
+              return (
+                <Button variant="outline" onClick={retryClick} className="border-white/20 text-white hover:bg-white/10">{retryLabel}</Button>
+              );
+            })()}
           </div>
           <Badge variant="outline" className={badge === 'Partial report' ? 'border-amber-500/40 bg-amber-500/20 text-amber-200' : badge.startsWith('Quick scan') ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : badge === 'Sample report' ? 'border-sky-400/40 bg-sky-500/20 text-sky-100' : 'border-emerald-500/40 bg-emerald-500/20 text-emerald-200'} data-testid={badge === 'Partial report' ? 'partial-banner' : 'complete-banner'}>
             {badge}

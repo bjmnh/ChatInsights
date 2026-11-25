@@ -9,7 +9,7 @@ import { notablePhraseOk, runLocalPass } from './localPass.ts';
 import { caseFileNumber, caseNumberFor } from './caseNumber.ts';
 import { checkpointAfterRetry } from './browserStore.ts';
 import { cardPreviews, caseDownloadName, conversationTitle, displayTitle, EMPTY_IN_CHATS, hydratePremiumReport, isThinProfileLabel, publicSubjectName, reportSubtitle, scrubRawCodes, sentenceCase, sourceLabels, toHashtag, uniqueDisplay, vocabularyMeterValue } from './hydratePremium.ts';
-import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, needsWriteUpRetry, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportLabel, reportStatus, savedModelLabel, settleArchetype, settleCodename, WRITE_UP_MISSING, type CaseFile } from './merge.ts';
+import { buildCaseFile, computeConfidence, decisionText, displayBadge, isComplete, mergeCaseFiles, needsWriteUpRetry, NEUTRAL_CODENAME, normalizeTitleCase, plainPartialDetail, publicCodenameReason, reportBanner, reportLabel, reportRetryAction, reportStatus, retryActionLabel, savedModelLabel, settleArchetype, settleCodename, WRITE_UP_MISSING, type CaseFile } from './merge.ts';
 import { maskSensitive, packBatches, packConversation } from './pack.ts';
 import { EXTRACTION_SYSTEM } from './prompts.ts';
 import { isPrivateHost, isProxyCandidate } from './proxyPolicy.ts';
@@ -23,7 +23,7 @@ import {
 } from './schema.ts';
 import { buildSampleConversations, createDemoAdapter } from './sample.ts';
 import { caseFileRow, exportFingerprint, persistenceFields, upsertByConflict } from './saveReport.ts';
-import { parallelLimit, retryNarrative, runRead, type RunProgress } from './runner.ts';
+import { budgetBlocks, budgetFromFields, parallelLimit, retryNarrative, runRead, type RunProgress } from './runner.ts';
 import { completeWithRetry, headerRetryAfterMs, providerFetch, ProviderRequestError, PROVIDER_AUTH_MESSAGE, providerWaitMessage, retryWaitMs } from './transport.ts';
 import {
   DEFAULT_PBKDF2_ITERATIONS,
@@ -690,6 +690,121 @@ describe('budget cap and partial reports', () => {
     expect(capped.coverage.partialReason).toMatch(/token cap/);
     expect(needsWriteUpRetry(capped)).toBe(true);
     expect(plainPartialDetail(capped)).toMatch(/token cap/);
+  });
+
+  it('offers one clear-cap action when the cap stops the read before any conversation', async () => {
+    const conversations = [0, 1, 2, 3, 4].map((index) => convo(`c${index}`, `My sister Dana wrote note ${index} about the rent.`));
+    const local = runLocalPass(conversations);
+    let calls = 0;
+    const stopped = await runRead({
+      conversations,
+      local,
+      depth: 'deep',
+      budget: { maxTokens: 2500 },
+      model: { provider: 'xai', id: 'grok-4.3', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 },
+      adapter: {
+        id: 'xai',
+        async complete() {
+          calls += 1;
+          return { text: JSON.stringify({ cover: 'Quiet Read Log', codename: 'Quiet Read Log', codename_reason: 'A name for this case file.', archetype: 'A reader' }), viaProxy: false };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(stopped.coverage.read).toBe(0);
+    expect(stopped.coverage.planned).toBe(5);
+    expect(calls).toBe(0);
+    expect(reportRetryAction(stopped)).toBe('continue');
+    expect(retryActionLabel(stopped)).toBe('Clear cap and continue');
+    expect(retryActionLabel(stopped)).not.toBe('Clear cap and retry the write-up');
+    expect(needsWriteUpRetry(stopped)).toBe(true);
+    const routes: string[] = [];
+    const refused = await retryNarrative({
+      file: stopped,
+      adapter: {
+        id: 'xai',
+        async complete() {
+          calls += 1;
+          return { text: JSON.stringify({ cover: 'Quiet Read Log', codename: 'Quiet Read Log', codename_reason: 'You had nothing to read.', archetype: 'A reader' }), viaProxy: false };
+        },
+      },
+      onProgress: (progress) => routes.push(progress.routeLine),
+      sleep: async () => undefined,
+    });
+    expect(calls).toBe(0);
+    expect(refused.narrative.cover).toBe(stopped.narrative.cover);
+    expect(reportBanner(refused)).toBe(reportBanner(stopped));
+    expect(reportBanner(refused)).toMatch(/budget cap/);
+    expect(routes[0]).toBe('Sending directly to xAI.');
+    const unreadOnly = {
+      ...stopped,
+      coverage: {
+        ...stopped.coverage,
+        narrative: 'failed-provider' as const,
+        read: 3,
+        failed: 2,
+        partialReason: 'The provider failed on 2 conversations after several retries.',
+      },
+    };
+    expect(reportRetryAction(unreadOnly)).toBe('unread');
+    expect(retryActionLabel(unreadOnly)).toBe('Retry unread conversations');
+    expect(budgetBlocks(budgetFromFields('2500', ''), 1, 4000)).toBe(true);
+    expect(budgetBlocks(budgetFromFields('', ''), 1, 4000)).toBe(false);
+  });
+
+  it('replaces a stale budget banner with the current write-up result', async () => {
+    const conversations = [convo('c0', 'My sister Dana wrote about the rent.')];
+    const local = runLocalPass(conversations);
+    const model = { provider: 'xai', id: 'grok-4.3', inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 100_000 };
+    const capped = await runRead({
+      conversations,
+      local,
+      depth: 'quick',
+      quickFraction: 1,
+      budget: { maxTokens: 4500 },
+      model,
+      adapter: {
+        id: 'xai',
+        async complete(request: { user: string }) {
+          const ids = [...request.user.matchAll(/id="([^"]+)"/g)].map((match) => match[1]);
+          return { text: JSON.stringify({ convs: ids.map((id) => ({ c: id, topic: 'rent' })), facts: [] }), viaProxy: false, usage: { input: 3200, output: 200 } };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(capped.coverage.read).toBe(1);
+    expect(retryActionLabel(capped)).toBe('Clear cap and retry the write-up');
+    expect(reportBanner(capped)).toMatch(/token cap/);
+    const routes: string[] = [];
+    const finished = await retryNarrative({
+      file: capped,
+      adapter: {
+        id: 'xai',
+        async complete() {
+          return { text: JSON.stringify({ cover: 'You keep coming back to the rent.', codename: 'Second Draft', codename_reason: 'You rewrite the rent note until it sounds like you.', archetype: 'The person who rewrites the note' }), viaProxy: false };
+        },
+      },
+      onProgress: (progress) => routes.push(progress.routeLine),
+      sleep: async () => undefined,
+    });
+    expect(isComplete(finished)).toBe(true);
+    expect(reportBanner(finished)).toBe('');
+    expect(finished.coverage.partialReason).toBeUndefined();
+    expect(routes[0]).toBe('Sending directly to xAI.');
+    expect(routes.some((line) => line === 'Sending directly to the provider.')).toBe(false);
+    const failedAgain = await retryNarrative({
+      file: capped,
+      adapter: {
+        id: 'xai',
+        async complete() {
+          return { text: '', viaProxy: false, finishReason: 'length', emptyBecauseLength: true };
+        },
+      },
+      sleep: async () => undefined,
+    });
+    expect(reportBanner(failedAgain)).toMatch(/whole output budget/);
+    expect(reportBanner(failedAgain)).not.toMatch(/token cap/);
+    expect(failedAgain.coverage.partialReason).toBe(reportBanner(failedAgain));
   });
 
   it('sends two xAI batches at once', async () => {

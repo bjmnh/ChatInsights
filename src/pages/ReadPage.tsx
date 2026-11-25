@@ -20,11 +20,11 @@ import { isExpiredSession, requestSessionExpiry, SESSION_EXPIRED_EVENT, SESSION_
 import { forgetAllKeys, forgetKey, listKeys, rememberKey, revealKey, type KeySummary } from '../lib/insights/keyVault';
 import { runLocalPass, type LocalReport } from '../lib/insights/localPass';
 import { caseDownloadName } from '../lib/insights/hydratePremium';
-import { mergeCaseFiles, plainPartialDetail, type CaseFile } from '../lib/insights/merge';
+import { mergeCaseFiles, type CaseFile } from '../lib/insights/merge';
 import { parseExtraAllowlist } from '../lib/insights/proxyPolicy';
 import { catalogModel, defaultModel, providerPreset } from '../lib/insights/prices';
 import type { RunProgress } from '../lib/insights/runner';
-import { budgetBlocks, retryNarrative, runRead } from '../lib/insights/runner';
+import { budgetBlocks, budgetFromFields, retryNarrative, runRead } from '../lib/insights/runner';
 import { EMPTY_READ_NOTICES, noticesAfter } from '../lib/insights/readSession';
 import { buildSampleConversations, createDemoAdapter } from '../lib/insights/sample';
 import { exportFingerprint } from '../lib/insights/saveReport';
@@ -80,6 +80,8 @@ const ReadPage: React.FC = () => {
   const [conversations, setConversations] = useState<NormalizedConversation[]>([]);
   const [local, setLocal] = useState<LocalReport | null>(null);
   const [setup, setSetup] = useState<SetupValues>(DEFAULT_SETUP);
+  const setupRef = useRef(setup);
+  setupRef.current = setup;
   const [savedKeys, setSavedKeys] = useState<KeySummary[]>([]);
   const [testMessage, setTestMessage] = useState('');
   const [progress, setProgress] = useState<RunProgress | null>(null);
@@ -675,13 +677,12 @@ const ReadPage: React.FC = () => {
     }
   };
 
-  const retryBudget = () => {
-    const dollars = setup.maxDollars.trim() ? Number(setup.maxDollars) : undefined;
-    const tokens = setup.maxTokens.trim() ? Number(setup.maxTokens) : undefined;
-    return {
-      maxDollars: Number.isFinite(dollars) ? dollars : undefined,
-      maxTokens: Number.isFinite(tokens) ? tokens : undefined,
-    };
+  const retryBudget = () => budgetFromFields(setupRef.current.maxTokens, setupRef.current.maxDollars);
+
+  const clearCaps = () => {
+    const next = { ...setupRef.current, maxTokens: '', maxDollars: '' };
+    setupRef.current = next;
+    setSetup(next);
   };
 
   const retryUnread = async () => {
@@ -736,10 +737,8 @@ const ReadPage: React.FC = () => {
       setCaseFile(merged);
       await persistRead(merged);
       const calls = result.coverage.batches;
-      setRetryNote(merged.coverage.partial
-        ? calls > 0
-          ? `Tried the unread conversations again (${calls} ${calls === 1 ? 'call' : 'calls'}). ${plainPartialDetail(merged)}`
-          : 'No call went out. The read stopped before the provider was asked.'
+      setRetryNote(merged.coverage.partial && calls === 0
+        ? 'No call went out. The read stopped before the provider was asked.'
         : '');
       setStep('report');
     } catch (error) {
@@ -760,9 +759,7 @@ const ReadPage: React.FC = () => {
     pausedRef.current = false;
     setRetryNote('');
     setRunError('');
-    if (caseFile.coverage.narrative === 'skipped-budget') {
-      setSetup((current) => ({ ...current, maxTokens: '', maxDollars: '' }));
-    }
+    if (caseFile.coverage.narrative === 'skipped-budget') clearCaps();
     const secret = resolveSecret();
     const adapter = setup.providerId === 'demo'
       ? createDemoAdapter({ latencyMs: 900 })
@@ -776,7 +773,7 @@ const ReadPage: React.FC = () => {
       const next = await retryNarrative({ file: caseFile, adapter, onProgress: setProgress });
       setCaseFile(next);
       await persistRead(next);
-      setRetryNote(next.coverage.partial ? `Tried again: ${plainPartialDetail(next)}` : '');
+      setRetryNote('');
       setStep('report');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'The write-up could not be tried again.';
@@ -785,6 +782,11 @@ const ReadPage: React.FC = () => {
       toast.error(message);
       setStep('report');
     }
+  };
+
+  const continueAfterCap = async () => {
+    clearCaps();
+    await retryUnread();
   };
 
   return (
@@ -921,6 +923,7 @@ const ReadPage: React.FC = () => {
           onDownload={download}
           onSave={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => save()}
           onRetryUnread={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { retryUnread().catch(() => undefined); }}
+          onContinue={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { continueAfterCap().catch(() => undefined); }}
           onRetryWriteUp={new URLSearchParams(window.location.search).get('sample') === '1' ? undefined : () => { retryWriteUp().catch(() => undefined); }}
           retryNote={retryNote}
           demo={new URLSearchParams(window.location.search).get('sample') === '1'}

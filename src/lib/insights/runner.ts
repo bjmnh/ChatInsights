@@ -1,6 +1,6 @@
 import type { NormalizedConversation } from '../conversationParser/types.ts';
 import type { Adapter, CompleteRequest } from './adapters.ts';
-import { applyNarrativeResult, buildCaseFile, providerFailureDetail, type CaseFile, type NarrativeStatus } from './merge.ts';
+import { applyNarrativeResult, buildCaseFile, providerFailureDetail, unreadCount, type CaseFile, type NarrativeStatus } from './merge.ts';
 import { packBatches, packConversation, type PackedBatch } from './pack.ts';
 import { EXTRACTION_SYSTEM, NARRATIVE_SYSTEM, QUICK_ADDENDUM, VERIFY_SYSTEM } from './prompts.ts';
 import {
@@ -448,6 +448,14 @@ async function writeNarrative(
   onRetry?: (info: { attempt: number; waitMs: number; status: number }) => void,
   onAttempt?: (attempt: number) => void,
 ): Promise<{ narrative: NarrativeDraft | null; status: NarrativeStatus; viaProxy: boolean; reason?: string }> {
+  if (topics.length === 0 && facts.length === 0) {
+    return {
+      narrative: null,
+      status: 'failed',
+      viaProxy: false,
+      reason: 'The write-up did not run because no conversations were read.',
+    };
+  }
   const grok = input.model?.provider === 'xai' || /grok/i.test(input.model?.id ?? '');
   const quick = input.depth === 'quick';
   const request: CompleteRequest = {
@@ -520,6 +528,15 @@ export function packPreview(conversation: NormalizedConversation, depth: DepthId
   return packConversation(conversation, depth).text;
 }
 
+export function budgetFromFields(maxTokens: string, maxDollars: string): RunBudget {
+  const dollars = maxDollars.trim() ? Number(maxDollars) : undefined;
+  const tokens = maxTokens.trim() ? Number(maxTokens) : undefined;
+  return {
+    maxDollars: dollars != null && Number.isFinite(dollars) ? dollars : undefined,
+    maxTokens: tokens != null && Number.isFinite(tokens) ? tokens : undefined,
+  };
+}
+
 export function budgetBlocks(budget: RunBudget | undefined, dollars: number, tokens: number): boolean {
   if (!budget) return false;
   if (budget.maxDollars != null && Number.isFinite(budget.maxDollars) && dollars > budget.maxDollars + 1e-9) return true;
@@ -554,6 +571,7 @@ export async function retryNarrative(input: {
   onProgress?: (progress: RunProgress) => void;
 }): Promise<CaseFile> {
   const sleep = input.sleep ?? defaultSleep;
+  let routeLine = `Sending directly to ${providerDisplayName(input.file.model.provider)}.`;
   const snapshot = (message: string): RunProgress => ({
     phase: 'narrative',
     completedBatches: 0,
@@ -562,9 +580,13 @@ export async function retryNarrative(input: {
     planned: input.file.coverage.planned,
     viaProxy: false,
     routeKnown: false,
-    routeLine: 'Sending directly to the provider.',
+    routeLine,
     message,
   });
+  if (input.file.coverage.read < 1 || unreadCount(input.file) > 0) {
+    input.onProgress?.(snapshot('The write-up did not run because conversations in this plan are still unread.'));
+    return input.file;
+  }
   const onRetry = (info: { attempt: number; waitMs: number; status: number }) => {
     input.onProgress?.(snapshot(providerWaitMessage(info.status, info.waitMs, info.attempt)));
   };
@@ -572,14 +594,18 @@ export async function retryNarrative(input: {
     input.onProgress?.(snapshot(`Writing the cover again (attempt ${attempt} of 5).`));
   };
   input.onProgress?.(snapshot('Writing the short cover.'));
-  const topics = input.file.coverage.topics.length ? input.file.coverage.topics : [{ c: 'case', topic: 'this read' }];
+  const topics = input.file.coverage.topics.filter((topic) => topic.c !== 'case' || topic.topic !== 'this read');
   const written = await writeNarrative(
-    { adapter: input.adapter, depth: input.file.model.depth } as RunInput,
+    { adapter: input.adapter, depth: input.file.model.depth, model: { provider: input.file.model.provider, id: input.file.model.id, inputPricePerMillion: 0, outputPricePerMillion: 0, contextWindow: 128_000 } } as RunInput,
     citedFacts(input.file),
     topics,
     sleep,
     onRetry,
     onAttempt,
   );
-  return applyNarrativeResult(input.file, written.narrative, written.status);
+  if (written.viaProxy) {
+    routeLine = 'Calls are going through the pass-through.';
+    input.onProgress?.(snapshot('Writing the short cover.'));
+  }
+  return applyNarrativeResult(input.file, written.narrative, written.status, written.reason);
 }

@@ -44,14 +44,18 @@ export async function listCaseFiles(userId: string): Promise<SavedCaseSummary[]>
   }));
 }
 
-export async function getCaseFile(userId: string, id: string): Promise<{ filename: string | null; case_file: CaseFile } | null> {
+export async function getCaseFile(userId: string, id: string): Promise<{ filename: string | null; export_fingerprint: string | null; case_file: CaseFile } | null> {
   const { data, error } = await supabase
     .from('case_files')
-    .select('filename, case_file')
+    .select('filename, export_fingerprint, case_file')
     .eq('user_id', userId)
     .eq('id', id)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return { filename: data.filename, case_file: data.case_file as unknown as CaseFile };
+  return {
+    filename: data.filename,
+    export_fingerprint: data.export_fingerprint,
+    case_file: data.case_file as unknown as CaseFile,
+  };
 }

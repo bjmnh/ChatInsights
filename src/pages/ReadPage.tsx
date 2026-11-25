@@ -31,6 +31,7 @@ import { exportFingerprint } from '../lib/insights/saveReport';
 import { loadAccountProviderKey, ProviderKeyError, saveAccountProviderKey } from '../lib/providerKeys/client';
 import { supabase } from '../lib/supabase';
 import { saveCaseFile } from '../services/caseFileService';
+import LocalReportPanel from '../components/insights/LocalReportPanel';
 import ProgressView from '../components/insights/ProgressView';
 import ReportView from '../components/insights/ReportView';
 import SetupPanel, { type SetupValues } from '../components/insights/SetupPanel';
@@ -257,6 +258,15 @@ const ReadPage: React.FC = () => {
     sampleLoaded.current = true;
     const sample = buildSampleConversations();
     const localReport = runLocalPass(sample);
+    const sampleEstimate = estimateRead({
+      depth: 'standard',
+      conversationCount: localReport.totals.conversations,
+      userTokens: localReport.totals.userTokens,
+      fullTokens: localReport.totals.fullTokens,
+      contextWindow: 100_000,
+      inputPricePerMillion: 0,
+      outputPricePerMillion: 0,
+    });
     setConversations(sample);
     setFilename('sample-not-a-real-person.json');
     setLocal(localReport);
@@ -278,6 +288,7 @@ const ReadPage: React.FC = () => {
         contextWindow: 100_000,
       },
       adapter: createDemoAdapter({ latencyMs: 0 }),
+      estimate: { tokens: sampleEstimate.inputTokens + sampleEstimate.outputTokens, dollars: sampleEstimate.cost },
       sleep: async () => undefined,
     }).then((result) => {
       setCaseFile(result);
@@ -592,6 +603,7 @@ const ReadPage: React.FC = () => {
         },
         adapter,
         alreadyReadIds: resumeIds,
+        estimate: { tokens: estimate.inputTokens + estimate.outputTokens, dollars: estimate.cost },
         isPaused: () => pausedRef.current,
         onProgress: setProgress,
       });
@@ -729,6 +741,7 @@ const ReadPage: React.FC = () => {
         adapter,
         alreadyReadIds: readIds,
         selectedIds: previous.coverage.selectedIds,
+        estimate: { tokens: estimate.inputTokens + estimate.outputTokens, dollars: estimate.cost },
         isPaused: () => pausedRef.current,
         budget,
         onProgress: setProgress,
@@ -770,7 +783,12 @@ const ReadPage: React.FC = () => {
         extraAllowlist: parseExtraAllowlist(import.meta.env.VITE_PROXY_ALLOWLIST),
       });
     try {
-      const next = await retryNarrative({ file: caseFile, adapter, onProgress: setProgress });
+      const next = await retryNarrative({
+        file: caseFile,
+        adapter,
+        prices: { input: Number(setup.inputPrice) || 0, output: Number(setup.outputPrice) || 0 },
+        onProgress: setProgress,
+      });
       setCaseFile(next);
       await persistRead(next);
       setRetryNote('');
@@ -845,14 +863,7 @@ const ReadPage: React.FC = () => {
           <p className="text-sm uppercase tracking-[0.16em] text-muted-foreground">{filename}</p>
           <h1 className="mt-2 font-display text-4xl">Local preview</h1>
           <p className="mt-3 text-muted-foreground">No key and no model call. This is what the file contains before you spend anything.</p>
-          <dl className="mt-8 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-            <Stat label="Conversations" value={String(local.totals.conversations)} />
-            <Stat label="Flagged" value={String(local.totals.flagged)} />
-            <Stat label="Your tokens" value={String(local.totals.userTokens)} />
-            <Stat label="Emails" value={String(local.exposure.emails.length)} />
-            <Stat label="Phones" value={String(local.exposure.phones.length)} />
-            <Stat label="Card-like" value={String(local.exposure.cardLike)} />
-          </dl>
+          <LocalReportPanel report={local} />
           {archiveSkip && (
             <p className="mt-6 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" data-testid="archive-skip">{archiveSkip}</p>
           )}
@@ -937,14 +948,5 @@ const ReadPage: React.FC = () => {
     </div>
   );
 };
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-white/10 p-4">
-      <div className="font-display text-3xl">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-    </div>
-  );
-}
 
 export default ReadPage;

@@ -1,16 +1,43 @@
-export function EvidenceChips({ labels }: { labels: string[] }) {
-  const items = labels.map((label) => label.trim()).filter(Boolean);
+export interface EvidenceSource {
+  id: string;
+  label: string;
+}
+
+export function EvidenceChips({
+  labels = [],
+  sources,
+  onOpen,
+}: {
+  labels?: string[];
+  sources?: EvidenceSource[];
+  onOpen?: (id: string) => void;
+}) {
+  const items = (sources?.length ? sources : labels.map((label) => ({ id: '', label }))).
+    map((item) => ({ id: item.id, label: item.label.trim() })).
+    filter((item) => item.label);
   if (!items.length) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-2">
-      {items.map((label) => (
-        <span
-          key={label}
-          className="rounded-sm border border-current/40 bg-black/20 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide"
-        >
-          {label}
-        </span>
-      ))}
+      {items.map((item) => {
+        const className = 'rounded-sm border border-current/40 bg-black/20 px-2 py-0.5 font-mono text-[11px] uppercase tracking-wide';
+        if (onOpen && item.id) {
+          return (
+            <button
+              key={`${item.id}-${item.label}`}
+              type="button"
+              className={`${className} cursor-pointer underline-offset-2 hover:underline`}
+              onClick={() => onOpen(item.id)}
+            >
+              {item.label}
+            </button>
+          );
+        }
+        return (
+          <span key={item.label} className={className}>
+            {item.label}
+          </span>
+        );
+      })}
     </div>
   );
 }

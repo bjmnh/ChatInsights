@@ -5,6 +5,7 @@ import { listCaseFiles, type SavedCaseSummary } from '../services/caseFileServic
 import { clearCheckpoint, loadCheckpoint, subscribeLocalReadCleared, type LocalCheckpoint } from '../lib/insights/browserStore';
 import { canShowCheckpoint } from '../lib/insights/localRead';
 import { formatFiledDate } from '../lib/insights/hydratePremium';
+import { ledgerLine } from '../lib/insights/ledger';
 import { displayBadge, savedModelLabel } from '../lib/insights/merge';
 import { isExpiredSession, requestSessionExpiry } from '../lib/authSession';
 
@@ -81,6 +82,7 @@ const DashboardPage: React.FC = () => {
                 {row.created_at && formatFiledDate(row.created_at) !== formatFiledDate(row.case_file?.filedAt || row.updated_at)
                   ? ` · Created ${formatFiledDate(row.created_at)}`
                   : ''}
+                {row.case_file?.ledger ? ` · ${ledgerLine(row.case_file.ledger)}` : ''}
               </span>
             </Link>
           </li>
